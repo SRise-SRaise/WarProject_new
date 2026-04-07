@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.springboot.mapper.EduExperimentItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.springboot.model.entity.EduExperimentItem">
+            <id property="id" column="id" />
+            <result property="sortOrder" column="sort_order" />
+            <result property="itemName" column="item_name" />
+            <result property="questionType" column="question_type" />
+            <result property="questionContent" column="question_content" />
+            <result property="experimentId" column="experiment_id" />
+            <result property="standardAnswer" column="standard_answer" />
+            <result property="maxScore" column="max_score" />
+            <result property="itemStatus" column="item_status" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,sort_order,item_name,question_type,question_content,experiment_id,
+        standard_answer,max_score,item_status,created_at,updated_at
+    </sql>
+</mapper>

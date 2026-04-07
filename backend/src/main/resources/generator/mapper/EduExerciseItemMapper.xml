@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.springboot.mapper.EduExerciseItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.springboot.model.entity.EduExerciseItem">
+            <id property="id" column="id" />
+            <result property="exerciseId" column="exercise_id" />
+            <result property="question" column="question" />
+            <result property="optionsText" column="options_text" />
+            <result property="standardAnswer" column="standard_answer" />
+            <result property="questionType" column="question_type" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,exercise_id,question,options_text,standard_answer,question_type,
+        created_at,updated_at
+    </sql>
+</mapper>

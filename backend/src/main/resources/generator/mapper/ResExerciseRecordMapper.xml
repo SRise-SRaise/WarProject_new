@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.springboot.mapper.ResExerciseRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.springboot.model.entity.ResExerciseRecord">
+            <id property="id" column="id" />
+            <result property="itemId" column="item_id" />
+            <result property="studentId" column="student_id" />
+            <result property="choiceAnswer" column="choice_answer" />
+            <result property="textContent" column="text_content" />
+            <result property="score" column="score" />
+            <result property="submittedAt" column="submitted_at" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,item_id,student_id,choice_answer,text_content,score,
+        submitted_at,created_at,updated_at
+    </sql>
+</mapper>

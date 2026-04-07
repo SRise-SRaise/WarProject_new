@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.springboot.mapper.AuthStudentMapper">
+
+    <resultMap id="BaseResultMap" type="com.springboot.model.entity.user.AuthStudent">
+            <id property="id" column="id" />
+            <result property="studentCode" column="student_code" />
+            <result property="studentName" column="student_name" />
+            <result property="passwordMd5" column="password_md5" />
+            <result property="classCode" column="class_code" />
+            <result property="remark" column="remark" />
+            <result property="accountStatus" column="account_status" />
+            <result property="loginFailCount" column="login_fail_count" />
+            <result property="lastLoginIp" column="last_login_ip" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,student_code,student_name,password_md5,class_code,remark,
+        account_status,login_fail_count,last_login_ip,created_at,updated_at
+    </sql>
+</mapper>
