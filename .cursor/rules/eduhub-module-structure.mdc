@@ -1,0 +1,75 @@
+---
+description: EduHub 前后端模块化落库规则
+globs:
+  - backend/src/main/java/com/springboot/**
+  - frontend/src/**
+alwaysApply: true
+---
+
+# EduHub 模块化编码规则（强制）
+
+## 1. 业务模块
+新增或修改业务代码时，必须先判定模块：
+- `user`：学生/教师/班级/登录认证
+- `homework`：作业/练习/提交记录/填空
+- `exam`：考试/试卷/题库/题型/考试记录/成绩
+- `experiment`：实验/实验项/实验结果
+- `common`：配置/日志/跨模块公共能力
+
+无法判定时，先询问，不得随意放根目录。
+
+## 2. 后端目录强约束
+
+### 2.1 Controller
+- 必须放在：`backend/src/main/java/com/springboot/controller/{module}/`
+
+### 2.2 Service
+- 接口必须放在：`backend/src/main/java/com/springboot/service/{module}/`
+- 实现必须放在：`backend/src/main/java/com/springboot/service/{module}/impl/`
+
+### 2.3 Mapper
+- 必须放在：`backend/src/main/java/com/springboot/mapper/{module}/`
+
+### 2.4 Model
+- Entity：`backend/src/main/java/com/springboot/model/entity/{module}/`
+- DTO：`backend/src/main/java/com/springboot/model/dto/{module}/`
+- VO：`backend/src/main/java/com/springboot/model/vo/{module}/`
+
+### 2.5 模板保留区（禁止迁移）
+以下模板链路允许保留在根目录，AI 不得擅自迁移：
+- `User` 相关模板链路（`UserService/UserServiceImpl/UserMapper/User`）
+- `Post`、`PostFavour`、`PostThumb` 相关模板链路
+
+## 3. 后端 Service 方法规范（每个业务 Service 必须具备）
+每个业务 `XxxService` 都必须包含并实现：
+- `void validXxx(Xxx entity, boolean add);`
+- `QueryWrapper<Xxx> getQueryWrapper(XxxQueryRequest queryRequest);`
+- `XxxVO getXxxVO(Xxx entity, HttpServletRequest request);`
+- `Page<XxxVO> getXxxVOPage(Page<Xxx> entityPage, HttpServletRequest request);`
+
+不得只写空壳方法或 `return null` 占位。
+
+## 4. 前端目录强约束
+- 视图：`frontend/src/views/{module}/`
+- 组件：`frontend/src/components/{module}/`
+- 状态：`frontend/src/stores/{module}/`
+
+`api` 与 `types` 当前不强制分模块，但新增业务页面/组件/store 必须落到模块目录。
+
+## 5. 前端路由规则
+- 路由文件直接放 `frontend/src/router/`，不使用 `router/modules`
+- 使用：`user.ts`、`homework.ts`、`exam.ts`、`experiment.ts`、`common.ts`
+- `index.ts` 统一聚合
+
+## 6. 禁止事项
+- 禁止在未分模块根目录新增业务类或业务页面
+- 禁止跨模块直接耦合引用（跨模块复用应放 `common`）
+- 禁止在未确认模块归属时直接编码
+
+## 7. 提交前自检
+每次完成代码后必须检查：
+1. 新文件路径是否在正确模块目录
+2. Java `package` 是否与目录一致
+3. 业务 Service 四个标准方法是否齐全
+4. 后端编译：`mvn -DskipTests compile`
+5. 前端可执行时构建：`npm run build`
