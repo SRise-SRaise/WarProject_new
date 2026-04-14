@@ -6,7 +6,7 @@ const modules = import.meta.glob('./*.ts', { eager: true })
 const routeModules: RouteRecordRaw[] = []
 
 Object.entries(modules).forEach(([key, value]) => {
-  if (key !== './index.ts' && key !== './guards.ts') {
+  if (key !== './index.ts' && key !== './guards.ts' && key !== './meta.ts') {
     const moduleRoutes = (value as { default?: unknown }).default || value
     if (Array.isArray(moduleRoutes)) {
       routeModules.push(...moduleRoutes)

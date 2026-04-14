@@ -1,39 +1,55 @@
 import type { RouteRecordRaw } from 'vue-router'
-import type { Component } from 'vue'
 import BackendLayout from '@/layouts/BackendLayout.vue'
-import DashboardView from '@/views/DashboardView.vue'
-import { DashboardOutlined } from '@ant-design/icons-vue'
+import { DashboardOutlined, ReadOutlined } from '@ant-design/icons-vue'
+import { adminExamRoutes } from './exam'
+import { adminExperimentRoutes } from './experiment'
+import { adminHomeworkRoutes } from './homework'
+import { adminUserRoutes } from './user'
 
-/** 菜单分组描述，挂在同组路由的 meta.group 上 */
-export interface MenuGroup {
-  key: string
-  title: string
-  icon: Component
-}
-
-declare module 'vue-router' {
-  interface RouteMeta {
-    title?: string
-    /** 顶级菜单图标（无分组时使用） */
-    icon?: Component
-    /** 所属分组，有此字段则归入 sub-menu */
-    group?: MenuGroup
-  }
-}
+const TeacherDashboardView = () => import('@/views/common/admin/TeacherDashboardView.vue')
+const MaterialManagementView = () => import('@/views/common/admin/MaterialManagementView.vue')
 
 const adminRoutes: RouteRecordRaw = {
   path: '/admin',
   component: BackendLayout,
   redirect: '/admin/dashboard',
-  meta: { title: '管理后台' },
+  meta: {
+    title: '教师管理后台',
+    requiresAuth: true,
+    audience: 'admin'
+  },
   children: [
     {
       path: 'dashboard',
       name: 'AdminDashboard',
-      component: DashboardView,
-      meta: { title: '数据总览', icon: DashboardOutlined },
-    }
-  ],
+      component: TeacherDashboardView,
+      meta: {
+        title: '教学工作台',
+        icon: DashboardOutlined,
+        order: 1,
+        requiresAuth: true,
+        audience: 'admin',
+        summary: '汇总待处理教学任务、资源更新与班级状态。'
+      }
+    },
+    {
+      path: 'materials',
+      name: 'AdminMaterialManagement',
+      component: MaterialManagementView,
+      meta: {
+        title: '资料管理',
+        icon: ReadOutlined,
+        order: 12,
+        requiresAuth: true,
+        audience: 'admin',
+        summary: '查看共享资料台账、开放范围与最近更新，当前波次保持只读管理。'
+      }
+    },
+    ...adminUserRoutes,
+    ...adminHomeworkRoutes,
+    ...adminExperimentRoutes,
+    ...adminExamRoutes,
+  ]
 }
 
 export default adminRoutes

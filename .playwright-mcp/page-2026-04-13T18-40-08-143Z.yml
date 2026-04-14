@@ -1,0 +1,106 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "EH EduHub 校内课程资料与教学协同" [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: EH
+        - generic [ref=e8]:
+          - strong [ref=e9]: EduHub
+          - generic [ref=e10]: 校内课程资料与教学协同
+      - navigation "主导航" [ref=e11]:
+        - button "平台首页" [ref=e12] [cursor=pointer]
+      - generic [ref=e14]:
+        - button "登 录" [ref=e16] [cursor=pointer]:
+          - generic [ref=e17]: 登 录
+        - button "注 册" [ref=e19] [cursor=pointer]:
+          - generic [ref=e20]: 注 册
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: 教学协同 / 学习空间
+          - heading "把课程资料、学习提醒与教学管理收进同一套校内协作界面。" [level=1] [ref=e27]
+          - paragraph [ref=e28]: 第一波界面聚焦公共入口、学生学习概览、课程资料详情和教师管理工作台， 让新系统先具备稳定、清晰、可继续扩展的产品骨架。
+          - generic [ref=e29]:
+            - button "立即登录" [ref=e31] [cursor=pointer]:
+              - generic [ref=e32]: 立即登录
+            - button "教师工作台" [ref=e34] [cursor=pointer]:
+              - generic [ref=e35]: 教师工作台
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - paragraph [ref=e38]: 首波页面覆盖
+            - strong [ref=e40]: 9 个
+            - paragraph [ref=e41]: 公共入口、学习概览、资料详情与教师管理页已经成型。
+          - generic [ref=e42]:
+            - paragraph [ref=e43]: 课程资料样本
+            - strong [ref=e45]: 5 份
+            - paragraph [ref=e46]: 以真实课程节奏组织的讲义、录播、实验指导和案例材料。
+          - generic [ref=e47]:
+            - paragraph [ref=e48]: 角色分流
+            - strong [ref=e50]: 学生 / 教师
+            - paragraph [ref=e51]: 登录后按身份自动进入学习侧或管理侧入口。
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: 导航来源
+            - strong [ref=e55]: 100% 路由元数据
+            - paragraph [ref=e56]: 后台菜单、标题与分组统一由路由定义驱动。
+      - generic [ref=e57]:
+        - generic [ref=e59]:
+          - paragraph [ref=e60]: 首波范围
+          - heading "把公共入口、学习视图和教学视图组织成一致的导航语言。" [level=2] [ref=e62]
+          - paragraph [ref=e63]: 页面不再沿用模板站点式布局，而是让首页、学习概览、教师工作台和个人设置都围绕同一套主题变量与卡片层级展开。
+        - generic [ref=e64]:
+          - article [ref=e65]:
+            - heading "学生学习闭环" [level=3] [ref=e66]
+            - paragraph [ref=e67]: 围绕学习概览、课程资料和个人中心组织首页到详情的连续体验。
+            - generic [ref=e68]:
+              - generic [ref=e69]: 学习概览
+              - generic [ref=e70]: 课程资料
+              - generic [ref=e71]: 个人中心
+          - article [ref=e72]:
+            - heading "教师工作台" [level=3] [ref=e73]
+            - paragraph [ref=e74]: 从待办任务、班级状态到协同入口，优先承载教学分发与组织管理。
+            - generic [ref=e75]:
+              - generic [ref=e76]: 工作台
+              - generic [ref=e77]: 待处理队列
+              - generic [ref=e78]: 班级健康度
+          - article [ref=e79]:
+            - heading "可持续扩展骨架" [level=3] [ref=e80]
+            - paragraph [ref=e81]: 第一波只实现 common 与 user 模块业务页，为 homework、exam、experiment 预留后续接入空间。
+            - generic [ref=e82]:
+              - generic [ref=e83]: 模块化
+              - generic [ref=e84]: 双壳层
+              - generic [ref=e85]: 生成 API 复用
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - generic [ref=e89]:
+            - paragraph [ref=e90]: 落地节奏
+            - heading "先把关键路径做好，再继续接入流程型业务模块。" [level=2] [ref=e92]
+            - paragraph [ref=e93]: 当前页面已按模块目录和双壳层分清职责，后续作业、实验与考试模块可以延续相同路由与页面结构接入。
+          - generic [ref=e94]:
+            - generic [ref=e97]:
+              - heading "第一阶段：壳层与关键页面" [level=3] [ref=e98]
+              - paragraph [ref=e99]: 先完成公共首页、登录注册、学习概览、资料详情与教师工作台。
+            - generic [ref=e102]:
+              - heading "第二阶段：流程型模块接入" [level=3] [ref=e103]
+              - paragraph [ref=e104]: 在既有路由骨架上继续接 homework、exam、experiment 业务链路。
+            - generic [ref=e107]:
+              - heading "第三阶段：真实接口联调" [level=3] [ref=e108]
+              - paragraph [ref=e109]: 用后端新暴露的业务接口替换当前 fixture repository，保留页面结构不动。
+        - generic [ref=e110]:
+          - generic [ref=e113]:
+            - paragraph [ref=e114]: 资料预览
+            - heading "先把课程资料域做完整。" [level=2] [ref=e116]
+            - paragraph [ref=e117]: 资料列表和详情页是学生学习入口的核心锚点，也是后续流程模块最稳定的公共资源底座。
+          - generic [ref=e118]:
+            - generic [ref=e120]:
+              - paragraph [ref=e121]: 实施提醒
+              - heading "当前实现说明" [level=2] [ref=e123]
+              - paragraph [ref=e124]: 下面两项是当前首波界面的关键使用说明。
+            - generic [ref=e125]:
+              - article [ref=e126]:
+                - heading "账号分流说明" [level=3] [ref=e127]
+                - paragraph [ref=e128]: 教师账号将优先进入 /admin 工作台；学生账号进入 /learning。
+                - generic [ref=e129]: 今日更新
+              - article [ref=e130]:
+                - heading "资料页策略" [level=3] [ref=e131]
+                - paragraph [ref=e132]: 当前资料页采用 fixture repository 驱动，结构已按后续真实接口形态预留。
+                - generic [ref=e133]: 本周重点
