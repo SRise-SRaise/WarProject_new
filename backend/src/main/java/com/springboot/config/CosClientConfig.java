@@ -2,7 +2,7 @@ package com.springboot.config;
 
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.ClientConfig;
-import com.qcloud.cos.auth.BasicCOSCredentials;
+import com.qcloud.cos.auth.AnonymousCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
 import com.qcloud.cos.region.Region;
 import lombok.Data;
@@ -38,14 +38,16 @@ public class CosClientConfig {
      */
     private String bucket;
 
+    /**
+     * 本地开发占位用 COSClient：
+     * - 使用匿名凭证，避免 accessKey/secretKey 为空导致启动失败
+     * - 真正需要上传到 COS 时，再改回 BasicCOSCredentials + 正确配置
+     */
     @Bean
     public COSClient cosClient() {
-        // 初始化用户身份信息(secretId, secretKey)
-        COSCredentials cred = new BasicCOSCredentials(accessKey, secretKey);
-        // 设置bucket的区域, COS地域的简称请参照 https://www.qcloud.com/document/product/436/6224
-        ClientConfig clientConfig = new ClientConfig(new Region(region));
-        // 生成cos客户端
+        COSCredentials cred = new AnonymousCOSCredentials();
+        String effectiveRegion = (region != null && !region.isEmpty()) ? region : "ap-guangzhou";
+        ClientConfig clientConfig = new ClientConfig(new Region(effectiveRegion));
         return new COSClient(cred, clientConfig);
     }
 }
-
