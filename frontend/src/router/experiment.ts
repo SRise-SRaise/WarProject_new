@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
-import { ExperimentOutlined, ToolOutlined } from '@ant-design/icons-vue'
+import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined } from '@ant-design/icons-vue'
 import type { MenuGroup } from './meta'
 
 const ExperimentListView = () => import('@/views/experiment/student/ListView.vue')
@@ -29,7 +29,7 @@ const experimentRoutes: RouteRecordRaw[] = [
 ]
 
 export const adminExperimentRoutes: RouteRecordRaw[] = [
-  { path: 'experiments', name: 'AdminExperimentList', component: AdminExperimentListView, meta: { title: '实验列表', icon: ExperimentOutlined, group: experimentGroup, order: 40, requiresAuth: true, audience: 'admin', summary: '查看实验任务、范围和结果处理进度。' } },
+  { path: 'experiments', name: 'AdminExperimentList', component: AdminExperimentListView, meta: { title: '实验列表', icon: UnorderedListOutlined, group: experimentGroup, order: 40, requiresAuth: true, audience: 'admin', summary: '查看实验任务、范围和结果处理进度。' } },
   { path: 'experiments/edit', name: 'AdminExperimentCreate', component: AdminExperimentEditView, meta: { title: '新建实验', icon: ToolOutlined, group: experimentGroup, order: 41, requiresAuth: true, audience: 'admin', summary: '创建实验草稿并维护基础信息。', hideInMenu: true } },
   { path: 'experiments/edit/:id', name: 'AdminExperimentEdit', component: AdminExperimentEditView, meta: { title: '编辑实验', icon: ToolOutlined, group: experimentGroup, order: 42, requiresAuth: true, audience: 'admin', summary: '编辑实验摘要、安排和标签。', hideInMenu: true } },
   { path: 'experiments/items/:id', name: 'AdminExperimentItems', component: AdminExperimentItemsView, meta: { title: '实验项管理', icon: ExperimentOutlined, group: experimentGroup, order: 43, requiresAuth: true, audience: 'admin', summary: '查看实验步骤和交付物要求。', hideInMenu: true } },

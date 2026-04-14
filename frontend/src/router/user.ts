@@ -82,6 +82,7 @@ export const adminUserRoutes: RouteRecordRaw[] = [
       order: 90,
       requiresAuth: true,
       audience: 'admin',
+      hideInMenu: true,
       summary: '维护教师资料、教学偏好和通知方式。'
     }
   }
