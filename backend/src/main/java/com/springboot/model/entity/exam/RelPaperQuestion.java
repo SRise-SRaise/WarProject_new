@@ -40,6 +40,18 @@ public class RelPaperQuestion implements Serializable {
     private Integer score;
 
     /**
+     * 题目在试卷中的顺序号
+     */
+    @TableField(value = "question_order")
+    private Integer questionOrder;
+
+    /**
+     * 题目分组名称，如单选题/简答题
+     */
+    @TableField(value = "section_name")
+    private String sectionName;
+
+    /**
      * 
      */
     @TableField(value = "created_at")
@@ -70,6 +82,8 @@ public class RelPaperQuestion implements Serializable {
             && (this.getPaperId() == null ? other.getPaperId() == null : this.getPaperId().equals(other.getPaperId()))
             && (this.getQuestionId() == null ? other.getQuestionId() == null : this.getQuestionId().equals(other.getQuestionId()))
             && (this.getScore() == null ? other.getScore() == null : this.getScore().equals(other.getScore()))
+            && (this.getQuestionOrder() == null ? other.getQuestionOrder() == null : this.getQuestionOrder().equals(other.getQuestionOrder()))
+            && (this.getSectionName() == null ? other.getSectionName() == null : this.getSectionName().equals(other.getSectionName()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
     }
@@ -82,6 +96,8 @@ public class RelPaperQuestion implements Serializable {
         result = prime * result + ((getPaperId() == null) ? 0 : getPaperId().hashCode());
         result = prime * result + ((getQuestionId() == null) ? 0 : getQuestionId().hashCode());
         result = prime * result + ((getScore() == null) ? 0 : getScore().hashCode());
+        result = prime * result + ((getQuestionOrder() == null) ? 0 : getQuestionOrder().hashCode());
+        result = prime * result + ((getSectionName() == null) ? 0 : getSectionName().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
         return result;
@@ -97,6 +113,8 @@ public class RelPaperQuestion implements Serializable {
         sb.append(", paperId=").append(paperId);
         sb.append(", questionId=").append(questionId);
         sb.append(", score=").append(score);
+        sb.append(", questionOrder=").append(questionOrder);
+        sb.append(", sectionName=").append(sectionName);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);
         sb.append(", serialVersionUID=").append(serialVersionUID);
@@ -104,5 +122,3 @@ public class RelPaperQuestion implements Serializable {
         return sb.toString();
     }
 }
-
-

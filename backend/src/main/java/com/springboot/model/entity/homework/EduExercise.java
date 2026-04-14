@@ -34,6 +34,12 @@ public class EduExercise implements Serializable {
     private String taskName;
 
     /**
+     * 创建教师ID
+     */
+    @TableField(value = "teacher_id")
+    private Long teacherId;
+
+    /**
      * 关联实验编号
      */
     @TableField(value = "relate_exp_id")
@@ -50,6 +56,12 @@ public class EduExercise implements Serializable {
      */
     @TableField(value = "description")
     private String description;
+
+    /**
+     * 发布状态：0=草稿,1=已发布,2=已关闭
+     */
+    @TableField(value = "publish_status")
+    private Integer publishStatus;
 
     /**
      * 开放时间
@@ -93,9 +105,11 @@ public class EduExercise implements Serializable {
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
             && (this.getSortOrder() == null ? other.getSortOrder() == null : this.getSortOrder().equals(other.getSortOrder()))
             && (this.getTaskName() == null ? other.getTaskName() == null : this.getTaskName().equals(other.getTaskName()))
+            && (this.getTeacherId() == null ? other.getTeacherId() == null : this.getTeacherId().equals(other.getTeacherId()))
             && (this.getRelateExpId() == null ? other.getRelateExpId() == null : this.getRelateExpId().equals(other.getRelateExpId()))
             && (this.getInteractMode() == null ? other.getInteractMode() == null : this.getInteractMode().equals(other.getInteractMode()))
             && (this.getDescription() == null ? other.getDescription() == null : this.getDescription().equals(other.getDescription()))
+            && (this.getPublishStatus() == null ? other.getPublishStatus() == null : this.getPublishStatus().equals(other.getPublishStatus()))
             && (this.getStartTime() == null ? other.getStartTime() == null : this.getStartTime().equals(other.getStartTime()))
             && (this.getEndTime() == null ? other.getEndTime() == null : this.getEndTime().equals(other.getEndTime()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
@@ -109,9 +123,11 @@ public class EduExercise implements Serializable {
         result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
         result = prime * result + ((getSortOrder() == null) ? 0 : getSortOrder().hashCode());
         result = prime * result + ((getTaskName() == null) ? 0 : getTaskName().hashCode());
+        result = prime * result + ((getTeacherId() == null) ? 0 : getTeacherId().hashCode());
         result = prime * result + ((getRelateExpId() == null) ? 0 : getRelateExpId().hashCode());
         result = prime * result + ((getInteractMode() == null) ? 0 : getInteractMode().hashCode());
         result = prime * result + ((getDescription() == null) ? 0 : getDescription().hashCode());
+        result = prime * result + ((getPublishStatus() == null) ? 0 : getPublishStatus().hashCode());
         result = prime * result + ((getStartTime() == null) ? 0 : getStartTime().hashCode());
         result = prime * result + ((getEndTime() == null) ? 0 : getEndTime().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
@@ -128,9 +144,11 @@ public class EduExercise implements Serializable {
         sb.append(", id=").append(id);
         sb.append(", sortOrder=").append(sortOrder);
         sb.append(", taskName=").append(taskName);
+        sb.append(", teacherId=").append(teacherId);
         sb.append(", relateExpId=").append(relateExpId);
         sb.append(", interactMode=").append(interactMode);
         sb.append(", description=").append(description);
+        sb.append(", publishStatus=").append(publishStatus);
         sb.append(", startTime=").append(startTime);
         sb.append(", endTime=").append(endTime);
         sb.append(", createdAt=").append(createdAt);
@@ -140,5 +158,3 @@ public class EduExercise implements Serializable {
         return sb.toString();
     }
 }
-
-

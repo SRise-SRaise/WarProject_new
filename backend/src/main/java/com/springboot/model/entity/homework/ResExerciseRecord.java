@@ -22,6 +22,12 @@ public class ResExerciseRecord implements Serializable {
     private Long id;
 
     /**
+     * 所属练习ID
+     */
+    @TableField(value = "exercise_id")
+    private Long exerciseId;
+
+    /**
      * 练习题目ID
      */
     @TableField(value = "item_id")
@@ -85,6 +91,7 @@ public class ResExerciseRecord implements Serializable {
         }
         ResExerciseRecord other = (ResExerciseRecord) that;
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
+            && (this.getExerciseId() == null ? other.getExerciseId() == null : this.getExerciseId().equals(other.getExerciseId()))
             && (this.getItemId() == null ? other.getItemId() == null : this.getItemId().equals(other.getItemId()))
             && (this.getStudentId() == null ? other.getStudentId() == null : this.getStudentId().equals(other.getStudentId()))
             && (this.getChoiceAnswer() == null ? other.getChoiceAnswer() == null : this.getChoiceAnswer().equals(other.getChoiceAnswer()))
@@ -100,6 +107,7 @@ public class ResExerciseRecord implements Serializable {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
+        result = prime * result + ((getExerciseId() == null) ? 0 : getExerciseId().hashCode());
         result = prime * result + ((getItemId() == null) ? 0 : getItemId().hashCode());
         result = prime * result + ((getStudentId() == null) ? 0 : getStudentId().hashCode());
         result = prime * result + ((getChoiceAnswer() == null) ? 0 : getChoiceAnswer().hashCode());
@@ -118,6 +126,7 @@ public class ResExerciseRecord implements Serializable {
         sb.append(" [");
         sb.append("Hash = ").append(hashCode());
         sb.append(", id=").append(id);
+        sb.append(", exerciseId=").append(exerciseId);
         sb.append(", itemId=").append(itemId);
         sb.append(", studentId=").append(studentId);
         sb.append(", choiceAnswer=").append(choiceAnswer);
@@ -131,5 +140,3 @@ public class ResExerciseRecord implements Serializable {
         return sb.toString();
     }
 }
-
-

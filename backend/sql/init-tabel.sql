@@ -142,16 +142,18 @@ CREATE TABLE `edu_experiment_item`
 DROP TABLE IF EXISTS `edu_exercise`;
 CREATE TABLE `edu_exercise`
 (
-    `id`            BIGINT   NOT NULL AUTO_INCREMENT COMMENT '练习主键ID',
-    `sort_order`    INT               DEFAULT NULL COMMENT '练习序号',
-    `task_name`     VARCHAR(255)      DEFAULT NULL COMMENT '练习名称',
-    `relate_exp_id` BIGINT            DEFAULT NULL COMMENT '关联实验编号',
-    `interact_mode` INT               DEFAULT NULL COMMENT '练习类型',
-    `description`   VARCHAR(255)      DEFAULT NULL COMMENT '练习描述',
-    `start_time`    DATETIME          DEFAULT NULL COMMENT '开放时间',
-    `end_time`      DATETIME          DEFAULT NULL COMMENT '截止时间',
-    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '练习主键ID',
+    `sort_order`    INT                    DEFAULT NULL COMMENT '练习序号',
+    `task_name`     VARCHAR(255)           DEFAULT NULL COMMENT '练习名称',
+    `teacher_id`    BIGINT                 DEFAULT NULL COMMENT '创建教师ID',
+    `relate_exp_id` BIGINT                 DEFAULT NULL COMMENT '关联实验编号',
+    `interact_mode` INT                    DEFAULT NULL COMMENT '练习类型',
+    `description`   VARCHAR(255)           DEFAULT NULL COMMENT '练习描述',
+    `publish_status` INT                   DEFAULT 0 COMMENT '发布状态：0草稿，1已发布，2已关闭',
+    `start_time`    DATETIME               DEFAULT NULL COMMENT '开放时间',
+    `end_time`      DATETIME               DEFAULT NULL COMMENT '截止时间',
+    `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='课内练习表';
@@ -159,19 +161,38 @@ CREATE TABLE `edu_exercise`
 DROP TABLE IF EXISTS `edu_exercise_item`;
 CREATE TABLE `edu_exercise_item`
 (
-    `id`              BIGINT   NOT NULL AUTO_INCREMENT COMMENT '练习题目主键ID',
-    `exercise_id`     BIGINT   NOT NULL COMMENT '所属练习ID',
-    `question`        VARCHAR(255)      DEFAULT NULL COMMENT '题目题干',
-    `options_text`    VARCHAR(255)      DEFAULT NULL COMMENT '选项',
-    `standard_answer` VARCHAR(255)      DEFAULT NULL COMMENT '标准答案',
-    `question_type`   INT               DEFAULT NULL COMMENT '题目类型',
-    `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '练习题目主键ID',
+    `exercise_id`     BIGINT        NOT NULL COMMENT '所属练习ID',
+    `question`        VARCHAR(255)           DEFAULT NULL COMMENT '题目题干',
+    `options_text`    VARCHAR(255)           DEFAULT NULL COMMENT '选项',
+    `standard_answer` VARCHAR(255)           DEFAULT NULL COMMENT '标准答案',
+    `question_type`   INT                    DEFAULT NULL COMMENT '题目类型',
+    `max_score`       TINYINT                DEFAULT NULL COMMENT '该题满分分值',
+    `question_bank_id` BIGINT               DEFAULT NULL COMMENT '来源题库ID，关联 edu_question_bank.id',
+    `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `fk_exe_item_exe` (`exercise_id`),
     CONSTRAINT `fk_exe_item_exe` FOREIGN KEY (`exercise_id`) REFERENCES `edu_exercise` (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='练习题目表';
+
+DROP TABLE IF EXISTS `rel_exercise_class`;
+CREATE TABLE `rel_exercise_class`
+(
+    `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '关联主键ID',
+    `exercise_id` BIGINT      NOT NULL COMMENT '练习ID',
+    `class_code`  VARCHAR(6)  NOT NULL COMMENT '班级编号',
+    `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_exercise_class` (`exercise_id`, `class_code`),
+    KEY `fk_exercise_class_exercise` (`exercise_id`),
+    KEY `fk_exercise_class_class` (`class_code`),
+    CONSTRAINT `fk_exercise_class_exercise` FOREIGN KEY (`exercise_id`) REFERENCES `edu_exercise` (`id`),
+    CONSTRAINT `fk_exercise_class_class` FOREIGN KEY (`class_code`) REFERENCES `auth_class` (`class_code`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='练习-班级关联表';
 
 -- ==========================================
 -- 4. 考试与题库 (Exam Module)
@@ -180,12 +201,16 @@ CREATE TABLE `edu_exercise_item`
 DROP TABLE IF EXISTS `edu_question_bank`;
 CREATE TABLE `edu_question_bank`
 (
-    `id`               BIGINT   NOT NULL AUTO_INCREMENT COMMENT '题目主键ID',
-    `question_content` VARCHAR(255)      DEFAULT NULL COMMENT '题目题干',
-    `standard_answer`  VARCHAR(255)      DEFAULT NULL COMMENT '标准答案',
-    `question_type`    INT               DEFAULT NULL COMMENT '题目类型',
-    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '题目主键ID',
+    `question_content`  VARCHAR(255)           DEFAULT NULL COMMENT '题目题干',
+    `question_type`     INT                    DEFAULT NULL COMMENT '题目类型，对应 edu_question_type.type_id',
+    `options_text`      VARCHAR(1000)          DEFAULT NULL COMMENT '选项内容，主要用于单选/多选/判断题',
+    `standard_answer`   VARCHAR(255)           DEFAULT NULL COMMENT '标准答案',
+    `analysis`          TEXT COMMENT '题目解析说明',
+    `difficulty`        TINYINT                DEFAULT NULL COMMENT '难度系数：1-5',
+    `creator_teacher_id` BIGINT                DEFAULT NULL COMMENT '创建教师ID',
+    `created_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='题目表/题库';
@@ -195,6 +220,7 @@ CREATE TABLE `edu_exam`
 (
     `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '考试主键ID',
     `exam_name`    VARCHAR(30) NOT NULL COMMENT '考试名称',
+    `paper_id`     BIGINT               DEFAULT NULL COMMENT '本次考试使用的试卷ID',
     `duration_min` INT                  DEFAULT NULL COMMENT '考试时长',
     `start_time`   DATETIME             DEFAULT NULL COMMENT '开始时间',
     `is_published` BIT(1)               DEFAULT NULL COMMENT '开放标记',
@@ -221,12 +247,14 @@ CREATE TABLE `edu_paper`
 DROP TABLE IF EXISTS `rel_paper_question`;
 CREATE TABLE `rel_paper_question`
 (
-    `id`          BIGINT   NOT NULL AUTO_INCREMENT COMMENT '关联表主键',
-    `paper_id`    BIGINT            DEFAULT NULL COMMENT '试卷ID',
-    `question_id` BIGINT            DEFAULT NULL COMMENT '题目ID',
-    `score`       INT               DEFAULT NULL COMMENT '该题分值',
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`              BIGINT   NOT NULL AUTO_INCREMENT COMMENT '关联表主键',
+    `paper_id`        BIGINT            DEFAULT NULL COMMENT '试卷ID',
+    `question_id`     BIGINT            DEFAULT NULL COMMENT '题目ID',
+    `score`           INT               DEFAULT NULL COMMENT '该题分值',
+    `question_order`  INT               DEFAULT NULL COMMENT '该题在试卷中的顺序号',
+    `section_name`    VARCHAR(50)       DEFAULT NULL COMMENT '题目分组名称，如单选题/简答题',
+    `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='试卷题目关联表';
@@ -239,6 +267,7 @@ DROP TABLE IF EXISTS `res_exercise_record`;
 CREATE TABLE `res_exercise_record`
 (
     `id`            BIGINT   NOT NULL AUTO_INCREMENT COMMENT '答题记录主键ID',
+    `exercise_id`   BIGINT            DEFAULT NULL COMMENT '所属练习ID',
     `item_id`       BIGINT            DEFAULT NULL COMMENT '练习题目ID',
     `student_id`    BIGINT            DEFAULT NULL COMMENT '学生ID',
     `choice_answer` VARCHAR(30)       DEFAULT NULL COMMENT '选择/判断题答案',
@@ -248,6 +277,7 @@ CREATE TABLE `res_exercise_record`
     `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_res_exe_record` (`student_id`, `item_id`),
     KEY `fk_res_exe_item` (`item_id`),
     KEY `fk_res_exe_student` (`student_id`),
     CONSTRAINT `fk_res_exe_item` FOREIGN KEY (`item_id`) REFERENCES `edu_exercise_item` (`id`),
@@ -288,7 +318,7 @@ CREATE TABLE `res_experiment_result`
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_res_exp_result` (`student_id`, `item_id`),
     KEY `fk_res_exp_result_item` (`item_id`),
-    CONSTRAINT `fk_res_exp_result_item` FOREIGN KEY (`item_id`) REFERENCES `edu_experiment_item` (`id`),
+    CONSTRAINT `fk_res_exp_result_item` FOREIGN KEY (`item_id`) REFERENCES `edu_experiment` (`id`),
     CONSTRAINT `fk_res_exp_result_student` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生实验提交记录表';
@@ -310,14 +340,19 @@ CREATE TABLE `res_submission_log`
 DROP TABLE IF EXISTS `res_exam_record`;
 CREATE TABLE `res_exam_record`
 (
-    `id`             BIGINT   NOT NULL AUTO_INCREMENT COMMENT '考试答题主键ID',
-    `student_id`     BIGINT            DEFAULT NULL COMMENT '学生ID',
-    `question_id`    BIGINT            DEFAULT NULL COMMENT '题目ID',
-    `student_answer` VARCHAR(255)      DEFAULT NULL COMMENT '填写的答案',
-    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_res_exam_record` (`student_id`, `question_id`)
+    `id`                BIGINT   NOT NULL AUTO_INCREMENT COMMENT '考试答题主键ID',
+    `exam_id`           BIGINT            DEFAULT NULL COMMENT '考试ID',
+    `paper_id`          BIGINT            DEFAULT NULL COMMENT '试卷ID',
+    `paper_question_id` BIGINT            DEFAULT NULL COMMENT '试卷题目关联ID',
+    `student_id`        BIGINT            DEFAULT NULL COMMENT '学生ID',
+    `question_id`       BIGINT            DEFAULT NULL COMMENT '题目ID',
+    `student_answer`    VARCHAR(255)      DEFAULT NULL COMMENT '填写的答案',
+    `score`             INT               DEFAULT NULL COMMENT '本题得分',
+    `grading_status`    INT               DEFAULT 0 COMMENT '批改状态：0未批改,1自动判分,2教师已批改',
+    `comment`           VARCHAR(255)      DEFAULT NULL COMMENT '教师评语',
+    `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生考试答题表';
 
@@ -337,6 +372,22 @@ CREATE TABLE `res_score_summary`
     CONSTRAINT `fk_res_score_exp` FOREIGN KEY (`experiment_id`) REFERENCES `edu_experiment` (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='实验成绩汇总缓存表';
+
+DROP TABLE IF EXISTS `res_exam_summary`;
+CREATE TABLE `res_exam_summary`
+(
+    `id`               BIGINT   NOT NULL AUTO_INCREMENT COMMENT '考试成绩汇总主键ID',
+    `exam_id`          BIGINT   NOT NULL COMMENT '考试ID',
+    `student_id`       BIGINT   NOT NULL COMMENT '学生ID',
+    `paper_id`         BIGINT            DEFAULT NULL COMMENT '试卷ID',
+    `total_score`      INT               DEFAULT NULL COMMENT '本场考试总分',
+    `objective_score`  INT               DEFAULT NULL COMMENT '客观题总得分',
+    `subjective_score` INT               DEFAULT NULL COMMENT '主观题总得分',
+    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='考试成绩汇总表';
 
 -- ==========================================
 -- 6. 系统配置与日志 (System Module)

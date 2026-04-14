@@ -6,34 +6,50 @@ DELIMITER ;;
 -- 1. 核心答题提交流程 (适配新表 res_exercise_record)
 -- ---------------------------------------------------------
 DROP PROCEDURE IF EXISTS `answerQuestion`;;
-CREATE PROCEDURE `answerQuestion`(IN p_studentId BIGINT, IN p_itemId BIGINT, IN p_type INT,
-                                  IN p_studentAnswer VARCHAR(500))
+CREATE PROCEDURE `answerQuestion`(
+    IN p_studentId      BIGINT,
+    IN p_exerciseId     BIGINT,
+    IN p_itemId         BIGINT,
+    IN p_type           INT,
+    IN p_studentAnswer  VARCHAR(500)
+)
 BEGIN
     DECLARE n INT;
-    -- 检查是否已经答过该题
-    SELECT COUNT(*) INTO n FROM `res_exercise_record` WHERE `student_id` = p_studentId AND `item_id` = p_itemId;
+    -- 检查是否已经答过该题（唯一索引：student_id + item_id）
+    SELECT COUNT(*) INTO n
+    FROM `res_exercise_record`
+    WHERE `student_id` = p_studentId
+      AND `item_id` = p_itemId;
 
     IF n = 0 THEN
-        -- type 1和2 是选择/填空，存入 choice_answer
+        -- 首次作答
         IF p_type = 1 OR p_type = 2 THEN
-            INSERT INTO `res_exercise_record`(`student_id`, `item_id`, `choice_answer`, `submitted_at`)
-            VALUES (p_studentId, p_itemId, p_studentAnswer, NOW());
+            -- 选择/判断等客观题
+            INSERT INTO `res_exercise_record`(
+                `exercise_id`, `student_id`, `item_id`,
+                `choice_answer`, `submitted_at`
+            )
+            VALUES (p_exerciseId, p_studentId, p_itemId, p_studentAnswer, NOW());
         ELSE
-            -- 其他类型(编程/简答)存入 text_content
-            INSERT INTO `res_exercise_record`(`student_id`, `item_id`, `text_content`, `submitted_at`)
-            VALUES (p_studentId, p_itemId, p_studentAnswer, NOW());
+            -- 编程/简答等主观题
+            INSERT INTO `res_exercise_record`(
+                `exercise_id`, `student_id`, `item_id`,
+                `text_content`, `submitted_at`
+            )
+            VALUES (p_exerciseId, p_studentId, p_itemId, p_studentAnswer, NOW());
         END IF;
     ELSE
+        -- 已经作答过，走更新逻辑（exercise_id 基本不会变，这里无需更新）
         IF p_type = 1 OR p_type = 2 THEN
             UPDATE `res_exercise_record`
-            SET `choice_answer`=p_studentAnswer,
-                `submitted_at`=NOW()
+            SET `choice_answer` = p_studentAnswer,
+                `submitted_at` = NOW()
             WHERE `student_id` = p_studentId
               AND `item_id` = p_itemId;
         ELSE
             UPDATE `res_exercise_record`
-            SET `text_content`=p_studentAnswer,
-                `submitted_at`=NOW()
+            SET `text_content` = p_studentAnswer,
+                `submitted_at` = NOW()
             WHERE `student_id` = p_studentId
               AND `item_id` = p_itemId;
         END IF;
