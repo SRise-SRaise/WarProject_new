@@ -95,11 +95,11 @@ cos:
 # 华为云OBS对象存储配置
 obs:
   enable: true
-  access-key: 你的真实access-key
-  secret-key: 你的真实secret-key
-  end-point: https://obs.cn-north-4.myhuaweicloud.com
+  access-key: HPUAVOOTVXJ9HHSV1IVM
+  secret-key: wEGWdxQAwMbDiY5TXDAhrqUif48hGE4kpU5P8SEC
+  end-point: https://obs.cn-southwest-2.myhuaweicloud.com
   bucket-name: 你的桶名称
-  domain: https://你的桶名.obs.cn-north-4.myhuaweicloud.com
+  domain: https://edu-hub.obs.cn-southwest-2.myhuaweicloud.com
   max-file-size: 52428800
 # 接口文档配置
 knife4j:
