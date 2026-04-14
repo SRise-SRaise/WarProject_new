@@ -12,18 +12,32 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8200/api',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        target: 'http://localhost:8200',
+        changeOrigin: true
+      },
+      '/auth': {
+        target: 'http://localhost:8200',
+        changeOrigin: true
+      },
+      '/users': {
+        target: 'http://localhost:8200',
+        changeOrigin: true
       }
     }
   },
   preview: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8200/api',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        target: 'http://localhost:8200',
+        changeOrigin: true
+      },
+      '/auth': {
+        target: 'http://localhost:8200',
+        changeOrigin: true
+      },
+      '/users': {
+        target: 'http://localhost:8200',
+        changeOrigin: true
       }
     }
   },
