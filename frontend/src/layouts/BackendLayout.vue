@@ -103,7 +103,16 @@
 
       <a-layout-content class="content">
         <div class="content__inner">
-          <router-view />
+          <router-view v-slot="{ Component }">
+            <template v-if="Component">
+              <component :is="Component" />
+            </template>
+            <template v-else>
+              <div style="padding: 40px; text-align: center">
+                <p>页面加载中...</p>
+              </div>
+            </template>
+          </router-view>
         </div>
       </a-layout-content>
     </a-layout>
