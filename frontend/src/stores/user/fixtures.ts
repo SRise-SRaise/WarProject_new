@@ -24,31 +24,45 @@ export const sampleLoginAccounts = [
   {
     role: 'student' as const,
     label: '学生体验账号',
-    account: '2024001',
-    password: 'learn2024'
+    account: 'student',
+    password: '123456'
   },
   {
     role: 'teacher' as const,
     label: '教师体验账号',
-    account: 'teacher01',
-    password: 'teach2024'
+    account: 'teacher',
+    password: '123456'
   }
 ]
 
 export const defaultUserAccounts: RegisteredAccount[] = [
   {
     id: 'student-001',
-    account: '2024001',
-    password: 'learn2024',
+    account: 'student',
+    password: '123456',
     role: 'student',
     name: '李明'
   },
   {
+    id: 'student-002',
+    account: '2024001',
+    password: 'learn2024',
+    role: 'student',
+    name: '张宁'
+  },
+  {
     id: 'teacher-001',
+    account: 'teacher',
+    password: '123456',
+    role: 'teacher',
+    name: '周老师'
+  },
+  {
+    id: 'teacher-002',
     account: 'teacher01',
     password: 'teach2024',
     role: 'teacher',
-    name: '周老师'
+    name: '林老师'
   }
 ]
 

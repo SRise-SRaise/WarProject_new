@@ -2,18 +2,29 @@ import type { RouteRecordRaw } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
-const LandingView = () => import('@/views/common/public/LandingView.vue')
 const LoginView = () => import('@/views/user/auth/LoginView.vue')
 const RegisterView = () => import('@/views/user/auth/RegisterView.vue')
 
 const basicRoutes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'Login',
+    component: LoginView,
+    meta: {
+      title: '登录',
+      shell: 'auth',
+      guestOnly: true,
+      audience: 'public',
+      summary: '通过统一登录入口进入学生学习层或教师管理层。'
+    }
+  },
   {
     path: '/user',
     component: BasicLayout,
     children: [
       {
         path: 'login',
-        name: 'Login',
+        name: 'UserLogin',
         component: LoginView,
         meta: {
           title: '用户登录',
@@ -33,25 +44,6 @@ const basicRoutes: RouteRecordRaw[] = [
           guestOnly: true,
           audience: 'public',
           summary: '注册作为学生自助开通入口，可按业务策略开启或关闭。'
-        }
-      }
-    ]
-  },
-  {
-    path: '/',
-    component: BasicLayout,
-    children: [
-      {
-        path: '',
-        name: 'PublicLanding',
-        component: LandingView,
-        meta: {
-          title: '首页',
-          shell: 'public',
-          audience: 'public',
-          wide: true,
-          navLabel: '平台首页',
-          summary: '统一承载公共品牌介绍、学生入口与教师入口。'
         }
       }
     ]

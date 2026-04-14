@@ -1,8 +1,10 @@
 <template>
   <div class="basic-layout" :class="`basic-layout--${shellMode}`">
-    <div class="basic-layout__wash basic-layout__wash--top"></div>
-    <div class="basic-layout__wash basic-layout__wash--bottom"></div>
-    <NavBar />
+    <template v-if="shellMode !== 'auth'">
+      <div class="basic-layout__wash basic-layout__wash--top"></div>
+      <div class="basic-layout__wash basic-layout__wash--bottom"></div>
+      <NavBar />
+    </template>
     <main class="main-content">
       <router-view />
     </main>
@@ -54,7 +56,7 @@ const shellMode = computed(() => route.meta.shell ?? 'public')
 }
 
 .basic-layout--auth {
-  background: linear-gradient(180deg, rgba(248, 251, 255, 0.94) 0%, rgba(238, 243, 248, 0.98) 100%);
+  background: transparent;
 }
 
 .main-content {

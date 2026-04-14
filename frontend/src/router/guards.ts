@@ -19,6 +19,7 @@ export function setupRouterGuards(router: Router): void {
     }
 
     if (to.meta.guestOnly && authStore.isAuthenticated) {
+      // 如果是登录页面，已登录用户跳转到对应默认页面
       return buildDefaultPath(authStore.role)
     }
 

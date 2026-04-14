@@ -1,176 +1,324 @@
 <template>
-  <div class="auth-page app-page-shell app-page-shell--wide">
-    <div class="auth-page__grid">
-      <AuthShowcasePanel
-        eyebrow="学生注册"
-        title="把注册保留为可开关能力，但仍提供完整、得体的首次进入体验。"
-        description="当前首波界面默认将注册账号视为学生账号。后续若业务要求关闭注册入口，路由与页面结构仍可保留为受控能力。"
-        :highlights="showcaseHighlights"
-      >
-        <template #footer>
-          <a-alert
-            type="warning"
-            show-icon
-            message="注册成功后默认进入学生身份，可使用登录页中的示例账号切换教师体验。"
-          />
-        </template>
-      </AuthShowcasePanel>
+  <div class="register-page">
+    <!-- 背景装饰 -->
+    <div class="register-page__bg">
+      <div class="register-page__bg-shape register-page__bg-shape--1"></div>
+      <div class="register-page__bg-shape register-page__bg-shape--2"></div>
+    </div>
 
-      <section class="auth-panel app-surface-card">
-        <span class="app-pill">创建账号</span>
-        <h1 class="auth-panel__title">注册你的学习账户</h1>
-        <p class="auth-panel__description">填写基础账号信息后即可进入学生学习侧页面，后续可在个人中心补充资料。</p>
+    <div class="register-page__container">
+      <div class="register-page__card">
+        <router-link to="/" class="register-page__back">
+          <ArrowLeftOutlined />
+          返回登录
+        </router-link>
 
-        <a-form :model="formState" layout="vertical" @finish="handleSubmit">
-          <a-form-item label="账号" name="account" :rules="[{ required: true, message: '请输入账号' }, { min: 4, message: '账号至少 4 位' }]">
-            <a-input v-model:value="formState.account" size="large" placeholder="建议使用学号或统一账号">
+        <div class="register-page__header">
+          <div class="register-page__logo">
+            <span class="register-page__logo-icon">E</span>
+          </div>
+          <h2>创建账号</h2>
+          <p>注册成为学生用户</p>
+        </div>
+
+        <a-form
+          :model="formState"
+          class="register-page__form"
+          layout="vertical"
+          @finish="handleSubmit"
+        >
+          <a-form-item
+            name="account"
+            label="账号"
+            :rules="[{ required: true, message: '请输入账号' }, { min: 4, message: '账号至少4位' }]"
+          >
+            <a-input
+              v-model:value="formState.account"
+              size="large"
+              placeholder="请输入账号"
+            >
               <template #prefix>
-                <UserOutlined />
+                <UserOutlined style="color: #9ca3af" />
               </template>
             </a-input>
           </a-form-item>
 
-          <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }, { min: 8, message: '密码至少 8 位' }]">
-            <a-input-password v-model:value="formState.password" size="large" placeholder="请设置密码">
+          <a-form-item
+            name="password"
+            label="密码"
+            :rules="[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少6位' }]"
+          >
+            <a-input-password
+              v-model:value="formState.password"
+              size="large"
+              placeholder="请输入密码"
+            >
               <template #prefix>
-                <LockOutlined />
+                <LockOutlined style="color: #9ca3af" />
               </template>
             </a-input-password>
           </a-form-item>
 
-          <a-form-item label="确认密码" name="confirmPassword" :rules="[{ required: true, message: '请再次输入密码' }]">
-            <a-input-password v-model:value="formState.confirmPassword" size="large" placeholder="请再次输入密码">
+          <a-form-item
+            name="confirmPassword"
+            label="确认密码"
+            :rules="[
+              { required: true, message: '请确认密码' },
+              { validator: validateConfirmPassword }
+            ]"
+          >
+            <a-input-password
+              v-model:value="formState.confirmPassword"
+              size="large"
+              placeholder="请再次输入密码"
+            >
               <template #prefix>
-                <CheckCircleOutlined />
+                <LockOutlined style="color: #9ca3af" />
               </template>
             </a-input-password>
           </a-form-item>
 
-          <div class="auth-panel__extra">
-            <span>注册完成后可直接回到登录页体验分流逻辑</span>
-            <a-button type="link" @click="router.push('/user/login')">已有账号？去登录</a-button>
-          </div>
-
-          <a-button type="primary" html-type="submit" size="large" block :loading="loading">
-            注册并创建学生账号
-          </a-button>
+          <a-form-item>
+            <a-button
+              type="primary"
+              html-type="submit"
+              size="large"
+              block
+              :loading="loading"
+              class="register-page__submit-btn"
+            >
+              注册
+            </a-button>
+          </a-form-item>
         </a-form>
-      </section>
+
+        <p class="register-page__login-hint">
+          已有账号？<router-link to="/">立即登录</router-link>
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { storeToRefs } from 'pinia'
-import { message } from 'ant-design-vue'
-import { CheckCircleOutlined, LockOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import AuthShowcasePanel from '@/components/user/AuthShowcasePanel.vue'
+import { message } from 'ant-design-vue'
+import {
+  UserOutlined,
+  LockOutlined,
+  ArrowLeftOutlined
+} from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/user/auth'
-
-interface RegisterFormState {
-  account: string
-  password: string
-  confirmPassword: string
-}
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { loading } = storeToRefs(authStore)
 
-const showcaseHighlights = [
-  {
-    title: '注册仍服从模块化组织',
-    detail: '页面在 user 模块下落位，但继续由 basic.ts 统一承载公共入口层路由。'
-  },
-  {
-    title: '后端接口就绪后可无缝切换',
-    detail: '页面已复用生成 auth API，当前缺口由本地 fallback repository 兜底。'
-  },
-  {
-    title: '后续资料与任务入口保持稳定',
-    detail: '注册成功后的学生会进入相同学习壳层，无需重新适配导航结构。'
-  }
-]
+const loading = ref(false)
 
-const formState = reactive<RegisterFormState>({
+const formState = reactive({
   account: '',
   password: '',
   confirmPassword: ''
 })
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : '注册失败，请稍后重试。'
+const validateConfirmPassword = (_rule: unknown, value: string): Promise<void> => {
+  if (value !== formState.password) {
+    return Promise.reject('两次输入的密码不一致')
+  }
+  return Promise.resolve()
 }
 
-async function handleSubmit(): Promise<void> {
-  if (formState.password !== formState.confirmPassword) {
-    message.error('两次输入的密码不一致。')
-    return
-  }
-
+const handleSubmit = async (): Promise<void> => {
+  loading.value = true
   try {
     await authStore.register({
       account: formState.account,
       password: formState.password
     })
-    message.success('注册成功，请使用新账号登录。')
-    router.push({ name: 'Login', query: { account: formState.account } })
+    message.success('注册成功，请登录')
+    router.push('/')
   } catch (error) {
-    message.error(getErrorMessage(error))
+    const err = error as Error
+    message.error(err.message || '注册失败')
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
 <style scoped>
-.auth-page__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(380px, 0.95fr);
-  gap: var(--space-5);
-  align-items: stretch;
-}
-
-.auth-panel {
-  padding: 32px;
-}
-
-.auth-panel__title {
-  margin: 20px 0 12px;
-  color: var(--color-text-main);
-  font-family: Georgia, 'Times New Roman', 'Songti SC', serif;
-  font-size: clamp(28px, 3vw, 38px);
-  line-height: 1.15;
-}
-
-.auth-panel__description {
-  margin: 0 0 24px;
-  color: var(--color-text-secondary);
-  line-height: 1.8;
-}
-
-.auth-panel__extra {
+.register-page {
+  min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  color: var(--color-text-tertiary);
-  font-size: 13px;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef3f8 50%, #e8f0f8 100%);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
 }
 
-@media (max-width: 980px) {
-  .auth-page__grid {
-    grid-template-columns: 1fr;
+.register-page__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.register-page__bg-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.register-page__bg-shape--1 {
+  top: -15%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(31, 95, 174, 0.12) 0%, transparent 70%);
+}
+
+.register-page__bg-shape--2 {
+  bottom: -20%;
+  left: -15%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(216, 165, 69, 0.1) 0%, transparent 70%);
+}
+
+.register-page__container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+}
+
+.register-page__card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-radius: 28px;
+  padding: 40px;
+  box-shadow: 
+    0 32px 64px rgba(17, 47, 87, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.register-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.register-page__back:hover {
+  color: var(--color-primary);
+}
+
+.register-page__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.register-page__logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.register-page__logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #1f5fae 0%, #174a89 100%);
+  border-radius: 16px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.register-page__header h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-text-main);
+  margin: 0 0 8px;
+}
+
+.register-page__header p {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.register-page__form :deep(.ant-input-affix-wrapper) {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border-color: var(--color-border);
+}
+
+.register-page__form :deep(.ant-input-affix-wrapper:hover),
+.register-page__form :deep(.ant-input-affix-wrapper-focused) {
+  border-color: var(--color-primary);
+}
+
+.register-page__form :deep(.ant-form-item-label > label) {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.register-page__submit-btn {
+  height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1f5fae 0%, #174a89 100%);
+  border: none;
+  margin-top: 8px;
+  box-shadow: 0 8px 24px rgba(31, 95, 174, 0.25);
+  transition: all 0.3s ease;
+}
+
+.register-page__submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(31, 95, 174, 0.35);
+}
+
+.register-page__login-hint {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.register-page__login-hint a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-page__login-hint a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    padding: 16px;
   }
 
-  .auth-panel {
-    padding: 24px;
+  .register-page__card {
+    padding: 32px 24px;
+    border-radius: 24px;
   }
 
-  .auth-panel__extra {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
+  .register-page__header h2 {
+    font-size: 22px;
   }
 }
 </style>
