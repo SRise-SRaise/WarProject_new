@@ -113,10 +113,16 @@ public class EduExperimentController {
      * <p>
      * 支持两种方式：
      * 1. 直接上传docx文件（file参数）
-     * 2. 提供已上传的docx文件URL（importRequest.fileUrl）
+     * 2. 提供已上传的docx文件URL（fileUrl参数）
      *
      * @param file 上传的docx文件（可选，与fileUrl二选一）
-     * @param importRequest 导入请求参数
+     * @param experimentName 实验名称（可选）
+     * @param categoryId 分类ID（可选）
+     * @param requirement 实验要求（可选）
+     * @param autoPublish 是否自动发布（默认true）
+     * @param defaultDifficulty 默认难度（默认2）
+     * @param defaultScore 默认分值（默认10）
+     * @param fileUrl 已上传的docx文件URL（可选，与file二选一）
      * @return 导入结果
      */
     @PostMapping("/import/docx")
