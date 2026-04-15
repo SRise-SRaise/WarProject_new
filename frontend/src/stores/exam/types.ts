@@ -71,14 +71,14 @@ export interface QuestionTypeItem {
   summary: string
 }
 
-// 题目类型枚举
-export type QuestionType = 1 | 2 | 3 | 4 | 5 | 6 | 7
+// 题目类型枚举（1-填空 2-单选 3-多选 5-简答 6-编程 7-综合）
+// 注：填空题使用 ____ 或 {{blank}} 标记填空位置，答案用逗号分隔对应多个空
+export type QuestionType = 1 | 2 | 3 | 5 | 6 | 7
 
 export const QUESTION_TYPE_MAP: Record<QuestionType, string> = {
   1: '填空',
   2: '单选',
   3: '多选',
-  4: '判断',
   5: '简答',
   6: '编程',
   7: '综合'

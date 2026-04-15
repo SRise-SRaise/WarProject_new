@@ -134,13 +134,12 @@ let paperQuestions: PaperQuestion[] = [
   { id: 1, paperId: 1, questionId: 1, score: 20, questionOrder: 1, sectionName: '单选题' },
   { id: 2, paperId: 1, questionId: 2, score: 20, questionOrder: 2, sectionName: '多选题' },
   { id: 3, paperId: 1, questionId: 3, score: 30, questionOrder: 3, sectionName: '简答题' },
-  { id: 4, paperId: 1, questionId: 7, score: 10, questionOrder: 4, sectionName: '判断题' },
-  { id: 5, paperId: 1, questionId: 8, score: 20, questionOrder: 5, sectionName: '简答题' },
+  { id: 4, paperId: 1, questionId: 8, score: 30, questionOrder: 4, sectionName: '简答题' },
   // 试卷2的题目
-  { id: 6, paperId: 2, questionId: 4, score: 20, questionOrder: 1, sectionName: '填空题' },
-  { id: 7, paperId: 2, questionId: 5, score: 20, questionOrder: 2, sectionName: '单选题' },
-  { id: 8, paperId: 2, questionId: 6, score: 40, questionOrder: 3, sectionName: '编程题' },
-  { id: 9, paperId: 2, questionId: 8, score: 20, questionOrder: 4, sectionName: '简答题' },
+  { id: 5, paperId: 2, questionId: 4, score: 20, questionOrder: 1, sectionName: '填空题' },
+  { id: 6, paperId: 2, questionId: 5, score: 20, questionOrder: 2, sectionName: '单选题' },
+  { id: 7, paperId: 2, questionId: 6, score: 40, questionOrder: 3, sectionName: '编程题' },
+  { id: 8, paperId: 2, questionId: 7, score: 20, questionOrder: 4, sectionName: '填空题' },
 ]
 
 // 模拟题目数据
@@ -194,10 +193,10 @@ let questions: QuestionItem[] = [
   },
   {
     id: 4,
-    questionContent: 'JavaScript 中 null 和 undefined 的区别是什么？',
+    questionContent: 'JavaScript 中，____ 表示空值，____ 表示变量已声明但未赋值。',
     questionType: 1,
     optionsText: null,
-    standardAnswer: 'null 表示空值，undefined 表示未定义',
+    standardAnswer: 'null,undefined',
     analysis: 'null 是一个表示"无"的对象，undefined 是一个原始值，表示变量已声明但未赋值。',
     difficulty: 2,
     creatorTeacherId: 2,
@@ -235,15 +234,12 @@ let questions: QuestionItem[] = [
   },
   {
     id: 7,
-    questionContent: 'HTTP 状态码 404 表示什么？',
-    questionType: 4,
-    optionsText: JSON.stringify([
-      { key: 'A', label: '请求成功' },
-      { key: 'B', label: '资源未找到' }
-    ]),
-    standardAnswer: 'B',
-    analysis: 'HTTP 404 状态码表示服务器无法找到请求的资源。',
-    difficulty: 1,
+    questionContent: 'HTTP 状态码 ____ 表示请求成功，状态码 ____ 表示资源未找到，状态码 ____ 表示服务器内部错误。',
+    questionType: 1,
+    optionsText: null,
+    standardAnswer: '200,404,500',
+    analysis: 'HTTP 200表示请求成功，404表示资源未找到，500表示服务器内部错误。',
+    difficulty: 2,
     creatorTeacherId: 1,
     createdAt: '2026-04-13 11:00:00',
     updatedAt: '2026-04-13 11:00:00'
@@ -326,7 +322,7 @@ export const examRepository = {
     matched.status = 'completed'
     matched.result = {
       score: `${total} / 100`,
-      rankHint: total >= 90 ? '班级前 15%' : total >= 80 ? '班级前 35%' : '建议继续复盘错题',
+      rankHint: total >= 90 ? '班级前 15%' : total >= 80 ? '班级前 35%' : '建议继续复���错题',
       submittedAt: '刚刚',
       durationUsed: '37 分钟',
       feedback: total >= 90 ? '整体表现稳定，答题结构清晰。' : '基础知识掌握较好，建议继续强化共享题库与模块边界相关题目。',

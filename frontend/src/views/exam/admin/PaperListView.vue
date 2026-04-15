@@ -1,116 +1,122 @@
 <template>
-  <div class="paper-manage">
+  <div class="paper-manage-page">
     <!-- 页面头部 -->
     <header class="page-header">
-      <div class="header-content">
-        <div class="header-info">
-          <span class="header-eyebrow">试卷管理</span>
-          <h1 class="header-title">组卷与试卷维护</h1>
-          <p class="header-desc">创建和管理试卷，支持从题库拖拽添加题目，灵活组卷</p>
+      <div class="page-header__content">
+        <div class="page-header__info">
+          <h1 class="page-header__title">试卷管理</h1>
+          <p class="page-header__desc">创建和管理试卷，支持从题库拖拽添加题目，灵活组卷</p>
         </div>
         <a-button type="primary" size="large" @click="handleCreatePaper">
           <template #icon><PlusOutlined /></template>
           新建试卷
         </a-button>
       </div>
-      <!-- 统计卡片 -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-value">{{ paperList.length }}</div>
-          <div class="stat-label">试卷总数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ paperList.filter(p => p.questionCount > 0).length }}</div>
-          <div class="stat-label">已组卷</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ paperList.filter(p => p.questionCount === 0).length }}</div>
-          <div class="stat-label">待组卷</div>
-        </div>
-      </div>
     </header>
 
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <a-input-search
-        v-model:value="searchKeyword"
-        placeholder="搜索试卷名称..."
-        style="width: 320px"
-        allow-clear
-        @search="handleSearch"
-        @change="handleSearchChange"
-      />
-    </div>
+    <!-- 统计卡片 -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-card__value">{{ paperList.length }}</div>
+        <div class="stat-card__label">试卷总数</div>
+      </div>
+      <div class="stat-card stat-card--success">
+        <div class="stat-card__value">{{ paperList.filter(p => p.questionCount > 0).length }}</div>
+        <div class="stat-card__label">已组卷</div>
+      </div>
+      <div class="stat-card stat-card--warning">
+        <div class="stat-card__value">{{ paperList.filter(p => p.questionCount === 0).length }}</div>
+        <div class="stat-card__label">待组卷</div>
+      </div>
+    </section>
 
-    <!-- 试卷列表 -->
-    <div class="paper-list" v-if="!paperLoading">
-      <div
-        v-for="paper in paperList"
-        :key="paper.id"
-        class="paper-card"
-        @click="handleEditPaper(paper)"
+    <!-- 搜索栏和表格 -->
+    <section class="content-section">
+      <div class="toolbar">
+        <a-input-search
+          v-model:value="searchKeyword"
+          placeholder="搜索试卷名称..."
+          style="width: 300px"
+          allow-clear
+          @search="handleSearch"
+          @change="handleSearchChange"
+        />
+      </div>
+
+      <!-- 试卷表格 -->
+      <a-table
+        :columns="columns"
+        :data-source="paperList"
+        :loading="paperLoading"
+        :pagination="false"
+        row-key="id"
+        class="paper-table"
       >
-        <div class="paper-card-header">
-          <div class="paper-code">No.{{ paper.paperCode }}</div>
-          <a-tag :color="paper.questionCount > 0 ? 'green' : 'orange'">
-            {{ paper.questionCount > 0 ? '已组卷' : '待组卷' }}
-          </a-tag>
-        </div>
-        <h3 class="paper-name">{{ paper.paperName }}</h3>
-        <p class="paper-desc">{{ paper.description || '暂无描述' }}</p>
-        <div class="paper-stats">
-          <div class="paper-stat">
-            <FileTextOutlined />
-            <span>{{ paper.questionCount }} 道题</span>
-          </div>
-          <div class="paper-stat">
-            <TrophyOutlined />
-            <span>{{ paper.totalScore }} 分</span>
-          </div>
-        </div>
-        <div class="paper-footer">
-          <span class="paper-time">更新于 {{ formatTime(paper.updatedAt) }}</span>
-          <div class="paper-actions" @click.stop>
-            <a-button type="link" size="small" @click="handleEditPaper(paper)">
-              <EditOutlined /> 编辑
-            </a-button>
-            <a-popconfirm
-              title="确定删除此试卷吗？"
-              ok-text="确定"
-              cancel-text="取消"
-              @confirm="handleDeletePaper(paper.id)"
-            >
-              <a-button type="link" size="small" danger>
-                <DeleteOutlined /> 删除
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'paperCode'">
+            <span class="paper-code">No.{{ record.paperCode }}</span>
+          </template>
+          <template v-else-if="column.key === 'paperName'">
+            <div class="paper-name-cell">
+              <span class="paper-name">{{ record.paperName }}</span>
+              <span v-if="record.description" class="paper-desc">{{ record.description }}</span>
+            </div>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="record.questionCount > 0 ? 'green' : 'orange'">
+              {{ record.questionCount > 0 ? '已组卷' : '待组卷' }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'questionCount'">
+            <span>{{ record.questionCount }} 题</span>
+          </template>
+          <template v-else-if="column.key === 'totalScore'">
+            <span class="score-text">{{ record.totalScore }} 分</span>
+          </template>
+          <template v-else-if="column.key === 'updatedAt'">
+            <span class="time-text">{{ formatTime(record.updatedAt) }}</span>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <div class="action-buttons">
+              <a-button type="link" size="small" @click="handleEditPaper(record)">
+                <EditOutlined /> 组卷
               </a-button>
-            </a-popconfirm>
+              <a-button type="link" size="small" @click="handleEditInfo(record)">
+                <FormOutlined /> 编辑
+              </a-button>
+              <a-popconfirm
+                title="确定删除此试卷吗？"
+                ok-text="确定"
+                cancel-text="取消"
+                @confirm="handleDeletePaper(record.id)"
+              >
+                <a-button type="link" size="small" danger>
+                  <DeleteOutlined /> 删除
+                </a-button>
+              </a-popconfirm>
+            </div>
+          </template>
+        </template>
+        <template #emptyText>
+          <div class="empty-state">
+            <FileSearchOutlined class="empty-icon" />
+            <p>暂无试卷</p>
+            <a-button type="primary" @click="handleCreatePaper">创建第一份试卷</a-button>
           </div>
-        </div>
+        </template>
+      </a-table>
+
+      <!-- 分页 -->
+      <div v-if="paperPagination.total > paperPagination.pageSize" class="pagination-wrap">
+        <a-pagination
+          v-model:current="paperPagination.current"
+          :total="paperPagination.total"
+          :page-size="paperPagination.pageSize"
+          show-quick-jumper
+          @change="handlePageChange"
+        />
       </div>
-
-      <!-- 空状态 -->
-      <div v-if="paperList.length === 0" class="empty-state">
-        <FileSearchOutlined class="empty-icon" />
-        <p>暂无试卷</p>
-        <a-button type="primary" @click="handleCreatePaper">创建第一份试卷</a-button>
-      </div>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-else class="loading-state">
-      <a-spin size="large" />
-    </div>
-
-    <!-- 分页 -->
-    <div class="pagination-wrap" v-if="paperPagination.total > paperPagination.pageSize">
-      <a-pagination
-        v-model:current="paperPagination.current"
-        :total="paperPagination.total"
-        :page-size="paperPagination.pageSize"
-        show-quick-jumper
-        @change="handlePageChange"
-      />
-    </div>
+    </section>
 
     <!-- 新建/编辑试卷弹窗 -->
     <a-modal
@@ -254,7 +260,6 @@
               <a-select-option :value="1">填空</a-select-option>
               <a-select-option :value="2">单选</a-select-option>
               <a-select-option :value="3">多选</a-select-option>
-              <a-select-option :value="4">判断</a-select-option>
               <a-select-option :value="5">简答</a-select-option>
               <a-select-option :value="6">编程</a-select-option>
               <a-select-option :value="7">综合</a-select-option>
@@ -328,12 +333,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { message } from 'ant-design-vue'
+import type { TableColumnType } from 'ant-design-vue'
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  FileTextOutlined,
-  TrophyOutlined,
+  FormOutlined,
   FileSearchOutlined,
   HolderOutlined,
   InboxOutlined,
@@ -349,6 +354,17 @@ const { paperList, paperPagination, currentPaper, allQuestions, paperLoading } =
 
 // 搜索
 const searchKeyword = ref('')
+
+// 表格列定义
+const columns: TableColumnType[] = [
+  { title: '编号', key: 'paperCode', width: 80 },
+  { title: '试卷名称', key: 'paperName', ellipsis: true },
+  { title: '状态', key: 'status', width: 100 },
+  { title: '题目数', key: 'questionCount', width: 100 },
+  { title: '总分', key: 'totalScore', width: 100 },
+  { title: '更新时间', key: 'updatedAt', width: 160 },
+  { title: '操作', key: 'actions', width: 200, fixed: 'right' }
+]
 
 // 新建/编辑弹窗
 const paperModalVisible = ref(false)
@@ -417,7 +433,6 @@ function getTypeColor(type?: number): string {
     1: 'blue',
     2: 'green',
     3: 'orange',
-    4: 'cyan',
     5: 'purple',
     6: 'red',
     7: 'magenta'
@@ -454,6 +469,18 @@ function handleCreatePaper() {
     paperCode: paperList.value.length + 1,
     paperName: '',
     description: ''
+  }
+  paperModalVisible.value = true
+}
+
+// 编辑试卷信息
+function handleEditInfo(paper: Paper) {
+  isEditMode.value = true
+  editingPaperId.value = paper.id
+  paperForm.value = {
+    paperCode: paper.paperCode,
+    paperName: paper.paperName,
+    description: paper.description || ''
   }
   paperModalVisible.value = true
 }
@@ -572,164 +599,138 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.paper-manage {
+.paper-manage-page {
   padding: 24px;
+  background: #f5f7fa;
   min-height: 100vh;
-  background: var(--color-bg-container, #f5f7fa);
 }
 
+/* 页面头部 */
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 24px;
-  color: #fff;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.header-eyebrow {
-  font-size: 13px;
-  opacity: 0.8;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.header-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 8px 0;
-}
-
-.header-desc {
-  font-size: 14px;
-  opacity: 0.9;
-  margin: 0;
-}
-
-.stats-row {
-  display: flex;
-  gap: 16px;
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 16px 24px;
-  min-width: 120px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.stat-label {
-  font-size: 13px;
-  opacity: 0.8;
-  margin-top: 4px;
-}
-
-.search-bar {
-  margin-bottom: 20px;
-}
-
-.paper-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-}
-
-.paper-card {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #e8e8e8;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.paper-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-}
-
-.paper-card-header {
+.page-header__content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+}
+
+.page-header__title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.page-header__desc {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 统计卡片 */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1890ff;
+  line-height: 1.2;
+}
+
+.stat-card--success .stat-card__value {
+  color: #52c41a;
+}
+
+.stat-card--warning .stat-card__value {
+  color: #fa8c16;
+}
+
+.stat-card__label {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-top: 6px;
+}
+
+/* 内容区域 */
+.content-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar {
+  margin-bottom: 20px;
+}
+
+/* 表格样式 */
+.paper-table {
+  margin-bottom: 20px;
 }
 
 .paper-code {
-  font-size: 13px;
-  color: #8c8c8c;
   font-weight: 500;
+  color: #8c8c8c;
+}
+
+.paper-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .paper-name {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
+  font-weight: 500;
   color: #262626;
 }
 
 .paper-desc {
-  font-size: 14px;
-  color: #8c8c8c;
-  margin: 0 0 16px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.paper-stats {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 16px;
-}
-
-.paper-stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: #595959;
-}
-
-.paper-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.paper-time {
   font-size: 12px;
-  color: #bfbfbf;
+  color: #8c8c8c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.paper-actions {
+.score-text {
+  font-weight: 500;
+  color: #1890ff;
+}
+
+.time-text {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+.action-buttons {
   display: flex;
   gap: 4px;
 }
 
-.empty-state,
-.loading-state {
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  grid-column: 1 / -1;
 }
 
 .empty-icon {
@@ -738,22 +739,19 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-.empty-state p {
-  color: #8c8c8c;
-  margin-bottom: 16px;
-}
-
 .pagination-wrap {
   display: flex;
-  justify-content: center;
-  margin-top: 24px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
-/* 组卷弹窗样式 */
+/* 组卷弹窗 */
 .compose-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 400px;
   gap: 20px;
-  height: 70vh;
+  height: 600px;
 }
 
 .compose-left,
@@ -763,14 +761,6 @@ onMounted(async () => {
   background: #fafafa;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.compose-left {
-  flex: 1.2;
-}
-
-.compose-right {
-  flex: 1;
 }
 
 .compose-panel-header {
@@ -784,13 +774,13 @@ onMounted(async () => {
 
 .compose-panel-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .compose-info {
   font-size: 13px;
-  color: #8c8c8c;
+  color: #666;
 }
 
 .compose-info .divider {
@@ -798,36 +788,25 @@ onMounted(async () => {
   color: #d9d9d9;
 }
 
-.filter-row {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.paper-content,
-.question-bank-list {
+.paper-content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 16px;
 }
 
-.question-list,
-.bank-list {
+.question-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 100%;
+  gap: 12px;
 }
 
 .question-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 16px;
   background: #fff;
   border-radius: 8px;
-  padding: 12px;
   border: 1px solid #e8e8e8;
 }
 
@@ -838,21 +817,21 @@ onMounted(async () => {
 }
 
 .drag-handle:hover {
-  color: #595959;
+  color: #1890ff;
 }
 
 .question-order {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
-  background: #667eea;
-  color: #fff;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 13px;
   font-weight: 600;
-  flex-shrink: 0;
 }
 
 .question-main {
@@ -869,6 +848,7 @@ onMounted(async () => {
 .question-text {
   font-size: 14px;
   color: #262626;
+  line-height: 1.6;
   margin-bottom: 8px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -899,38 +879,58 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #8c8c8c;
+  color: #bfbfbf;
 }
 
 .empty-paper .empty-icon {
   font-size: 48px;
-  color: #d9d9d9;
   margin-bottom: 16px;
 }
 
 .empty-hint {
   font-size: 12px;
-  color: #bfbfbf;
+  margin-top: 4px;
+}
+
+/* 题库列表 */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.question-bank-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.bank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .bank-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: #fff;
-  border-radius: 8px;
   padding: 12px;
+  background: #fff;
+  border-radius: 6px;
   border: 1px solid #e8e8e8;
   transition: all 0.2s;
 }
 
 .bank-item:hover {
-  border-color: #667eea;
+  border-color: #1890ff;
 }
 
 .bank-item.is-added {
   opacity: 0.6;
-  background: #fafafa;
+  background: #f5f5f5;
 }
 
 .bank-item-main {
@@ -942,17 +942,18 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .difficulty-badge {
-  font-size: 12px;
+  font-size: 11px;
   color: #8c8c8c;
 }
 
 .bank-item-text {
   font-size: 13px;
-  color: #595959;
+  color: #262626;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -960,25 +961,24 @@ onMounted(async () => {
 }
 
 .empty-bank {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100px;
-  color: #8c8c8c;
+  text-align: center;
+  padding: 40px 20px;
+  color: #bfbfbf;
 }
 
-/* 新建试卷表单 */
-.paper-form {
-  padding: 16px 0;
-}
-
-/* 拖拽样式 */
-.sortable-ghost {
-  opacity: 0.5;
-  background: #e6f7ff;
-}
-
-.sortable-chosen {
-  background: #f0f5ff;
+@media (max-width: 768px) {
+  .stats-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .compose-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  
+  .compose-left,
+  .compose-right {
+    height: 400px;
+  }
 }
 </style>

@@ -1,27 +1,45 @@
 <template>
-  <div class="app-panel-grid">
+  <div class="question-bank-page">
     <!-- 页面头部 -->
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="考试管理" title="题库管理" description="集中维护所有题目资源，支持多种题型的增删改查操作。">
-        <template #actions>
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新增题目
-          </a-button>
-        </template>
-      </SectionHeader>
-    </section>
+    <header class="page-header">
+      <div class="page-header__content">
+        <div class="page-header__info">
+          <h1 class="page-header__title">题库管理</h1>
+          <p class="page-header__desc">集中维护所有题目资源，支持多种题型的增删改查操作</p>
+        </div>
+        <a-button type="primary" size="large" @click="handleAdd">
+          <template #icon><PlusOutlined /></template>
+          新增题目
+        </a-button>
+      </div>
+    </header>
 
     <!-- 统计卡片 -->
-    <section class="app-kpi-grid">
-      <MetricCard title="题目总数" :value="String(questionStats.total)" description="题库中所有可用题目。" tone="primary" />
-      <MetricCard title="单选题" :value="String(questionStats.byType[2] || 0)" description="客观题，自动评分。" tone="success" />
-      <MetricCard title="多选题" :value="String(questionStats.byType[3] || 0)" description="多项选择题型。" tone="warning" />
-      <MetricCard title="主观题" :value="String((questionStats.byType[5] || 0) + (questionStats.byType[6] || 0))" description="简答与编程题。" tone="accent" />
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-card__value">{{ questionStats.total }}</div>
+        <div class="stat-card__label">题目总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ questionStats.byType[2] || 0 }}</div>
+        <div class="stat-card__label">单选题</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ questionStats.byType[3] || 0 }}</div>
+        <div class="stat-card__label">多选题</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ questionStats.byType[1] || 0 }}</div>
+        <div class="stat-card__label">填空题</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ (questionStats.byType[5] || 0) + (questionStats.byType[6] || 0) }}</div>
+        <div class="stat-card__label">主观题</div>
+      </div>
     </section>
 
     <!-- 筛选和列表区域 -->
-    <section class="app-surface-card app-section-card question-list-section">
+    <section class="content-section">
       <!-- 筛选栏 -->
       <div class="filter-bar">
         <a-input-search
@@ -88,7 +106,9 @@
               </div>
             </div>
             <div class="question-card__content">
-              <p class="question-card__text">{{ item.questionContent }}</p>
+              <!-- 填空题特殊展示 -->
+              <p v-if="item.questionType === 1" class="question-card__text" v-html="renderFillBlank(item.questionContent)"></p>
+              <p v-else class="question-card__text">{{ item.questionContent }}</p>
               <!-- 选项展示 -->
               <div v-if="item.optionsText" class="question-card__options">
                 <div v-for="opt in parseOptions(item.optionsText)" :key="opt.key" class="option-item">
@@ -100,7 +120,7 @@
             <div class="question-card__footer">
               <span class="question-card__meta">
                 <span class="meta-label">答案:</span>
-                <span class="meta-value answer-text">{{ item.standardAnswer }}</span>
+                <span class="meta-value answer-text">{{ formatAnswer(item) }}</span>
               </span>
               <span class="question-card__meta">
                 <span class="meta-label">更新时间:</span>
@@ -150,21 +170,32 @@
         </a-form-item>
 
         <a-form-item label="难度等级" name="difficulty">
-          <a-rate v-model:value="formData.difficulty" :count="5" allow-half />
+          <a-rate v-model:value="formData.difficulty" :count="5" />
           <span class="difficulty-text">{{ DIFFICULTY_MAP[formData.difficulty] || '请选择' }}</span>
         </a-form-item>
 
         <a-form-item label="题目内容" name="questionContent">
           <a-textarea
             v-model:value="formData.questionContent"
-            placeholder="请输入题目内容"
+            :placeholder="getContentPlaceholder()"
             :rows="4"
             show-count
             :maxlength="500"
           />
+          <template v-if="formData.questionType === 1" #extra>
+            <div class="form-hint">
+              填空题使用 <code>____</code> 标记填空位置，学生答题时将在下划线处填写答案。例如：1 + 1 = ____
+            </div>
+          </template>
         </a-form-item>
 
-        <!-- 选项编辑（单选/多选/判断） -->
+        <!-- 填空题预览 -->
+        <a-form-item v-if="formData.questionType === 1 && formData.questionContent" label="题目预览">
+          <div class="fill-blank-preview" v-html="renderFillBlank(formData.questionContent)"></div>
+          <div class="blank-count">共 {{ countBlanks(formData.questionContent) }} 个填空</div>
+        </a-form-item>
+
+        <!-- 选项编辑（单选/多选） -->
         <a-form-item v-if="needOptions" label="选项设置">
           <div class="options-editor">
             <div v-for="(opt, index) in formOptions" :key="index" class="option-editor-item">
@@ -203,11 +234,19 @@
               <a-checkbox v-for="opt in formOptions" :key="opt.key" :value="opt.key">{{ opt.key }}</a-checkbox>
             </a-checkbox-group>
           </template>
-          <template v-else-if="formData.questionType === 4">
-            <!-- 判断答案 -->
-            <a-radio-group v-model:value="formData.standardAnswer">
-              <a-radio v-for="opt in formOptions" :key="opt.key" :value="opt.key">{{ opt.label }}</a-radio>
-            </a-radio-group>
+          <template v-else-if="formData.questionType === 1">
+            <!-- 填空答案 -->
+            <div class="fill-blank-answers">
+              <div v-for="(_, index) in blankCount" :key="index" class="fill-blank-answer-item">
+                <span class="blank-index">第 {{ index + 1 }} 空:</span>
+                <a-input
+                  v-model:value="fillBlankAnswers[index]"
+                  placeholder="请输入答案"
+                  style="flex: 1"
+                />
+              </div>
+              <div v-if="blankCount === 0" class="blank-hint">请先在题目内容中使用 ____ 标记填空位置</div>
+            </div>
           </template>
           <template v-else>
             <!-- 其他题型 -->
@@ -244,8 +283,6 @@ import {
   FileSearchOutlined,
   MinusCircleOutlined
 } from '@ant-design/icons-vue'
-import MetricCard from '@/components/common/MetricCard.vue'
-import SectionHeader from '@/components/common/SectionHeader.vue'
 import { useExamAdminStore } from '@/stores/exam/admin'
 import type { QuestionItem, QuestionType, QuestionAddRequest, QuestionUpdateRequest } from '@/stores/exam/types'
 import { QUESTION_TYPE_MAP, DIFFICULTY_MAP } from '@/stores/exam/types'
@@ -287,9 +324,15 @@ const formOptions = ref<OptionItem[]>([
 // 多选答案
 const multiAnswers = ref<string[]>([])
 
+// 填空题答案
+const fillBlankAnswers = ref<string[]>([])
+
+// 计算填空数量
+const blankCount = computed(() => countBlanks(formData.questionContent))
+
 // 是否需要选项
 const needOptions = computed(() => {
-  return [2, 3, 4].includes(formData.questionType as number)
+  return [2, 3].includes(formData.questionType as number)
 })
 
 // 表单校验规则
@@ -306,7 +349,6 @@ function getTypeColor(type: QuestionType): string {
     1: 'blue',
     2: 'green',
     3: 'orange',
-    4: 'cyan',
     5: 'purple',
     6: 'red',
     7: 'gold'
@@ -327,6 +369,42 @@ function parseOptions(optionsText: string): OptionItem[] {
 function formatDate(dateStr: string): string {
   if (!dateStr) return '--'
   return dateStr.substring(0, 16)
+}
+
+// 格式化答案显示
+function formatAnswer(item: QuestionItem): string {
+  if (item.questionType === 1) {
+    // 填空题，逗号分隔的答案转为序号显示
+    const answers = item.standardAnswer.split(',')
+    if (answers.length === 1) return answers[0]
+    return answers.map((a, i) => `(${i + 1}) ${a}`).join('  ')
+  }
+  return item.standardAnswer
+}
+
+// 统计填空数量
+function countBlanks(content: string): number {
+  if (!content) return 0
+  const matches = content.match(/____/g)
+  return matches ? matches.length : 0
+}
+
+// 渲染填空题（将 ____ 转为带样式的下划线）
+function renderFillBlank(content: string): string {
+  if (!content) return ''
+  let index = 0
+  return content.replace(/____/g, () => {
+    index++
+    return `<span class="blank-slot"><span class="blank-index-num">${index}</span><span class="blank-line">________</span></span>`
+  })
+}
+
+// 获取内容占位符
+function getContentPlaceholder(): string {
+  if (formData.questionType === 1) {
+    return '请输入题目内容，使用 ____ 标记填空位置。例如：1 + 1 = ____'
+  }
+  return '请输入题目内容'
 }
 
 // 搜索
@@ -381,6 +459,7 @@ function resetForm() {
     { key: 'B', label: '' }
   ]
   multiAnswers.value = []
+  fillBlankAnswers.value = []
   currentEditId.value = null
 }
 
@@ -426,6 +505,10 @@ function fillForm(item: QuestionItem) {
   if (item.questionType === 3) {
     multiAnswers.value = item.standardAnswer.split(',')
   }
+  
+  if (item.questionType === 1) {
+    fillBlankAnswers.value = item.standardAnswer.split(',')
+  }
 }
 
 // 删除
@@ -440,13 +523,7 @@ async function handleDelete(id: number) {
 
 // 题型变化
 function handleTypeChange(type: QuestionType) {
-  if (type === 4) {
-    // 判断题默认选项
-    formOptions.value = [
-      { key: 'A', label: '正确' },
-      { key: 'B', label: '错误' }
-    ]
-  } else if ([2, 3].includes(type)) {
+  if ([2, 3].includes(type)) {
     // 单选/多选默认4个选项
     formOptions.value = [
       { key: 'A', label: '' },
@@ -457,6 +534,7 @@ function handleTypeChange(type: QuestionType) {
   }
   formData.standardAnswer = ''
   multiAnswers.value = []
+  fillBlankAnswers.value = []
 }
 
 // 添加选项
@@ -474,6 +552,25 @@ function removeOption(index: number) {
 watch(multiAnswers, (val) => {
   if (formData.questionType === 3) {
     formData.standardAnswer = val.sort().join(',')
+  }
+})
+
+// 监听填空答案变化
+watch(fillBlankAnswers, (val) => {
+  if (formData.questionType === 1) {
+    formData.standardAnswer = val.join(',')
+  }
+}, { deep: true })
+
+// 监听填空数量变化，调整答案数组长度
+watch(blankCount, (newCount) => {
+  if (formData.questionType === 1) {
+    while (fillBlankAnswers.value.length < newCount) {
+      fillBlankAnswers.value.push('')
+    }
+    while (fillBlankAnswers.value.length > newCount) {
+      fillBlankAnswers.value.pop()
+    }
   }
 })
 
@@ -532,21 +629,89 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.question-list-section {
+.question-bank-page {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+/* 页面头部 */
+.page-header {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.page-header__content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-header__title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.page-header__desc {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 统计卡片 */
+.stats-section {
   display: grid;
-  gap: var(--space-5);
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1890ff;
+  line-height: 1.2;
+}
+
+.stat-card__label {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-top: 6px;
+}
+
+/* 内容区域 */
+.content-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .question-list {
   display: grid;
-  gap: var(--space-4);
+  gap: 16px;
   min-height: 200px;
 }
 
@@ -556,7 +721,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: var(--color-text-tertiary);
+  color: #bfbfbf;
 }
 
 .empty-icon {
@@ -567,15 +732,15 @@ onMounted(async () => {
 
 .question-card {
   padding: 20px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: #ffffff;
-  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  transition: all 0.2s ease;
 }
 
 .question-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(31, 95, 174, 0.08);
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
 }
 
 .question-card__header {
@@ -601,9 +766,36 @@ onMounted(async () => {
 
 .question-card__text {
   margin: 0 0 12px;
-  color: var(--color-text-main);
+  color: #262626;
   font-size: 15px;
   line-height: 1.7;
+}
+
+:deep(.blank-slot) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px;
+  vertical-align: baseline;
+}
+
+:deep(.blank-index-num) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #1890ff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+:deep(.blank-line) {
+  border-bottom: 2px solid #1890ff;
+  color: transparent;
+  letter-spacing: 2px;
 }
 
 .question-card__options {
@@ -617,26 +809,26 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: var(--radius-xs);
-  background: var(--color-bg-muted);
+  border-radius: 6px;
+  background: #fafafa;
 }
 
 .option-key {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: #1890ff;
   color: white;
   font-size: 12px;
   font-weight: 600;
 }
 
 .option-label {
-  color: var(--color-text-secondary);
+  color: #595959;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -644,9 +836,9 @@ onMounted(async () => {
 .question-card__footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
   padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid #f0f0f0;
 }
 
 .question-card__meta {
@@ -657,22 +849,24 @@ onMounted(async () => {
 }
 
 .meta-label {
-  color: var(--color-text-tertiary);
+  color: #8c8c8c;
 }
 
 .meta-value {
-  color: var(--color-text-secondary);
+  color: #595959;
 }
 
 .answer-text {
-  color: var(--color-success);
-  font-weight: 600;
+  color: #52c41a;
+  font-weight: 500;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--space-3);
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 选项编辑器 */
@@ -689,11 +883,77 @@ onMounted(async () => {
 
 .difficulty-text {
   margin-left: 12px;
-  color: var(--color-text-secondary);
+  color: #8c8c8c;
   font-size: 14px;
 }
 
+/* 填空题相关 */
+.form-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+.form-hint code {
+  background: #e6f7ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #1890ff;
+  font-family: monospace;
+}
+
+.fill-blank-preview {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.blank-count {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.fill-blank-answers {
+  display: grid;
+  gap: 12px;
+}
+
+.fill-blank-answer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.blank-index {
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 14px;
+  color: #595959;
+}
+
+.blank-hint {
+  color: #bfbfbf;
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .stats-section {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .filter-bar {
     flex-direction: column;
     align-items: stretch;

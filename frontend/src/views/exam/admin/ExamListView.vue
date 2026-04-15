@@ -1,188 +1,186 @@
 <template>
-  <div class="exam-manage-container">
+  <div class="exam-manage-page">
     <!-- 页面头部 -->
-    <header class="exam-header">
-      <div class="exam-header__content">
-        <div class="exam-header__info">
-          <h1 class="exam-header__title">考试管理</h1>
-          <p class="exam-header__desc">创建和管理考试，关联试卷并发布给学生</p>
+    <header class="page-header">
+      <div class="page-header__content">
+        <div class="page-header__info">
+          <h1 class="page-header__title">考试管理</h1>
+          <p class="page-header__desc">创建和管理考试，关联试卷并发布给学生</p>
         </div>
         <a-button type="primary" size="large" @click="openAddModal">
           <template #icon><PlusOutlined /></template>
           新建考试
         </a-button>
       </div>
-      
-      <!-- 统计卡片 -->
-      <div class="exam-stats">
-        <div class="stat-card stat-card--total">
-          <div class="stat-card__icon">
-            <FileTextOutlined />
-          </div>
-          <div class="stat-card__content">
-            <span class="stat-card__value">{{ examStats.total }}</span>
-            <span class="stat-card__label">考试总数</span>
-          </div>
-        </div>
-        <div class="stat-card stat-card--published">
-          <div class="stat-card__icon">
-            <CheckCircleOutlined />
-          </div>
-          <div class="stat-card__content">
-            <span class="stat-card__value">{{ examStats.published }}</span>
-            <span class="stat-card__label">已发布</span>
-          </div>
-        </div>
-        <div class="stat-card stat-card--draft">
-          <div class="stat-card__icon">
-            <EditOutlined />
-          </div>
-          <div class="stat-card__content">
-            <span class="stat-card__value">{{ examStats.draft }}</span>
-            <span class="stat-card__label">草稿</span>
-          </div>
-        </div>
-        <div class="stat-card stat-card--ongoing">
-          <div class="stat-card__icon">
-            <PlayCircleOutlined />
-          </div>
-          <div class="stat-card__content">
-            <span class="stat-card__value">{{ examStats.ongoing }}</span>
-            <span class="stat-card__label">进行中</span>
-          </div>
-        </div>
-      </div>
     </header>
 
-    <!-- 搜索和筛选 -->
-    <div class="exam-toolbar">
-      <div class="exam-toolbar__search">
-        <a-input-search
-          v-model:value="searchKeyword"
-          placeholder="搜索考试名称..."
-          style="width: 300px"
-          allow-clear
-          @search="handleSearch"
-          @change="handleSearchChange"
-        />
+    <!-- 统计卡片 -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--primary">
+          <FileTextOutlined />
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ examStats.total }}</span>
+          <span class="stat-card__label">考试总数</span>
+        </div>
       </div>
-      <div class="exam-toolbar__filters">
-        <a-radio-group v-model:value="filterStatus" button-style="solid" @change="handleFilterChange">
-          <a-radio-button value="all">全部</a-radio-button>
-          <a-radio-button value="published">已发布</a-radio-button>
-          <a-radio-button value="draft">草稿</a-radio-button>
-        </a-radio-group>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--success">
+          <CheckCircleOutlined />
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ examStats.published }}</span>
+          <span class="stat-card__label">已发布</span>
+        </div>
       </div>
-    </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--warning">
+          <EditOutlined />
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ examStats.draft }}</span>
+          <span class="stat-card__label">草稿</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--info">
+          <PlayCircleOutlined />
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ examStats.ongoing }}</span>
+          <span class="stat-card__label">进行中</span>
+        </div>
+      </div>
+    </section>
 
-    <!-- 考试列表 -->
-    <a-spin :spinning="examLoading">
-      <div v-if="examList.length === 0" class="exam-empty">
-        <a-empty description="暂无考试数据">
-          <a-button type="primary" @click="openAddModal">创建第一个考试</a-button>
-        </a-empty>
+    <!-- 工具栏 -->
+    <section class="content-section">
+      <div class="toolbar">
+        <div class="toolbar__search">
+          <a-input-search
+            v-model:value="searchKeyword"
+            placeholder="搜索考试名称..."
+            style="width: 300px"
+            allow-clear
+            @search="handleSearch"
+            @change="handleSearchChange"
+          />
+        </div>
+        <div class="toolbar__filters">
+          <a-radio-group v-model:value="filterStatus" button-style="solid" @change="handleFilterChange">
+            <a-radio-button value="all">全部</a-radio-button>
+            <a-radio-button value="published">已发布</a-radio-button>
+            <a-radio-button value="draft">草稿</a-radio-button>
+          </a-radio-group>
+        </div>
       </div>
-      
-      <div v-else class="exam-list">
-        <div v-for="exam in examList" :key="exam.id" class="exam-card" :class="getExamCardClass(exam)">
-          <div class="exam-card__header">
-            <div class="exam-card__title-row">
-              <h3 class="exam-card__title">{{ exam.examName }}</h3>
-              <a-tag :color="getStatusColor(exam)">{{ getStatusText(exam) }}</a-tag>
-            </div>
-            <div class="exam-card__meta">
-              <span v-if="exam.paper" class="exam-card__paper">
-                <FileTextOutlined /> {{ exam.paper.paperName }}
+
+      <!-- 考试表格 -->
+      <a-table
+        :columns="columns"
+        :data-source="examList"
+        :loading="examLoading"
+        :pagination="false"
+        row-key="id"
+        class="exam-table"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'examName'">
+            <div class="exam-name-cell">
+              <span class="exam-name">{{ record.examName }}</span>
+              <span v-if="record.paper" class="exam-paper">
+                <FileTextOutlined /> {{ record.paper.paperName }}
               </span>
-              <span v-else class="exam-card__paper exam-card__paper--empty">
+              <span v-else class="exam-paper exam-paper--empty">
                 <FileTextOutlined /> 未关联试卷
               </span>
             </div>
-          </div>
-
-          <div class="exam-card__body">
-            <div class="exam-card__info-grid">
-              <div class="exam-card__info-item">
-                <ClockCircleOutlined />
-                <span>考试时长</span>
-                <strong>{{ exam.durationMin ? `${exam.durationMin} 分钟` : '未设置' }}</strong>
-              </div>
-              <div class="exam-card__info-item">
-                <CalendarOutlined />
-                <span>开始时间</span>
-                <strong>{{ exam.startTime ? formatDateTime(exam.startTime) : '未设置' }}</strong>
-              </div>
-              <div class="exam-card__info-item">
-                <FormOutlined />
-                <span>题目数量</span>
-                <strong>{{ exam.paper?.questionCount ?? 0 }} 题</strong>
-              </div>
-              <div class="exam-card__info-item">
-                <TrophyOutlined />
-                <span>总分</span>
-                <strong>{{ exam.paper?.totalScore ?? 0 }} 分</strong>
-              </div>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="getStatusColor(record)">{{ getStatusText(record) }}</a-tag>
+          </template>
+          <template v-else-if="column.key === 'duration'">
+            <span v-if="record.durationMin">{{ record.durationMin }} 分钟</span>
+            <span v-else class="empty-text">未设置</span>
+          </template>
+          <template v-else-if="column.key === 'startTime'">
+            <span v-if="record.startTime">{{ formatDateTime(record.startTime) }}</span>
+            <span v-else class="empty-text">未设置</span>
+          </template>
+          <template v-else-if="column.key === 'paperInfo'">
+            <div class="paper-info">
+              <span>{{ record.paper?.questionCount ?? 0 }} 题</span>
+              <span class="divider">|</span>
+              <span>{{ record.paper?.totalScore ?? 0 }} 分</span>
             </div>
-          </div>
-
-          <div class="exam-card__footer">
-            <div class="exam-card__time">
-              <span>更新于 {{ formatDate(exam.updatedAt) }}</span>
-            </div>
-            <div class="exam-card__actions">
-              <a-button size="small" @click="openEditModal(exam)">
+          </template>
+          <template v-else-if="column.key === 'updatedAt'">
+            <span class="time-text">{{ formatDate(record.updatedAt) }}</span>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <div class="action-buttons">
+              <a-button type="link" size="small" @click="openEditModal(record)">
                 <EditOutlined /> 编辑
               </a-button>
               <a-button 
-                v-if="!exam.isPublished && exam.paperId" 
-                size="small" 
-                type="primary"
-                @click="handlePublish(exam)"
+                v-if="!record.isPublished && record.paperId" 
+                type="link" 
+                size="small"
+                @click="handlePublish(record)"
               >
                 <SendOutlined /> 发布
               </a-button>
               <a-button 
-                v-if="exam.isPublished" 
+                v-if="record.isPublished" 
+                type="link" 
                 size="small" 
                 danger
-                @click="handleUnpublish(exam)"
+                @click="handleUnpublish(record)"
               >
-                <StopOutlined /> 取消发布
+                <StopOutlined /> 取消
               </a-button>
               <a-popconfirm
                 title="确定要删除这个考试吗？"
                 ok-text="确定"
                 cancel-text="取消"
-                @confirm="handleDelete(exam.id)"
+                @confirm="handleDelete(record.id)"
               >
-                <a-button size="small" danger>
+                <a-button type="link" size="small" danger>
                   <DeleteOutlined /> 删除
                 </a-button>
               </a-popconfirm>
             </div>
+          </template>
+        </template>
+        <template #emptyText>
+          <div class="empty-state">
+            <FileSearchOutlined class="empty-icon" />
+            <p>暂无考试数据</p>
+            <a-button type="primary" @click="openAddModal">创建第一个考试</a-button>
           </div>
-        </div>
-      </div>
-    </a-spin>
+        </template>
+      </a-table>
 
-    <!-- 分页 -->
-    <div v-if="examPagination.total > examPagination.pageSize" class="exam-pagination">
-      <a-pagination
-        v-model:current="examPagination.current"
-        :total="examPagination.total"
-        :page-size="examPagination.pageSize"
-        show-size-changer
-        :page-size-options="['5', '10', '20']"
-        @change="handlePageChange"
-        @showSizeChange="handlePageSizeChange"
-      />
-    </div>
+      <!-- 分页 -->
+      <div v-if="examPagination.total > examPagination.pageSize" class="pagination-wrap">
+        <a-pagination
+          v-model:current="examPagination.current"
+          :total="examPagination.total"
+          :page-size="examPagination.pageSize"
+          show-size-changer
+          :page-size-options="['5', '10', '20']"
+          @change="handlePageChange"
+          @showSizeChange="handlePageSizeChange"
+        />
+      </div>
+    </section>
 
     <!-- 新建/编辑考试弹窗 -->
     <a-modal
       v-model:open="modalVisible"
       :title="isEditing ? '编辑考试' : '新建考试'"
-      :width="640"
+      :width="600"
       :confirm-loading="modalLoading"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
@@ -214,12 +212,12 @@
             <a-select-option v-for="paper in allPapers" :key="paper.id" :value="paper.id">
               <div class="paper-option">
                 <span>{{ paper.paperName }}</span>
-                <span class="paper-option__meta">{{ paper.questionCount }}题 · {{ paper.totalScore }}分</span>
+                <span class="paper-option__meta">{{ paper.questionCount }}题 / {{ paper.totalScore }}分</span>
               </div>
             </a-select-option>
           </a-select>
           <template #extra>
-            <span class="form-item-hint">选择已组卷完成的试卷</span>
+            <span class="form-hint">选择已组卷完成的试卷</span>
           </template>
         </a-form-item>
 
@@ -271,26 +269,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { message } from 'ant-design-vue'
+import type { TableColumnType } from 'ant-design-vue'
 import {
   PlusOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   EditOutlined,
   PlayCircleOutlined,
-  ClockCircleOutlined,
-  CalendarOutlined,
   FormOutlined,
   TrophyOutlined,
   SendOutlined,
   StopOutlined,
   DeleteOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons-vue'
 import { useExamAdminStore } from '@/stores/exam/admin'
-import type { Exam, ExamAddRequest, ExamUpdateRequest, Paper } from '@/stores/exam/types'
-import { getExamStatus } from '@/stores/exam/types'
+import type { Exam, ExamAddRequest, ExamUpdateRequest } from '@/stores/exam/types'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
@@ -300,6 +297,17 @@ const { examList, examPagination, examStats, allPapers, examLoading } = storeToR
 // 搜索和筛选
 const searchKeyword = ref('')
 const filterStatus = ref<'all' | 'published' | 'draft'>('all')
+
+// 表格列定义
+const columns: TableColumnType[] = [
+  { title: '考试名称', key: 'examName', ellipsis: true },
+  { title: '状态', key: 'status', width: 100 },
+  { title: '时长', key: 'duration', width: 100 },
+  { title: '开始时间', key: 'startTime', width: 150 },
+  { title: '试卷信息', key: 'paperInfo', width: 120 },
+  { title: '更新时间', key: 'updatedAt', width: 160 },
+  { title: '操作', key: 'actions', width: 200, fixed: 'right' }
+]
 
 // 弹窗状态
 const modalVisible = ref(false)
@@ -368,11 +376,6 @@ function getStatusText(exam: Exam): string {
     ended: '已结束'
   }
   return textMap[status] || '未知'
-}
-
-function getExamCardClass(exam: Exam): string {
-  const status = getExamStatusLocal(exam)
-  return `exam-card--${status}`
 }
 
 // 格式化日期
@@ -544,66 +547,86 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.exam-manage-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.exam-manage-page {
   padding: 24px;
+  background: #f5f7fa;
+  min-height: 100vh;
 }
 
-/* 头部样式 */
-.exam-header {
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 24px;
-  color: #fff;
+/* 页面头部 */
+.page-header {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.exam-header__content {
+.page-header__content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 28px;
+  align-items: center;
 }
 
-.exam-header__title {
-  font-size: 28px;
+.page-header__title {
+  font-size: 24px;
   font-weight: 600;
   margin: 0 0 8px 0;
+  color: #1a1a1a;
 }
 
-.exam-header__desc {
+.page-header__desc {
   margin: 0;
-  opacity: 0.85;
-  font-size: 15px;
+  color: #666;
+  font-size: 14px;
 }
 
 /* 统计卡片 */
-.exam-stats {
+.stats-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .stat-card__icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22px;
+}
+
+.stat-card__icon--primary {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.stat-card__icon--success {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.stat-card__icon--warning {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.stat-card__icon--info {
+  background: #f0f5ff;
+  color: #722ed1;
 }
 
 .stat-card__content {
@@ -614,148 +637,104 @@ onMounted(async () => {
 .stat-card__value {
   font-size: 28px;
   font-weight: 700;
+  color: #262626;
   line-height: 1.2;
 }
 
 .stat-card__label {
   font-size: 13px;
-  opacity: 0.85;
+  color: #8c8c8c;
+  margin-top: 4px;
 }
 
-/* 工具栏 */
-.exam-toolbar {
+/* 内容区域 */
+.content-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-/* 考试列表 */
-.exam-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
+/* 表格样式 */
+.exam-table {
+  margin-bottom: 20px;
 }
 
-.exam-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  transition: all 0.2s ease;
-  border: 1px solid #f0f0f0;
-}
-
-.exam-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.exam-card--ongoing {
-  border-color: #52c41a;
-  border-width: 2px;
-}
-
-.exam-card__header {
-  padding: 20px 20px 12px;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.exam-card__title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.exam-card__title {
-  font-size: 17px;
-  font-weight: 600;
-  margin: 0;
-  color: #1a1a1a;
-  flex: 1;
-  line-height: 1.4;
-}
-
-.exam-card__meta {
-  font-size: 13px;
-  color: #666;
-}
-
-.exam-card__paper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.exam-card__paper--empty {
-  color: #999;
-}
-
-.exam-card__body {
-  padding: 16px 20px;
-}
-
-.exam-card__info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.exam-card__info-item {
+.exam-name-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 13px;
-  color: #666;
 }
 
-.exam-card__info-item .anticon {
-  color: #1890ff;
-  margin-bottom: 2px;
-}
-
-.exam-card__info-item strong {
-  font-size: 14px;
-  color: #1a1a1a;
+.exam-name {
   font-weight: 500;
+  color: #262626;
 }
 
-.exam-card__footer {
-  padding: 12px 20px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #fafafa;
-}
-
-.exam-card__time {
+.exam-paper {
   font-size: 12px;
-  color: #999;
-}
-
-.exam-card__actions {
+  color: #8c8c8c;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
 }
 
-/* 空状态 */
-.exam-empty {
-  padding: 80px 0;
-  background: #fff;
-  border-radius: 12px;
+.exam-paper--empty {
+  color: #bfbfbf;
 }
 
-/* 分页 */
-.exam-pagination {
-  margin-top: 24px;
+.paper-info {
+  font-size: 13px;
+  color: #595959;
+}
+
+.paper-info .divider {
+  margin: 0 6px;
+  color: #d9d9d9;
+}
+
+.time-text {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+.empty-text {
+  color: #bfbfbf;
+}
+
+.action-buttons {
   display: flex;
+  gap: 4px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 16px;
+}
+
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 表单样式 */
@@ -771,12 +750,12 @@ onMounted(async () => {
 
 .paper-option__meta {
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
 }
 
-.form-item-hint {
+.form-hint {
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
 }
 
 /* 试卷预览 */
@@ -807,33 +786,38 @@ onMounted(async () => {
   display: flex;
   gap: 20px;
   font-size: 14px;
-  color: #666;
+  color: #595959;
 }
 
 .paper-preview__info .anticon {
-  margin-right: 6px;
+  margin-right: 4px;
   color: #1890ff;
 }
 
 .paper-preview__desc {
   margin: 12px 0 0;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
   font-size: 13px;
-  color: #999;
+  color: #666;
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .exam-stats {
+@media (max-width: 1200px) {
+  .stats-section {
     grid-template-columns: repeat(2, 1fr);
   }
-  
-  .exam-toolbar {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .exam-list {
+}
+
+@media (max-width: 768px) {
+  .stats-section {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 }
 </style>
