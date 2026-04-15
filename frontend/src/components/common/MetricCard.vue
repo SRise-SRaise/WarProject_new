@@ -27,22 +27,10 @@ withDefaults(defineProps<Props>(), {
 
 <style scoped>
 .metric-card {
-  position: relative;
-  overflow: hidden;
   padding: 22px 20px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(194, 206, 222, 0.55);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 248, 251, 0.96) 100%);
-  box-shadow: var(--shadow-inset);
-}
-
-.metric-card::after {
-  content: '';
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
-  height: 4px;
-  background: var(--metric-tone);
+  border: 1px solid var(--color-border);
+  background: #ffffff;
 }
 
 .metric-card--primary {
@@ -63,7 +51,7 @@ withDefaults(defineProps<Props>(), {
 
 .metric-card__label {
   margin: 0 0 14px;
-  color: var(--color-text-secondary);
+  color: var(--metric-tone);
   font-size: 13px;
   font-weight: 600;
 }
