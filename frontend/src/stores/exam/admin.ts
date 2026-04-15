@@ -3,7 +3,11 @@ import { defineStore } from 'pinia'
 import { examRepository } from './repository'
 import type {
   AdminExamItem,
+  Exam,
+  ExamAddRequest,
+  ExamQueryRequest,
   ExamRecordItem,
+  ExamUpdateRequest,
   PageResult,
   Paper,
   PaperAddRequest,
@@ -56,6 +60,22 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
   const currentPaper = ref<PaperDetail | null>(null)
   const allQuestions = ref<QuestionItem[]>([])
   const paperLoading = ref(false)
+
+  // 考试相关状态
+  const examList = ref<Exam[]>([])
+  const examPagination = reactive({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
+  const examStats = reactive({
+    total: 0,
+    published: 0,
+    draft: 0,
+    ongoing: 0
+  })
+  const allPapers = ref<Paper[]>([])
+  const examLoading = ref(false)
 
   async function ensureLoaded(): Promise<void> {
     if (hydrated.value) return
@@ -238,6 +258,76 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     return result
   }
 
+  // 考试管理方法
+  async function loadExams(query: Partial<ExamQueryRequest> = {}): Promise<void> {
+    examLoading.value = true
+    try {
+      const request: ExamQueryRequest = {
+        current: query.current ?? examPagination.current,
+        pageSize: query.pageSize ?? examPagination.pageSize,
+        examName: query.examName,
+        isPublished: query.isPublished
+      }
+      const result = await examRepository.listExams(request)
+      examList.value = result.records
+      examPagination.current = result.current
+      examPagination.total = result.total
+      
+      // 同时更新统计
+      const stats = await examRepository.getExamStats()
+      examStats.total = stats.total
+      examStats.published = stats.published
+      examStats.draft = stats.draft
+      examStats.ongoing = stats.ongoing
+    } finally {
+      examLoading.value = false
+    }
+  }
+
+  async function loadAllPapers(): Promise<void> {
+    allPapers.value = await examRepository.getAllPapers()
+  }
+
+  async function addExam(request: ExamAddRequest): Promise<number> {
+    const id = await examRepository.addExam(request)
+    if (id) {
+      await loadExams()
+    }
+    return id
+  }
+
+  async function updateExam(request: ExamUpdateRequest): Promise<boolean> {
+    const result = await examRepository.updateExam(request)
+    if (result) {
+      await loadExams()
+    }
+    return result
+  }
+
+  async function deleteExam(id: number): Promise<boolean> {
+    const result = await examRepository.deleteExam(id)
+    if (result) {
+      await loadExams()
+    }
+    return result
+  }
+
+  async function publishExam(id: number): Promise<boolean> {
+    const result = await examRepository.publishExam(id)
+    if (result) {
+      await loadExams()
+    }
+    return result
+  }
+
+  async function unpublishExam(id: number): Promise<boolean> {
+    const result = await examRepository.unpublishExam(id)
+    if (result) {
+      await loadExams()
+    }
+    return result
+  }
+
   return {
     questionBanks,
     questionTypes,
@@ -277,5 +367,18 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     updatePaperQuestionScore,
     removeQuestionFromPaper,
     reorderPaperQuestions,
+    // 考试相关
+    examList,
+    examPagination,
+    examStats,
+    allPapers,
+    examLoading,
+    loadExams,
+    loadAllPapers,
+    addExam,
+    updateExam,
+    deleteExam,
+    publishExam,
+    unpublishExam,
   }
 })

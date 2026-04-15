@@ -10,9 +10,13 @@ import {
 } from './fixtures'
 import type {
   AdminExamItem,
+  Exam,
+  ExamAddRequest,
+  ExamQueryRequest,
   ExamQuestion,
   ExamRecordItem,
   ExamStudentItem,
+  ExamUpdateRequest,
   PageResult,
   Paper,
   PaperAddRequest,
@@ -39,6 +43,51 @@ let scoreSummary = CommonUtil.deepClone(scoreSummaryFixtures)
 const questionBanks = CommonUtil.deepClone(questionBankFixtures)
 const questionTypes = CommonUtil.deepClone(questionTypeFixtures)
 const papers = CommonUtil.deepClone(paperFixtures)
+
+// 模拟考试数据
+let examIdCounter = 10
+let examsList: Exam[] = [
+  {
+    id: 1,
+    examName: '软件工程期中考试',
+    paperId: 1,
+    durationMin: 90,
+    startTime: '2026-04-20 09:00:00',
+    isPublished: true,
+    createdAt: '2026-04-10 10:00:00',
+    updatedAt: '2026-04-15 14:30:00'
+  },
+  {
+    id: 2,
+    examName: 'Web前端技术随堂测验',
+    paperId: 2,
+    durationMin: 45,
+    startTime: '2026-04-18 14:00:00',
+    isPublished: true,
+    createdAt: '2026-04-12 09:00:00',
+    updatedAt: '2026-04-14 16:20:00'
+  },
+  {
+    id: 3,
+    examName: '计算机网络期末考试',
+    paperId: null,
+    durationMin: 120,
+    startTime: null,
+    isPublished: false,
+    createdAt: '2026-04-14 11:00:00',
+    updatedAt: '2026-04-14 11:00:00'
+  },
+  {
+    id: 4,
+    examName: '数据结构第三次测验',
+    paperId: 3,
+    durationMin: 60,
+    startTime: null,
+    isPublished: false,
+    createdAt: '2026-04-15 08:30:00',
+    updatedAt: '2026-04-15 08:30:00'
+  }
+]
 
 // 模拟试卷数据
 let paperIdCounter = 10
@@ -610,5 +659,146 @@ export const examRepository = {
   async getAllQuestions(): Promise<QuestionItem[]> {
     await CommonUtil.sleep(50)
     return CommonUtil.deepClone(questions)
+  },
+
+  // ========== 考试 CRUD 方法 ==========
+  async listExams(query: ExamQueryRequest): Promise<PageResult<Exam>> {
+    await CommonUtil.sleep(80)
+    let filtered = [...examsList]
+    
+    if (query.examName) {
+      const keyword = query.examName.toLowerCase()
+      filtered = filtered.filter(e => e.examName.toLowerCase().includes(keyword))
+    }
+    
+    if (query.isPublished !== undefined) {
+      filtered = filtered.filter(e => e.isPublished === query.isPublished)
+    }
+    
+    // 按更新时间倒序
+    filtered.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    
+    // 关联试卷信息
+    const records = filtered.map(e => ({
+      ...e,
+      paper: e.paperId ? papersList.find(p => p.id === e.paperId) : undefined
+    }))
+    
+    const start = (query.current - 1) * query.pageSize
+    const paged = records.slice(start, start + query.pageSize)
+    
+    return {
+      records: CommonUtil.deepClone(paged),
+      total: filtered.length,
+      current: query.current,
+      size: query.pageSize
+    }
+  },
+
+  async getExamById(id: number): Promise<Exam | null> {
+    await CommonUtil.sleep(60)
+    const exam = examsList.find(e => e.id === id)
+    if (!exam) return null
+    
+    return CommonUtil.deepClone({
+      ...exam,
+      paper: exam.paperId ? papersList.find(p => p.id === exam.paperId) : undefined
+    })
+  },
+
+  async addExam(request: ExamAddRequest): Promise<number> {
+    await CommonUtil.sleep(100)
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const newExam: Exam = {
+      id: ++examIdCounter,
+      examName: request.examName,
+      paperId: request.paperId || null,
+      durationMin: request.durationMin || null,
+      startTime: request.startTime || null,
+      isPublished: false,
+      createdAt: now,
+      updatedAt: now
+    }
+    examsList.unshift(newExam)
+    return newExam.id
+  },
+
+  async updateExam(request: ExamUpdateRequest): Promise<boolean> {
+    await CommonUtil.sleep(100)
+    const index = examsList.findIndex(e => e.id === request.id)
+    if (index === -1) return false
+    
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const updated = { ...examsList[index] }
+    
+    if (request.examName !== undefined) updated.examName = request.examName
+    if (request.paperId !== undefined) updated.paperId = request.paperId
+    if (request.durationMin !== undefined) updated.durationMin = request.durationMin
+    if (request.startTime !== undefined) updated.startTime = request.startTime
+    if (request.isPublished !== undefined) updated.isPublished = request.isPublished
+    updated.updatedAt = now
+    
+    examsList[index] = updated
+    return true
+  },
+
+  async deleteExam(id: number): Promise<boolean> {
+    await CommonUtil.sleep(80)
+    const index = examsList.findIndex(e => e.id === id)
+    if (index === -1) return false
+    
+    examsList.splice(index, 1)
+    return true
+  },
+
+  async publishExam(id: number): Promise<boolean> {
+    await CommonUtil.sleep(80)
+    const exam = examsList.find(e => e.id === id)
+    if (!exam) return false
+    
+    // 检查是否关联了试卷
+    if (!exam.paperId) return false
+    
+    exam.isPublished = true
+    exam.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    return true
+  },
+
+  async unpublishExam(id: number): Promise<boolean> {
+    await CommonUtil.sleep(80)
+    const exam = examsList.find(e => e.id === id)
+    if (!exam) return false
+    
+    exam.isPublished = false
+    exam.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    return true
+  },
+
+  // 获取考试统计
+  async getExamStats(): Promise<{ total: number; published: number; draft: number; ongoing: number }> {
+    await CommonUtil.sleep(40)
+    const now = new Date()
+    let ongoing = 0
+    
+    examsList.forEach(e => {
+      if (e.isPublished && e.startTime && e.durationMin) {
+        const start = new Date(e.startTime)
+        const end = new Date(start.getTime() + e.durationMin * 60 * 1000)
+        if (now >= start && now <= end) ongoing++
+      }
+    })
+    
+    return {
+      total: examsList.length,
+      published: examsList.filter(e => e.isPublished).length,
+      draft: examsList.filter(e => !e.isPublished).length,
+      ongoing
+    }
+  },
+
+  // 获取所有试卷（用于考试关联选择）
+  async getAllPapers(): Promise<Paper[]> {
+    await CommonUtil.sleep(50)
+    return CommonUtil.deepClone(papersList.filter(p => p.questionCount > 0))
   },
 }

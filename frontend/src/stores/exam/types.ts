@@ -253,3 +253,62 @@ export interface ScoreSummaryItem {
   detail: string
   tone: 'primary' | 'success' | 'warning' | 'accent'
 }
+
+// 考试实体（对应数据库 edu_exam）
+export interface Exam {
+  id: number
+  examName: string
+  paperId: number | null
+  durationMin: number | null
+  startTime: string | null
+  isPublished: boolean
+  createdAt: string
+  updatedAt: string
+  // 关联的试卷信息
+  paper?: Paper
+}
+
+// 考试添加请求
+export interface ExamAddRequest {
+  examName: string
+  paperId?: number
+  durationMin?: number
+  startTime?: string
+}
+
+// 考试更新请求
+export interface ExamUpdateRequest {
+  id: number
+  examName?: string
+  paperId?: number
+  durationMin?: number
+  startTime?: string
+  isPublished?: boolean
+}
+
+// 考试查询请求
+export interface ExamQueryRequest {
+  current: number
+  pageSize: number
+  examName?: string
+  isPublished?: boolean
+}
+
+// 考试状态类型
+export type ExamStatus = 'draft' | 'ready' | 'published' | 'ongoing' | 'ended'
+
+// 计算考试状态
+export function getExamStatus(exam: Exam): ExamStatus {
+  if (!exam.isPublished) {
+    return exam.paperId ? 'ready' : 'draft'
+  }
+  if (!exam.startTime) return 'published'
+  
+  const now = new Date()
+  const start = new Date(exam.startTime)
+  const end = new Date(start.getTime() + (exam.durationMin || 0) * 60 * 1000)
+  
+  if (now < start) return 'published'
+  if (now >= start && now <= end) return 'ongoing'
+  return 'ended'
+}
