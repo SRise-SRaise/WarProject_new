@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.springboot.common.BaseResponse;
 import com.springboot.common.ErrorCode;
 import com.springboot.common.ResultUtils;
+import com.springboot.constant.UserConstant;
 import com.springboot.exception.BusinessException;
 import com.springboot.exception.ThrowUtils;
 import com.springboot.model.dto.user.AuthTeacherAddRequest;
@@ -11,8 +12,11 @@ import com.springboot.model.dto.user.AuthTeacherQueryRequest;
 import com.springboot.model.dto.user.AuthTeacherUpdateRequest;
 import com.springboot.model.entity.user.AuthTeacher;
 import com.springboot.model.vo.user.AuthTeacherVO;
+import com.springboot.model.vo.user.LoginPrincipal;
+import com.springboot.service.user.AuthLoginService;
 import com.springboot.service.user.AuthTeacherService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,13 +33,38 @@ public class AuthTeacherController {
     @Resource
     private AuthTeacherService authTeacherService;
 
+    @Resource
+    private AuthLoginService authLoginService;
+
+    /**
+     * 新增教师账号
+     * 权限：仅管理员或教师可操作（学生、助教等不可）。
+     */
     @PostMapping("/add")
-    public BaseResponse<Boolean> addAuthTeacher(@RequestBody AuthTeacherAddRequest addRequest) {
+    public BaseResponse<Boolean> addAuthTeacher(@RequestBody AuthTeacherAddRequest addRequest, HttpServletRequest request) {
+        LoginPrincipal loginPrincipal = authLoginService.getLoginPrincipal(request);
+        boolean canOperate = UserConstant.ADMIN_ROLE.equals(loginPrincipal.getRoleCode())
+                || UserConstant.ROLE_TYPE_TEACHER.equals(loginPrincipal.getRoleType());
+        if (!canOperate) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅管理员或教师可创建教师账号");
+        }
         if (addRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        String username = StringUtils.trimToEmpty(addRequest.getUsername());
+        String passwordMd5 = StringUtils.trimToEmpty(addRequest.getPasswordMd5());
+        String realName = StringUtils.trimToEmpty(addRequest.getRealName());
+        if (StringUtils.isAnyBlank(username, passwordMd5, realName)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "工号、密码与姓名不能为空");
+        }
+        long duplicate = authTeacherService.lambdaQuery().eq(AuthTeacher::getUsername, username).count();
+        if (duplicate > 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "教师工号已存在");
+        }
         AuthTeacher entity = new AuthTeacher();
-        BeanUtils.copyProperties(addRequest, entity);
+        entity.setUsername(username);
+        entity.setPasswordMd5(passwordMd5);
+        entity.setRealName(realName);
         authTeacherService.validAuthTeacher(entity, true);
         boolean result = authTeacherService.save(entity);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);

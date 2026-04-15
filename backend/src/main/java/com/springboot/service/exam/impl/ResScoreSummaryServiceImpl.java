@@ -22,6 +22,10 @@ public class ResScoreSummaryServiceImpl extends ServiceImpl<ResScoreSummaryMappe
 
     @Override
     public QueryWrapper<ResScoreSummary> getQueryWrapper(ResScoreSummaryQueryRequest queryRequest) {
+        if (queryRequest == null) {
+            return ServiceMethodSupport.buildQueryWrapper(null);
+        }
+        queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
         return ServiceMethodSupport.buildQueryWrapper(queryRequest);
     }
 
@@ -33,5 +37,18 @@ public class ResScoreSummaryServiceImpl extends ServiceImpl<ResScoreSummaryMappe
     @Override
     public Page<ResScoreSummaryVO> getResScoreSummaryVOPage(Page<ResScoreSummary> entityPage, HttpServletRequest request) {
         return ServiceMethodSupport.toVOPage(entityPage, ResScoreSummaryVO::objToVo);
+    }
+
+    private String mapSortField(String sortField) {
+        if (sortField == null) {
+            return null;
+        }
+        return switch (sortField) {
+            case "id" -> "score_id";
+            case "studentId" -> "student_id";
+            case "experimentId" -> "experiment_id";
+            case "totalScore" -> "score";
+            default -> sortField;
+        };
     }
 }

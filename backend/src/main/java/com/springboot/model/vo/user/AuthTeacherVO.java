@@ -15,8 +15,6 @@ public class AuthTeacherVO implements Serializable {
 
     private String username;
 
-    private String passwordMd5;
-
     private String realName;
 
     private Date createdAt;

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { postAuthLogin, postAuthRegister } from '@/api/auth'
+import { login as loginApi, register as registerApi } from '@/api/authController'
 import { CommonUtil } from '@/utils'
 import {
   buildDisplayName,
@@ -228,21 +228,21 @@ function writeStoredSession(session: UserSession | null): void {
 
 async function tryApiLogin(credentials: AuthCredentials): Promise<UserSession | null> {
   try {
-    const response = await postAuthLogin({
-      account: credentials.account,
-      password: credentials.password
+    const role: UserRole = credentials.role ?? (credentials.account.toLowerCase().includes('teacher') ? 'teacher' : 'student')
+    const roleType = role === 'teacher' ? '教师' : '学生'
+    const response = await loginApi({
+      roleType,
+      loginAccount: credentials.account,
+      loginPassword: credentials.password
     })
-    const data: unknown = response.data
-    const payload = extractPayload(data)
+    const payload = response.data?.data?.loginPrincipal as Record<string, unknown> | undefined
     if (!payload) {
       return null
     }
-
-    const role = inferRoleFromPayload(payload, credentials.account)
     const matchedAccount = mergeAccounts().find((item) => item.account === credentials.account)
     const account = matchedAccount ?? {
-      id: CommonUtil.generateId(role),
-      account: credentials.account,
+      id: typeof payload.userId === 'number' ? String(payload.userId) : CommonUtil.generateId(role),
+      account: (typeof payload.loginAccount === 'string' ? payload.loginAccount : credentials.account),
       password: credentials.password,
       role,
       name: inferNameFromPayload(payload, credentials.account, role)
@@ -255,9 +255,13 @@ async function tryApiLogin(credentials: AuthCredentials): Promise<UserSession | 
 
 async function tryApiRegister(credentials: AuthCredentials): Promise<void> {
   try {
-    await postAuthRegister({
-      account: credentials.account,
-      password: credentials.password
+    await registerApi({
+      roleType: '学生',
+      loginAccount: credentials.account,
+      displayName: buildDisplayName(credentials.account, 'student'),
+      classCode: '',
+      loginPassword: credentials.password,
+      checkPassword: credentials.password
     })
   } catch {
     return
@@ -289,7 +293,7 @@ export const useAuthStore = defineStore('user-auth', () => {
       }
 
       const matchedAccount = mergeAccounts().find(
-        (account) => account.account === credentials.account && account.password === credentials.password
+          (account) => account.account === credentials.account && account.password === credentials.password
       )
       if (!matchedAccount) {
         throw new Error('账号或密码不正确，请使用示例账号或已注册账号登录。')

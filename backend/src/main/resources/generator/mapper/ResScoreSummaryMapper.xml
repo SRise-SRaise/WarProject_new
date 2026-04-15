@@ -5,15 +5,13 @@
 <mapper namespace="com.springboot.mapper.ResScoreSummaryMapper">
 
     <resultMap id="BaseResultMap" type="com.springboot.model.entity.ResScoreSummary">
-            <id property="id" column="id" />
+            <id property="id" column="score_id" />
             <result property="studentId" column="student_id" />
             <result property="experimentId" column="experiment_id" />
-            <result property="totalScore" column="total_score" />
-            <result property="createdAt" column="created_at" />
-            <result property="updatedAt" column="updated_at" />
+            <result property="totalScore" column="score" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,student_id,experiment_id,total_score,created_at,updated_at
+        score_id,student_id,experiment_id,score
     </sql>
 </mapper>

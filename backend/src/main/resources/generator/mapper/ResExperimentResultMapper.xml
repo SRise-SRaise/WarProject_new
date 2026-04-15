@@ -5,19 +5,16 @@
 <mapper namespace="com.springboot.mapper.ResExperimentResultMapper">
 
     <resultMap id="BaseResultMap" type="com.springboot.model.entity.ResExperimentResult">
-            <id property="id" column="id" />
+            <id property="id" column="student_item_id" />
             <result property="studentId" column="student_id" />
             <result property="itemId" column="item_id" />
-            <result property="subContent" column="sub_content" />
+            <result property="subContent" column="content" />
             <result property="score" column="score" />
-            <result property="submittedAt" column="submitted_at" />
-            <result property="gradingStatus" column="grading_status" />
-            <result property="createdAt" column="created_at" />
-            <result property="updatedAt" column="updated_at" />
+            <result property="submittedAt" column="fill_time" />
+            <result property="gradingStatus" column="score_flag" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,student_id,item_id,sub_content,score,submitted_at,
-        grading_status,created_at,updated_at
+        student_item_id,student_id,item_id,content,score,fill_time,score_flag
     </sql>
 </mapper>

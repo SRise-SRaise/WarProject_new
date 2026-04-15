@@ -10,39 +10,39 @@ import lombok.Data;
 
 /**
  * 实验子项目评分项表
- * @TableName edu_experiment_item
+ * @TableName t_experiment_item
  */
-@TableName(value ="edu_experiment_item")
+@TableName(value ="t_experiment_item")
 @Data
 public class EduExperimentItem implements Serializable {
     /**
      * 子项目主键ID
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "experiment_item_id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 子项目序号
      */
-    @TableField(value = "sort_order")
+    @TableField(value = "experiment_item_no")
     private Integer sortOrder;
 
     /**
      * 子项目名称
      */
-    @TableField(value = "item_name")
+    @TableField(value = "experiment_item_name")
     private String itemName;
 
     /**
      * 子项目类型
      */
-    @TableField(value = "question_type")
+    @TableField(value = "experiment_item_type")
     private Integer questionType;
 
     /**
      * 题目要求
      */
-    @TableField(value = "question_content")
+    @TableField(value = "experiment_item_content")
     private String questionContent;
 
     /**
@@ -54,31 +54,31 @@ public class EduExperimentItem implements Serializable {
     /**
      * 标准答案
      */
-    @TableField(value = "standard_answer")
+    @TableField(value = "experiment_item_answer")
     private String standardAnswer;
 
     /**
      * 该项满分
      */
-    @TableField(value = "max_score")
+    @TableField(value = "experiment_item_score")
     private Integer maxScore;
 
     /**
      * 状态
      */
-    @TableField(value = "item_status")
+    @TableField(value = "state")
     private Integer itemStatus;
 
     /**
      * 
      */
-    @TableField(value = "created_at")
+    @TableField(exist = false)
     private Date createdAt;
 
     /**
      * 
      */
-    @TableField(value = "updated_at")
+    @TableField(exist = false)
     private Date updatedAt;
 
     @TableField(exist = false)

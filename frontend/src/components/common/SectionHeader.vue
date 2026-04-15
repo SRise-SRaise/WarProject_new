@@ -45,9 +45,8 @@ defineProps<Props>()
   margin: 0 0 10px;
   color: var(--color-primary);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .section-header__title-row {
@@ -59,17 +58,18 @@ defineProps<Props>()
 .section-header__title {
   margin: 0;
   color: var(--color-text-main);
-  font-family: Georgia, 'Times New Roman', 'Songti SC', serif;
-  font-size: clamp(24px, 2.6vw, 34px);
-  line-height: 1.1;
+  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: clamp(22px, 2.2vw, 30px);
+  line-height: 1.25;
+  font-weight: 700;
 }
 
 .section-header__description {
   max-width: 720px;
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   color: var(--color-text-secondary);
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .section-header__actions {

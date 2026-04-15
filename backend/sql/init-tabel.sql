@@ -77,17 +77,16 @@ CREATE TABLE `auth_assistant`
 -- 2. 实验核心业务 (Experiment Module)
 -- ==========================================
 
-DROP TABLE IF EXISTS `edu_question_type`;
-CREATE TABLE `edu_question_type`
+DROP TABLE IF EXISTS `t_question_type`;
+CREATE TABLE `t_question_type`
 (
-    `type_id`    INT      NOT NULL COMMENT '类型编号',
-    `type_name`  VARCHAR(10)       DEFAULT NULL COMMENT '类型名称',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `type_id`   INT NOT NULL COMMENT '类型编号',
+    `type_name` VARCHAR(10) DEFAULT NULL COMMENT '类型名称',
     PRIMARY KEY (`type_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='题目类型字典表';
 -- 初始数据植入
-INSERT INTO `edu_question_type` (`type_id`, `type_name`)
+INSERT INTO `t_question_type` (`type_id`, `type_name`)
 VALUES (1, '填空'),
        (2, '单选'),
        (3, '多选'),
@@ -96,42 +95,38 @@ VALUES (1, '填空'),
        (6, '编程'),
        (7, '综合');
 
-DROP TABLE IF EXISTS `edu_experiment`;
-CREATE TABLE `edu_experiment`
+DROP TABLE IF EXISTS `t_experiment`;
+CREATE TABLE `t_experiment`
 (
-    `id`             BIGINT      NOT NULL AUTO_INCREMENT COMMENT '实验项目主键ID',
-    `sort_order`     INT         NOT NULL COMMENT '实验序号(排序)',
-    `name`           VARCHAR(30) NOT NULL COMMENT '实验名称',
-    `category_id`    INT                  DEFAULT NULL COMMENT '实验类型',
-    `file_type`      VARCHAR(10)          DEFAULT NULL COMMENT '指导书文件类型',
-    `requirement`    TEXT COMMENT '实验要求',
-    `content_desc`   TEXT COMMENT '实验内容描述',
-    `publish_status` INT                  DEFAULT NULL COMMENT '发布状态',
-    `created_at`     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_experiment_sort` (`sort_order`)
+    `experiment_id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '实验项目主键ID',
+    `experiment_no`          INT         NOT NULL COMMENT '实验序号',
+    `experiment_name`        VARCHAR(30) NOT NULL COMMENT '实验名称',
+    `experiment_type`        INT                  DEFAULT NULL COMMENT '实验类型',
+    `instruction_type`       VARCHAR(10)          DEFAULT NULL COMMENT '指导书文件类型',
+    `experiment_requirement` TEXT COMMENT '实验要求',
+    `experiment_content`     TEXT COMMENT '实验内容描述',
+    `state`                  INT                  DEFAULT NULL COMMENT '发布状态',
+    PRIMARY KEY (`experiment_id`),
+    KEY `idx_experiment_no` (`experiment_no`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='实验项目表';
 
-DROP TABLE IF EXISTS `edu_experiment_item`;
-CREATE TABLE `edu_experiment_item`
+DROP TABLE IF EXISTS `t_experiment_item`;
+CREATE TABLE `t_experiment_item`
 (
-    `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '子项目主键ID',
-    `sort_order`       INT          NOT NULL COMMENT '子项目序号',
-    `item_name`        VARCHAR(100) NOT NULL COMMENT '子项目名称',
-    `question_type`    INT          NOT NULL COMMENT '子项目类型',
-    `question_content` TEXT COMMENT '题目要求',
-    `experiment_id`    BIGINT       NOT NULL COMMENT '所属实验ID',
-    `standard_answer`  VARCHAR(255)          DEFAULT NULL COMMENT '标准答案',
-    `max_score`        TINYINT               DEFAULT NULL COMMENT '该项满分',
-    `item_status`      INT                   DEFAULT NULL COMMENT '状态',
-    `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_exp_item_sort` (`sort_order`),
-    KEY `fk_exp_item_exp` (`experiment_id`),
-    CONSTRAINT `fk_exp_item_exp` FOREIGN KEY (`experiment_id`) REFERENCES `edu_experiment` (`id`)
+    `experiment_item_id`      BIGINT       NOT NULL AUTO_INCREMENT COMMENT '子项目主键ID',
+    `experiment_item_no`      INT          NOT NULL COMMENT '子项目序号',
+    `experiment_item_name`    VARCHAR(100) NOT NULL COMMENT '子项目名称',
+    `experiment_item_type`    INT          NOT NULL COMMENT '子项目类型',
+    `experiment_item_content` TEXT COMMENT '题目要求',
+    `experiment_id`           BIGINT       NOT NULL COMMENT '所属实验ID',
+    `experiment_item_answer`  VARCHAR(255)          DEFAULT NULL COMMENT '标准答案',
+    `experiment_item_score`   TINYINT               DEFAULT NULL COMMENT '该项满分',
+    `state`                   INT                   DEFAULT NULL COMMENT '状态',
+    PRIMARY KEY (`experiment_item_id`),
+    KEY `idx_experiment_item_no` (`experiment_item_no`),
+    KEY `fk_experiment_id` (`experiment_id`),
+    CONSTRAINT `fk_experiment_id` FOREIGN KEY (`experiment_id`) REFERENCES `t_experiment` (`experiment_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='实验子项目评分项表';
 
@@ -285,55 +280,50 @@ CREATE TABLE `res_exercise_record`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生练习答题记录表';
 
-DROP TABLE IF EXISTS `res_fill_blank_detail`;
-CREATE TABLE `res_fill_blank_detail`
+DROP TABLE IF EXISTS `t_student_answer`;
+CREATE TABLE `t_student_answer`
 (
-    `id`             BIGINT   NOT NULL AUTO_INCREMENT COMMENT '答案记录主键ID',
-    `item_id`        BIGINT                           DEFAULT NULL COMMENT '实验子项目ID',
-    `blank_index`    INT                              DEFAULT NULL COMMENT '填空号',
-    `answer_content` VARCHAR(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '填写的答案内容',
-    `answer_hash`    CHAR(32)                         DEFAULT NULL COMMENT '答案MD5',
-    `submit_count`   INT                              DEFAULT NULL COMMENT '提交次数',
-    `is_correct`     BIT(1)                           DEFAULT NULL COMMENT '是否正确',
-    `created_at`     DATETIME NOT NULL                DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`     DATETIME NOT NULL                DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '答案记录主键ID',
+    `item_id`      BIGINT                           DEFAULT NULL COMMENT '实验子项目ID',
+    `fill_no`      INT                              DEFAULT NULL COMMENT '填空号',
+    `content`      VARCHAR(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '填写的答案内容',
+    `content_hash` CHAR(32)                         DEFAULT NULL COMMENT '答案MD5',
+    `count`        INT                              DEFAULT NULL COMMENT '提交次数',
+    `is_correct`   BIT(1)                           DEFAULT NULL COMMENT '是否正确',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_res_fill_blank` (`item_id`, `blank_index`, `answer_hash`),
-    CONSTRAINT `fk_res_fill_blank_item` FOREIGN KEY (`item_id`) REFERENCES `edu_experiment_item` (`id`)
+    UNIQUE KEY `idx_answer_pk` (`item_id`, `fill_no`, `content_hash`),
+    CONSTRAINT `fk_answer_item_id` FOREIGN KEY (`item_id`) REFERENCES `t_experiment_item` (`experiment_item_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生填空答案表';
 
-DROP TABLE IF EXISTS `res_experiment_result`;
-CREATE TABLE `res_experiment_result`
+DROP TABLE IF EXISTS `t_student_item`;
+CREATE TABLE `t_student_item`
 (
-    `id`             BIGINT   NOT NULL AUTO_INCREMENT COMMENT '提交记录主键ID',
-    `student_id`     BIGINT   NOT NULL COMMENT '学生ID',
-    `item_id`        BIGINT   NOT NULL COMMENT '实验子项目ID',
-    `sub_content`    TEXT     NOT NULL COMMENT '提交的实验内容',
-    `score`          TINYINT           DEFAULT NULL COMMENT '评分',
-    `submitted_at`   DATETIME NOT NULL COMMENT '提交时间',
-    `grading_status` INT               DEFAULT NULL COMMENT '评分标记',
-    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_res_exp_result` (`student_id`, `item_id`),
-    KEY `fk_res_exp_result_item` (`item_id`),
-    CONSTRAINT `fk_res_exp_result_item` FOREIGN KEY (`item_id`) REFERENCES `edu_experiment` (`id`),
-    CONSTRAINT `fk_res_exp_result_student` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`)
+    `student_item_id` BIGINT   NOT NULL AUTO_INCREMENT COMMENT '提交记录主键ID',
+    `student_id`      BIGINT   NOT NULL COMMENT '学生ID',
+    `item_id`         BIGINT   NOT NULL COMMENT '实验子项目ID',
+    `content`         TEXT     NOT NULL COMMENT '提交的实验内容',
+    `score`           TINYINT           DEFAULT NULL COMMENT '评分',
+    `fill_time`       DATETIME NOT NULL COMMENT '提交时间',
+    `score_flag`      INT               DEFAULT NULL COMMENT '评分标记',
+    PRIMARY KEY (`student_item_id`),
+    UNIQUE KEY `idx_student_item` (`student_id`, `item_id`),
+    KEY `fk_item_id` (`item_id`),
+    CONSTRAINT `fk_item_id` FOREIGN KEY (`item_id`) REFERENCES `t_experiment_item` (`experiment_item_id`),
+    CONSTRAINT `fk_student_id` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生实验提交记录表';
 
-DROP TABLE IF EXISTS `res_submission_log`;
-CREATE TABLE `res_submission_log`
+DROP TABLE IF EXISTS `t_student_item_log`;
+CREATE TABLE `t_student_item_log`
 (
-    `id`               BIGINT   NOT NULL AUTO_INCREMENT COMMENT '日志主键ID',
-    `result_id`        BIGINT            DEFAULT NULL COMMENT '提交记录ID',
-    `content_snapshot` TEXT COMMENT '快照内容',
-    `snapshot_time`    DATETIME          DEFAULT NULL COMMENT '快照时间',
-    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_res_sub_log` (`result_id`, `snapshot_time`),
-    CONSTRAINT `fk_res_sub_log_result` FOREIGN KEY (`result_id`) REFERENCES `res_experiment_result` (`id`)
+    `log_id`       BIGINT   NOT NULL AUTO_INCREMENT COMMENT '日志主键ID',
+    `student_item` BIGINT            DEFAULT NULL COMMENT '提交记录ID',
+    `content`      TEXT COMMENT '快照内容',
+    `fill_time`    DATETIME          DEFAULT NULL COMMENT '快照时间',
+    PRIMARY KEY (`log_id`),
+    KEY `fk_student_item` (`student_item`, `fill_time`),
+    CONSTRAINT `fk_student_item` FOREIGN KEY (`student_item`) REFERENCES `t_student_item` (`student_item_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生实验提交日志表';
 
@@ -356,20 +346,18 @@ CREATE TABLE `res_exam_record`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='学生考试答题表';
 
-DROP TABLE IF EXISTS `res_score_summary`;
-CREATE TABLE `res_score_summary`
+DROP TABLE IF EXISTS `t_score`;
+CREATE TABLE `t_score`
 (
-    `id`            BIGINT   NOT NULL AUTO_INCREMENT COMMENT '成绩汇总主键ID',
+    `score_id`      BIGINT   NOT NULL AUTO_INCREMENT COMMENT '成绩汇总主键ID',
     `student_id`    BIGINT            DEFAULT NULL COMMENT '学生ID',
     `experiment_id` BIGINT            DEFAULT NULL COMMENT '实验ID',
-    `total_score`   INT               DEFAULT NULL COMMENT '总成绩',
-    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `fk_res_score_student` (`student_id`),
-    KEY `fk_res_score_exp` (`experiment_id`),
-    CONSTRAINT `fk_res_score_student` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`),
-    CONSTRAINT `fk_res_score_exp` FOREIGN KEY (`experiment_id`) REFERENCES `edu_experiment` (`id`)
+    `score`         INT               DEFAULT NULL COMMENT '总成绩',
+    PRIMARY KEY (`score_id`),
+    KEY `fk_score_student` (`student_id`),
+    KEY `fk_score_experiment` (`experiment_id`),
+    CONSTRAINT `fk_score_student` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`),
+    CONSTRAINT `fk_score_experiment` FOREIGN KEY (`experiment_id`) REFERENCES `t_experiment` (`experiment_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='实验成绩汇总缓存表';
 
