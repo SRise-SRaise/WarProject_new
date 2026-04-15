@@ -15,16 +15,35 @@
 
           <!-- 导航菜单 -->
           <nav class="nav-menu" aria-label="主导航">
-            <button
-              v-for="item in studentMenuItems"
-              :key="item.key"
-              class="nav-item"
-              :class="{ 'nav-item--active': isActive(item.path) }"
-              type="button"
-              @click="router.push(item.path)"
-            >
-              {{ item.label }}
-            </button>
+            <template v-for="item in studentMenuItems" :key="item.key">
+              <a-dropdown v-if="item.children" :trigger="['hover']" placement="bottom">
+                <button
+                  class="nav-item"
+                  :class="{ 'nav-item--active': isNavActive(item) }"
+                  type="button"
+                >
+                  {{ item.label }}
+                  <DownOutlined class="nav-item__arrow" />
+                </button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => goTo(String(key))">
+                    <a-menu-item v-for="child in item.children" :key="child.path">
+                      {{ child.label }}
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+
+              <button
+                v-else
+                class="nav-item"
+                :class="{ 'nav-item--active': isPathActive(item.path) }"
+                type="button"
+                @click="goTo(item.path)"
+              >
+                {{ item.label }}
+              </button>
+            </template>
           </nav>
 
           <!-- 右侧用户区 -->
@@ -97,6 +116,7 @@ interface NavItem {
   key: string
   label: string
   path: string
+  children?: Array<{ key: string; label: string; path: string }>
 }
 
 const router = useRouter()
@@ -108,14 +128,47 @@ const shellMode = computed(() => route.meta.shell ?? 'public')
 const studentMenuItems: NavItem[] = [
   { key: 'learning', label: '学习概览', path: '/learning' },
   { key: 'materials', label: '资料', path: '/materials' },
-  { key: 'homework', label: '作业', path: '/homework' },
+  {
+    key: 'homework',
+    label: '作业',
+    path: '/homework',
+    children: [
+      { key: 'homework-all', label: '作业总览', path: '/homework' },
+      { key: 'homework-pending', label: '待完成作业', path: '/homework?status=pending' },
+      { key: 'homework-submitted', label: '已提交作业', path: '/homework?status=submitted' },
+      { key: 'homework-reviewed', label: '作业成绩', path: '/homework?status=reviewed' }
+    ]
+  },
   { key: 'experiments', label: '实验', path: '/experiments' },
   { key: 'exams', label: '考试', path: '/exams' }
 ]
 
-const isActive = (path: string): boolean => {
+const isPathActive = (path: string): boolean => {
+  if (path.startsWith('/homework?status=')) {
+    const status = path.split('=')[1]
+    return route.path === '/homework' && String(route.query.status || '') === status
+  }
+  if (path === '/homework') {
+    return route.path === '/homework' && !route.query.status
+  }
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)
+}
+
+const isNavActive = (item: NavItem): boolean => {
+  if (!item.children || item.children.length === 0) {
+    return isPathActive(item.path)
+  }
+  return item.children.some((child) => isPathActive(child.path))
+}
+
+const goTo = (path: string): void => {
+  if (path.startsWith('/homework?status=')) {
+    const status = path.split('=')[1]
+    router.push({ path: '/homework', query: { status } })
+    return
+  }
+  router.push(path)
 }
 
 const handleLogout = (): void => {
@@ -204,10 +257,12 @@ const handleLogout = (): void => {
   align-items: center;
   gap: 4px;
   flex: 1;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .nav-item {
-  padding: 6px 14px;
+  padding: 6px 12px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -217,6 +272,11 @@ const handleLogout = (): void => {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
+}
+
+.nav-item__arrow {
+  margin-left: 6px;
+  font-size: 11px;
 }
 
 .nav-item:hover {
