@@ -1,12 +1,14 @@
 <template>
   <div class="app-panel-grid">
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="次级页面" title="作业提交记录" description="该页保留用于精细查看提交明细和进入批改，不作为主导航首选入口。">
-        <template #actions>
-          <a-button @click="router.push('/admin/homework')">返回作业列表</a-button>
-        </template>
-      </SectionHeader>
-    </section>
+    <div class="hw-page-header">
+      <div class="hw-page-header__left">
+        <h1 class="hw-page-header__title">作业提交记录</h1>
+        <p class="hw-page-header__desc">查看学生提交明细和进入批改。</p>
+      </div>
+      <div class="hw-page-header__actions">
+        <a-button @click="router.push('/admin/homework')">返回作业列表</a-button>
+      </div>
+    </div>
 
     <section class="app-surface-card app-section-card">
       <a-table :columns="columns" :data-source="submissions" row-key="id" :pagination="false">
@@ -29,7 +31,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import SectionHeader from '@/components/common/SectionHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 
 type SubmissionStatus = 'draft' | 'submitted' | 'reviewed' | 'late'
@@ -45,7 +46,6 @@ interface SubmissionMock {
   summary: string
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /t_excercise_list.do
 const submissionsMock: SubmissionMock[] = [
   { id: 'sub-1', homeworkId: 'hw-101', studentName: '李明', className: '软工 2402', submittedAt: '2026-04-18 21:32', status: 'submitted', summary: '已完成角色旅程与异常流梳理。' },
   { id: 'sub-2', homeworkId: 'hw-101', studentName: '张宁', className: '软工 2402', submittedAt: '2026-04-18 20:45', status: 'reviewed', score: '87 分', summary: '结构完整，边界说明待加强。' },
@@ -61,10 +61,10 @@ const columns = [
   { title: '学生', dataIndex: 'studentName', key: 'studentName' },
   { title: '班级', dataIndex: 'className', key: 'className' },
   { title: '提交时间', dataIndex: 'submittedAt', key: 'submittedAt' },
-  { title: '状态', dataIndex: 'status', key: 'status' },
-  { title: '得分', dataIndex: 'score', key: 'score' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
+  { title: '得分', dataIndex: 'score', key: 'score', width: 100 },
   { title: '说明', dataIndex: 'summary', key: 'summary' },
-  { title: '操作', key: 'action' }
+  { title: '操作', key: 'action', width: 120 }
 ]
 
 function statusTone(status: SubmissionStatus): 'success' | 'processing' | 'warning' | 'default' {

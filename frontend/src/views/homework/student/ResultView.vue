@@ -1,39 +1,37 @@
 <template>
   <div class="app-page-shell app-panel-grid" v-if="scoreData">
-    <section class="app-surface-card app-section-card app-panel-grid">
-      <SectionHeader eyebrow="作业成绩" :title="`${scoreData.title} · 成绩反馈`" :description="scoreData.summary">
-        <template #actions>
-          <a-space :size="12" wrap>
-            <a-button @click="router.push(`/homework/${scoreData.id}/do`)">回到做作业</a-button>
-            <a-button type="primary" @click="router.push('/homework')">返回作业列表</a-button>
-          </a-space>
-        </template>
-      </SectionHeader>
-      <HomeworkMetaGrid
-        :topicLabel="scoreData.topicLabel"
-        :teacher="scoreData.teacher"
-        :open-time="scoreData.openTime"
-        :deadline="scoreData.deadline"
-      />
-    </section>
+    <div class="hw-page-header">
+      <div class="hw-page-header__left">
+        <h1 class="hw-page-header__title">{{ scoreData.title }} · 成绩反馈</h1>
+        <p class="hw-page-header__desc">{{ scoreData.summary }}</p>
+      </div>
+      <div class="hw-page-header__actions">
+        <a-button @click="router.push(`/homework/${scoreData.id}/do`)">回到做作业</a-button>
+        <a-button type="primary" @click="router.push('/homework')">返回作业列表</a-button>
+      </div>
+    </div>
+
+    <HomeworkMetaGrid
+      :topicLabel="scoreData.topicLabel"
+      :teacher="scoreData.teacher"
+      :open-time="scoreData.openTime"
+      :deadline="scoreData.deadline"
+    />
 
     <section class="app-split-grid">
       <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="成绩摘要" title="本次作业成绩" description="当前为页面 Mock 数据，后续将由真实成绩接口替换。" tight />
+        <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">成绩摘要</h2>
         <div class="score-grid">
           <span class="app-inline-stat">状态：{{ scoreData.status }}</span>
           <span class="app-inline-stat">总分：{{ scoreData.score }}</span>
           <span class="app-inline-stat">提交时间：{{ scoreData.submittedAt }}</span>
           <span class="app-inline-stat">批阅时间：{{ scoreData.reviewedAt }}</span>
         </div>
-        <article class="app-list-card">
-          <h3 class="app-list-card__title">教师反馈</h3>
-          <p class="app-list-card__meta">{{ scoreData.feedback }}</p>
-        </article>
+        <a-alert v-if="scoreData.feedback" type="info" :message="`教师反馈：${scoreData.feedback}`" show-icon style="margin-top:16px" />
       </section>
 
       <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="评分明细" title="题目得分构成" description="按题型展示当前得分构成，方便学生定位改进点。" tight />
+        <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">评分明细</h2>
         <div class="app-list">
           <article v-for="item in scoreData.breakdown" :key="item.name" class="app-list-card">
             <div class="breakdown-row">
@@ -51,7 +49,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import SectionHeader from '@/components/common/SectionHeader.vue'
 import HomeworkMetaGrid from '@/components/homework/HomeworkMetaGrid.vue'
 
 interface ScoreBreakdownItem {
@@ -76,7 +73,6 @@ interface HomeworkScoreItem {
   breakdown: ScoreBreakdownItem[]
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /s_excercise_score.do
 const scoreMock: HomeworkScoreItem[] = [
   {
     id: 'hw-101',

@@ -1,36 +1,40 @@
 <template>
   <div class="app-panel-grid" v-if="submission">
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="次级页面" :title="`${submission.studentName} · 作业批改`" :description="submission.summary">
-        <template #actions>
-          <a-button @click="router.push(`/admin/homework/submissions/${submission.homeworkId}`)">返回提交记录</a-button>
-        </template>
-      </SectionHeader>
-    </section>
+    <div class="hw-page-header">
+      <div class="hw-page-header__left">
+        <h1 class="hw-page-header__title">{{ submission.studentName }} · 作业批改</h1>
+        <p class="hw-page-header__desc">{{ submission.summary }}</p>
+      </div>
+      <div class="hw-page-header__actions">
+        <a-button @click="router.push(`/admin/homework/submissions/${submission.homeworkId}`)">返回提交记录</a-button>
+      </div>
+    </div>
 
     <section class="app-split-grid">
       <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="学生提交" title="内容预览" description="先审阅摘要和附件，再填写评分。" tight />
+        <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">学生提交</h2>
         <article class="app-list-card">
           <p class="app-list-card__meta">{{ submission.answerPreview }}</p>
           <div class="review-attachments">
             <span v-for="item in submission.attachments" :key="item" class="app-inline-stat">{{ item }}</span>
           </div>
         </article>
-      </section>
 
-      <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="评分反馈" title="填写批改结果" description="保存后可在学生成绩页查看反馈。" tight />
+        <h2 style="margin:24px 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">评分反馈</h2>
         <a-form layout="vertical">
           <a-form-item label="得分">
             <a-input v-model:value="reviewForm.score" size="large" placeholder="例如：89 分" />
           </a-form-item>
           <a-form-item label="教师反馈">
-            <a-textarea v-model:value="reviewForm.feedback" :rows="6" />
+            <a-textarea v-model:value="reviewForm.feedback" :rows="4" placeholder="请输入批改意见" />
           </a-form-item>
           <a-button type="primary" size="large" @click="submitReview">保存批改</a-button>
         </a-form>
       </section>
+
+      <div class="hw-side-column">
+        <a-alert type="info" message="批改说明" description="先审阅学生内容，再填写评分。后续接入后端后，将支持逐题评分。" show-icon />
+      </div>
     </section>
   </div>
 </template>
@@ -39,7 +43,6 @@
 import { computed, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
-import SectionHeader from '@/components/common/SectionHeader.vue'
 
 interface ReviewMock {
   id: string
@@ -48,11 +51,8 @@ interface ReviewMock {
   summary: string
   answerPreview: string
   attachments: string[]
-  score?: string
-  feedback?: string
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /t_excercise_list.do
 const reviewMock: ReviewMock[] = [
   {
     id: 'sub-1',
@@ -73,8 +73,8 @@ const submission = computed(() => {
 })
 
 const reviewForm = reactive({
-  score: submission.value.score ?? '',
-  feedback: submission.value.feedback ?? ''
+  score: '',
+  feedback: ''
 })
 
 function submitReview(): void {
@@ -82,7 +82,6 @@ function submitReview(): void {
     message.error('请先填写得分。')
     return
   }
-  // 作业模块Mock数据占位符，后续需替换到真实后端接口：POST /t_excercise_save.do
   message.success('批改结果已保存（Mock）。')
   router.push(`/admin/homework/submissions/${submission.value.homeworkId}`)
 }
