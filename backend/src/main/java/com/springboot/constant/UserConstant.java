@@ -26,7 +26,7 @@ public interface UserConstant {
     /**
      * 管理员角色
      */
-    String ADMIN_ROLE = "admin";
+    String ADMIN_ROLE = "管理员";
 
     /**
      * 被封号
@@ -36,17 +36,17 @@ public interface UserConstant {
     /**
      * 学生角色类型
      */
-    String ROLE_TYPE_STUDENT = "student";
+    String ROLE_TYPE_STUDENT = "学生";
 
     /**
      * 教师角色类型
      */
-    String ROLE_TYPE_TEACHER = "teacher";
+    String ROLE_TYPE_TEACHER = "教师";
 
     /**
      * 助教角色类型
      */
-    String ROLE_TYPE_ASSISTANT = "assistant";
+    String ROLE_TYPE_ASSISTANT = "助教";
 
     // endregion
 }

@@ -10,6 +10,9 @@ public interface AuthLoginService {
 
     AuthLoginVO login(AuthLoginRequest authLoginRequest, HttpServletRequest request);
 
+    /**
+     * 用户注册（当前仅支持学生自助注册）。
+     */
     AuthLoginVO register(AuthRegisterRequest authRegisterRequest, HttpServletRequest request);
 
     boolean logout(HttpServletRequest request);

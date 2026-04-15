@@ -14,7 +14,8 @@ export interface UserSession {
   title: string
   department: string
   major?: string
-  className?: string
+  classCode?: string
+  lastLoginIp?: string
   email: string
   phone: string
   location: string
@@ -36,6 +37,7 @@ export interface RegisteredAccount {
 export interface AuthCredentials {
   account: string
   password: string
+  role?: UserRole
 }
 
 export interface StudentRosterItem {

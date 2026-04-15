@@ -11,26 +11,54 @@ import org.springframework.beans.BeanUtils;
 @Data
 public class AuthStudentVO implements Serializable {
 
+    /**
+     * id
+     */
     private Long id;
 
+    /**
+     * 学号
+     */
     private String studentCode;
 
+    /**
+     * 姓名
+     */
     private String studentName;
 
-    private String passwordMd5;
-
+    /**
+     * 班级编号
+     */
     private String classCode;
 
+    /**
+     * 备注
+     */
     private String remark;
 
+    /**
+     * 账号状态
+     */
     private Integer accountStatus;
 
+    /**
+     * 登录失败次数
+     */
     private Integer loginFailCount;
 
+    /**
+     * 最后登录时间
+     */
     private String lastLoginIp;
 
+    /**
+     * 创建时间
+     */
     private Date createdAt;
 
+    /**
+     * 更新时间
+     */
     private Date updatedAt;
 
     public static AuthStudentVO objToVo(AuthStudent entity) {
