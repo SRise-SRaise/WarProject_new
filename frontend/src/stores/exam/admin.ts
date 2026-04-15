@@ -5,7 +5,13 @@ import type {
   AdminExamItem,
   ExamRecordItem,
   PageResult,
+  Paper,
+  PaperAddRequest,
+  PaperDetail,
   PaperItem,
+  PaperQuestionAddRequest,
+  PaperQueryRequest,
+  PaperUpdateRequest,
   QuestionAddRequest,
   QuestionBankItem,
   QuestionItem,
@@ -39,6 +45,17 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     byDifficulty: {} as Record<number, number>
   })
   const questionLoading = ref(false)
+
+  // 试卷相关状态
+  const paperList = ref<Paper[]>([])
+  const paperPagination = reactive({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
+  const currentPaper = ref<PaperDetail | null>(null)
+  const allQuestions = ref<QuestionItem[]>([])
+  const paperLoading = ref(false)
 
   async function ensureLoaded(): Promise<void> {
     if (hydrated.value) return
@@ -127,6 +144,100 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     return result
   }
 
+  // 试卷管理方法
+  async function loadPapers(query: Partial<PaperQueryRequest> = {}): Promise<void> {
+    paperLoading.value = true
+    try {
+      const request: PaperQueryRequest = {
+        current: query.current ?? paperPagination.current,
+        pageSize: query.pageSize ?? paperPagination.pageSize,
+        paperName: query.paperName
+      }
+      const result = await examRepository.listPapersNew(request)
+      paperList.value = result.records
+      paperPagination.current = result.current
+      paperPagination.total = result.total
+    } finally {
+      paperLoading.value = false
+    }
+  }
+
+  async function loadPaperDetail(id: number): Promise<PaperDetail | null> {
+    paperLoading.value = true
+    try {
+      currentPaper.value = await examRepository.getPaperById(id)
+      return currentPaper.value
+    } finally {
+      paperLoading.value = false
+    }
+  }
+
+  async function loadAllQuestions(): Promise<void> {
+    allQuestions.value = await examRepository.getAllQuestions()
+  }
+
+  async function addPaper(request: PaperAddRequest): Promise<number> {
+    const id = await examRepository.addPaper(request)
+    if (id) {
+      await loadPapers()
+    }
+    return id
+  }
+
+  async function updatePaper(request: PaperUpdateRequest): Promise<boolean> {
+    const result = await examRepository.updatePaper(request)
+    if (result) {
+      await loadPapers()
+      if (currentPaper.value?.id === request.id) {
+        await loadPaperDetail(request.id)
+      }
+    }
+    return result
+  }
+
+  async function deletePaper(id: number): Promise<boolean> {
+    const result = await examRepository.deletePaper(id)
+    if (result) {
+      await loadPapers()
+      if (currentPaper.value?.id === id) {
+        currentPaper.value = null
+      }
+    }
+    return result
+  }
+
+  async function addQuestionToPaper(request: PaperQuestionAddRequest): Promise<boolean> {
+    const result = await examRepository.addPaperQuestion(request)
+    if (result && currentPaper.value?.id === request.paperId) {
+      await loadPaperDetail(request.paperId)
+    }
+    return result
+  }
+
+  async function updatePaperQuestionScore(id: number, score: number, sectionName?: string): Promise<boolean> {
+    const result = await examRepository.updatePaperQuestion(id, score, sectionName)
+    if (result && currentPaper.value) {
+      await loadPaperDetail(currentPaper.value.id)
+    }
+    return result
+  }
+
+  async function removeQuestionFromPaper(id: number): Promise<boolean> {
+    const result = await examRepository.removePaperQuestion(id)
+    if (result && currentPaper.value) {
+      await loadPaperDetail(currentPaper.value.id)
+    }
+    return result
+  }
+
+  async function reorderPaperQuestions(paperId: number, questionIds: number[]): Promise<boolean> {
+    const result = await examRepository.reorderPaperQuestions(paperId, questionIds)
+    if (result && currentPaper.value?.id === paperId) {
+      await loadPaperDetail(paperId)
+    }
+    return result
+  }
+
   return {
     questionBanks,
     questionTypes,
@@ -150,5 +261,21 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     addQuestion,
     updateQuestion,
     deleteQuestion,
+    // 试卷相关
+    paperList,
+    paperPagination,
+    currentPaper,
+    allQuestions,
+    paperLoading,
+    loadPapers,
+    loadPaperDetail,
+    loadAllQuestions,
+    addPaper,
+    updatePaper,
+    deletePaper,
+    addQuestionToPaper,
+    updatePaperQuestionScore,
+    removeQuestionFromPaper,
+    reorderPaperQuestions,
   }
 })

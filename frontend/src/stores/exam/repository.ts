@@ -14,7 +14,14 @@ import type {
   ExamRecordItem,
   ExamStudentItem,
   PageResult,
+  Paper,
+  PaperAddRequest,
+  PaperDetail,
   PaperItem,
+  PaperQuestion,
+  PaperQuestionAddRequest,
+  PaperQueryRequest,
+  PaperUpdateRequest,
   QuestionAddRequest,
   QuestionBankItem,
   QuestionItem,
@@ -32,6 +39,60 @@ let scoreSummary = CommonUtil.deepClone(scoreSummaryFixtures)
 const questionBanks = CommonUtil.deepClone(questionBankFixtures)
 const questionTypes = CommonUtil.deepClone(questionTypeFixtures)
 const papers = CommonUtil.deepClone(paperFixtures)
+
+// 模拟试卷数据
+let paperIdCounter = 10
+let papersList: Paper[] = [
+  {
+    id: 1,
+    paperCode: 1,
+    paperName: '软件工程期中测验',
+    description: '涵盖软件工程基础、需求分析、架构设计等内容',
+    generationTime: '2026-04-10 10:00:00',
+    totalScore: 100,
+    questionCount: 5,
+    createdAt: '2026-04-10 10:00:00',
+    updatedAt: '2026-04-12 15:30:00'
+  },
+  {
+    id: 2,
+    paperCode: 2,
+    paperName: 'Web前端技术测验',
+    description: 'JavaScript、React、CSS等前端技术综合测验',
+    generationTime: '2026-04-11 14:00:00',
+    totalScore: 100,
+    questionCount: 4,
+    createdAt: '2026-04-11 14:00:00',
+    updatedAt: '2026-04-13 09:20:00'
+  },
+  {
+    id: 3,
+    paperCode: 3,
+    paperName: '计算机网络基础测验',
+    description: 'HTTP协议、网络模型、TCP/IP等基础知识',
+    generationTime: null,
+    totalScore: 0,
+    questionCount: 0,
+    createdAt: '2026-04-14 08:30:00',
+    updatedAt: '2026-04-14 08:30:00'
+  }
+]
+
+// 试卷题目关联
+let paperQuestionIdCounter = 100
+let paperQuestions: PaperQuestion[] = [
+  // 试卷1的题目
+  { id: 1, paperId: 1, questionId: 1, score: 20, questionOrder: 1, sectionName: '单选题' },
+  { id: 2, paperId: 1, questionId: 2, score: 20, questionOrder: 2, sectionName: '多选题' },
+  { id: 3, paperId: 1, questionId: 3, score: 30, questionOrder: 3, sectionName: '简答题' },
+  { id: 4, paperId: 1, questionId: 7, score: 10, questionOrder: 4, sectionName: '判断题' },
+  { id: 5, paperId: 1, questionId: 8, score: 20, questionOrder: 5, sectionName: '简答题' },
+  // 试卷2的题目
+  { id: 6, paperId: 2, questionId: 4, score: 20, questionOrder: 1, sectionName: '填空题' },
+  { id: 7, paperId: 2, questionId: 5, score: 20, questionOrder: 2, sectionName: '单选题' },
+  { id: 8, paperId: 2, questionId: 6, score: 40, questionOrder: 3, sectionName: '编程题' },
+  { id: 9, paperId: 2, questionId: 8, score: 20, questionOrder: 4, sectionName: '简答题' },
+]
 
 // 模拟题目数据
 let questionIdCounter = 100
@@ -377,5 +438,177 @@ export const examRepository = {
       byType,
       byDifficulty
     }
+  },
+
+  // ========== 试卷 CRUD 方法 ==========
+  async listPapersNew(query: PaperQueryRequest): Promise<PageResult<Paper>> {
+    await CommonUtil.sleep(80)
+    let filtered = [...papersList]
+    
+    if (query.paperName) {
+      const keyword = query.paperName.toLowerCase()
+      filtered = filtered.filter(p => p.paperName.toLowerCase().includes(keyword))
+    }
+    
+    filtered.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    
+    const start = (query.current - 1) * query.pageSize
+    const records = filtered.slice(start, start + query.pageSize)
+    
+    return {
+      records: CommonUtil.deepClone(records),
+      total: filtered.length,
+      current: query.current,
+      size: query.pageSize
+    }
+  },
+
+  async getPaperById(id: number): Promise<PaperDetail | null> {
+    await CommonUtil.sleep(60)
+    const paper = papersList.find(p => p.id === id)
+    if (!paper) return null
+    
+    // 获取试卷的题目列表
+    const pqs = paperQuestions
+      .filter(pq => pq.paperId === id)
+      .sort((a, b) => a.questionOrder - b.questionOrder)
+      .map(pq => ({
+        ...pq,
+        question: questions.find(q => q.id === pq.questionId)
+      }))
+    
+    return CommonUtil.deepClone({
+      ...paper,
+      questions: pqs
+    })
+  },
+
+  async addPaper(request: PaperAddRequest): Promise<number> {
+    await CommonUtil.sleep(100)
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const newPaper: Paper = {
+      id: ++paperIdCounter,
+      paperCode: request.paperCode,
+      paperName: request.paperName,
+      description: request.description || null,
+      generationTime: null,
+      totalScore: 0,
+      questionCount: 0,
+      createdAt: now,
+      updatedAt: now
+    }
+    papersList.unshift(newPaper)
+    return newPaper.id
+  },
+
+  async updatePaper(request: PaperUpdateRequest): Promise<boolean> {
+    await CommonUtil.sleep(100)
+    const index = papersList.findIndex(p => p.id === request.id)
+    if (index === -1) return false
+    
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    papersList[index] = {
+      ...papersList[index],
+      ...request,
+      updatedAt: now
+    }
+    return true
+  },
+
+  async deletePaper(id: number): Promise<boolean> {
+    await CommonUtil.sleep(80)
+    const index = papersList.findIndex(p => p.id === id)
+    if (index === -1) return false
+    
+    papersList.splice(index, 1)
+    // 同时删除关联的题目
+    paperQuestions = paperQuestions.filter(pq => pq.paperId !== id)
+    return true
+  },
+
+  // ========== 试卷题目关联方法 ==========
+  async addPaperQuestion(request: PaperQuestionAddRequest): Promise<boolean> {
+    await CommonUtil.sleep(60)
+    const newPq: PaperQuestion = {
+      id: ++paperQuestionIdCounter,
+      paperId: request.paperId,
+      questionId: request.questionId,
+      score: request.score,
+      questionOrder: request.questionOrder,
+      sectionName: request.sectionName || null
+    }
+    paperQuestions.push(newPq)
+    
+    // 更新试卷统计
+    const paper = papersList.find(p => p.id === request.paperId)
+    if (paper) {
+      paper.questionCount++
+      paper.totalScore += request.score
+      paper.generationTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+      paper.updatedAt = paper.generationTime
+    }
+    return true
+  },
+
+  async updatePaperQuestion(id: number, score: number, sectionName?: string): Promise<boolean> {
+    await CommonUtil.sleep(60)
+    const pq = paperQuestions.find(p => p.id === id)
+    if (!pq) return false
+    
+    const oldScore = pq.score
+    pq.score = score
+    if (sectionName !== undefined) pq.sectionName = sectionName
+    
+    // 更新试卷总分
+    const paper = papersList.find(p => p.id === pq.paperId)
+    if (paper) {
+      paper.totalScore = paper.totalScore - oldScore + score
+      paper.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    }
+    return true
+  },
+
+  async removePaperQuestion(id: number): Promise<boolean> {
+    await CommonUtil.sleep(60)
+    const index = paperQuestions.findIndex(p => p.id === id)
+    if (index === -1) return false
+    
+    const pq = paperQuestions[index]
+    paperQuestions.splice(index, 1)
+    
+    // 更新试卷统计
+    const paper = papersList.find(p => p.id === pq.paperId)
+    if (paper) {
+      paper.questionCount--
+      paper.totalScore -= pq.score
+      paper.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    }
+    
+    // 重新排序
+    paperQuestions
+      .filter(p => p.paperId === pq.paperId && p.questionOrder > pq.questionOrder)
+      .forEach(p => p.questionOrder--)
+    
+    return true
+  },
+
+  async reorderPaperQuestions(paperId: number, questionIds: number[]): Promise<boolean> {
+    await CommonUtil.sleep(80)
+    questionIds.forEach((qId, idx) => {
+      const pq = paperQuestions.find(p => p.paperId === paperId && p.questionId === qId)
+      if (pq) pq.questionOrder = idx + 1
+    })
+    
+    const paper = papersList.find(p => p.id === paperId)
+    if (paper) {
+      paper.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    }
+    return true
+  },
+
+  // 获取所有题目（用于组卷时选择）
+  async getAllQuestions(): Promise<QuestionItem[]> {
+    await CommonUtil.sleep(50)
+    return CommonUtil.deepClone(questions)
   },
 }

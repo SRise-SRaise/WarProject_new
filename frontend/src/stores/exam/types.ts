@@ -158,6 +158,67 @@ export interface PaperItem {
   tags: string[]
 }
 
+// 试卷实体（对应数据库 edu_paper）
+export interface Paper {
+  id: number
+  paperCode: number
+  paperName: string
+  description: string | null
+  generationTime: string | null
+  totalScore: number
+  questionCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+// 试卷题目关联（对应数据库 rel_paper_question）
+export interface PaperQuestion {
+  id: number
+  paperId: number
+  questionId: number
+  score: number
+  questionOrder: number
+  sectionName: string | null
+  // 关联的题目详情
+  question?: QuestionItem
+}
+
+// 试卷添加请求
+export interface PaperAddRequest {
+  paperCode: number
+  paperName: string
+  description?: string
+}
+
+// 试卷更新请求
+export interface PaperUpdateRequest {
+  id: number
+  paperCode?: number
+  paperName?: string
+  description?: string
+}
+
+// 试卷题目添加请求
+export interface PaperQuestionAddRequest {
+  paperId: number
+  questionId: number
+  score: number
+  questionOrder: number
+  sectionName?: string
+}
+
+// 试卷查询请求
+export interface PaperQueryRequest {
+  current: number
+  pageSize: number
+  paperName?: string
+}
+
+// 试卷详情（包含题目列表）
+export interface PaperDetail extends Paper {
+  questions: PaperQuestion[]
+}
+
 export interface AdminExamItem {
   id: string
   title: string
