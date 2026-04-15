@@ -10,17 +10,30 @@ import lombok.EqualsAndHashCode;
 @Data
 public class EduQuestionBankQueryRequest extends PageRequest implements Serializable {
 
+    /**
+     * 题目ID
+     */
     private Long id;
 
+    /**
+     * 题目内容（模糊搜索）
+     */
     private String questionContent;
 
-    private String standardAnswer;
-
+    /**
+     * 题目类型
+     */
     private Integer questionType;
 
-    private Date createdAt;
+    /**
+     * 难度系数
+     */
+    private Integer difficulty;
 
-    private Date updatedAt;
+    /**
+     * 创建教师ID
+     */
+    private Long creatorTeacherId;
 
     private static final long serialVersionUID = 1L;
 }

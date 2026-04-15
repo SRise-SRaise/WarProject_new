@@ -71,6 +71,80 @@ export interface QuestionTypeItem {
   summary: string
 }
 
+// 题目类型枚举
+export type QuestionType = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+export const QUESTION_TYPE_MAP: Record<QuestionType, string> = {
+  1: '填空',
+  2: '单选',
+  3: '多选',
+  4: '判断',
+  5: '简答',
+  6: '编程',
+  7: '综合'
+}
+
+export const DIFFICULTY_MAP: Record<number, string> = {
+  1: '简单',
+  2: '较易',
+  3: '中等',
+  4: '较难',
+  5: '困难'
+}
+
+// 题目实体（对应数据库 edu_question_bank）
+export interface QuestionItem {
+  id: number
+  questionContent: string
+  questionType: QuestionType
+  optionsText: string | null
+  standardAnswer: string
+  analysis: string | null
+  difficulty: number
+  creatorTeacherId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+// 题目添加请求
+export interface QuestionAddRequest {
+  questionContent: string
+  questionType: QuestionType
+  optionsText?: string
+  standardAnswer: string
+  analysis?: string
+  difficulty: number
+  creatorTeacherId?: number
+}
+
+// 题目更新请求
+export interface QuestionUpdateRequest {
+  id: number
+  questionContent?: string
+  questionType?: QuestionType
+  optionsText?: string
+  standardAnswer?: string
+  analysis?: string
+  difficulty?: number
+}
+
+// 题目查询请求
+export interface QuestionQueryRequest {
+  current: number
+  pageSize: number
+  questionContent?: string
+  questionType?: QuestionType
+  difficulty?: number
+}
+
+// 分页结果
+export interface PageResult<T> {
+  records: T[]
+  total: number
+  current: number
+  size: number
+}
+
 export interface PaperItem {
   id: string
   title: string
