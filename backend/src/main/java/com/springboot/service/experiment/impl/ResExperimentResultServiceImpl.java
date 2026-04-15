@@ -22,6 +22,10 @@ public class ResExperimentResultServiceImpl extends ServiceImpl<ResExperimentRes
 
     @Override
     public QueryWrapper<ResExperimentResult> getQueryWrapper(ResExperimentResultQueryRequest queryRequest) {
+        if (queryRequest == null) {
+            return ServiceMethodSupport.buildQueryWrapper(null);
+        }
+        queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
         return ServiceMethodSupport.buildQueryWrapper(queryRequest);
     }
 
@@ -33,5 +37,21 @@ public class ResExperimentResultServiceImpl extends ServiceImpl<ResExperimentRes
     @Override
     public Page<ResExperimentResultVO> getResExperimentResultVOPage(Page<ResExperimentResult> entityPage, HttpServletRequest request) {
         return ServiceMethodSupport.toVOPage(entityPage, ResExperimentResultVO::objToVo);
+    }
+
+    private String mapSortField(String sortField) {
+        if (sortField == null) {
+            return null;
+        }
+        return switch (sortField) {
+            case "id" -> "student_item_id";
+            case "studentId" -> "student_id";
+            case "itemId" -> "item_id";
+            case "subContent" -> "content";
+            case "score" -> "score";
+            case "submittedAt" -> "fill_time";
+            case "gradingStatus" -> "score_flag";
+            default -> sortField;
+        };
     }
 }

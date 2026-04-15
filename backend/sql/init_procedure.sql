@@ -62,9 +62,9 @@ END ;;
 DROP PROCEDURE IF EXISTS `p_clazz_experiment_answers`;;
 CREATE PROCEDURE `p_clazz_experiment_answers`(IN `p_expid` BIGINT, IN `p_cno` VARCHAR(6))
 BEGIN
-    SELECT r.`id` AS student_item_id, r.`item_id`, i.`max_score` AS experiment_item_score, r.`sub_content` AS content
-    FROM `res_experiment_result` AS r
-             JOIN `edu_experiment_item` AS i ON r.`item_id` = i.`id`
+    SELECT r.`student_item_id`, r.`item_id`, i.`experiment_item_score`, r.`content`
+    FROM `t_student_item` AS r
+             JOIN `t_experiment_item` AS i ON r.`item_id` = i.`experiment_item_id`
              JOIN `auth_student` AS s ON r.`student_id` = s.`id`
     WHERE i.`experiment_id` = p_expid
       AND s.`class_code` = p_cno;
@@ -82,8 +82,8 @@ BEGIN
            s.`class_code`                    AS clazz_no,
            s.`remark`                        AS memo,
            ( SELECT SUM(r.`score`)
-             FROM `res_experiment_result` r
-                      JOIN `edu_experiment_item` i ON r.`item_id` = i.`id`
+             FROM `t_student_item` r
+                      JOIN `t_experiment_item` i ON r.`item_id` = i.`experiment_item_id`
              WHERE i.`experiment_id` = p_expid
                AND r.`student_id` = s.`id` ) AS score
     FROM `auth_student` s
@@ -97,28 +97,28 @@ END ;;
 DROP PROCEDURE IF EXISTS `p_student_experiment_item_score`;;
 CREATE PROCEDURE `p_student_experiment_item_score`(IN `p_sid` BIGINT, IN `p_expid` BIGINT)
 BEGIN
-    SELECT i.`id`                                                                                                    AS experiment_item_id,
-           i.`sort_order`                                                                                            AS experiment_item_no,
-           i.`item_name`                                                                                             AS experiment_item_name,
-           i.`question_type`                                                                                         AS experiment_item_type,
-           i.`question_content`                                                                                      AS experiment_item_content,
-           i.`max_score`                                                                                             AS experiment_item_score,
-           ( SELECT r.`id`
-             FROM `res_experiment_result` r
-             WHERE r.`item_id` = i.`id`
-               AND r.`student_id` = p_sid )                                                                          AS student_item_id,
-           ( SELECT r.`sub_content`
-             FROM `res_experiment_result` r
-             WHERE r.`item_id` = i.`id`
-               AND r.`student_id` = p_sid )                                                                          AS student_answer,
+    SELECT i.`experiment_item_id`      AS experiment_item_id,
+           i.`experiment_item_no`      AS experiment_item_no,
+           i.`experiment_item_name`    AS experiment_item_name,
+           i.`experiment_item_type`    AS experiment_item_type,
+           i.`experiment_item_content` AS experiment_item_content,
+           i.`experiment_item_score`   AS experiment_item_score,
+           ( SELECT r.`student_item_id`
+             FROM `t_student_item` r
+             WHERE r.`item_id` = i.`experiment_item_id`
+               AND r.`student_id` = p_sid ) AS student_item_id,
+           ( SELECT r.`content`
+             FROM `t_student_item` r
+             WHERE r.`item_id` = i.`experiment_item_id`
+               AND r.`student_id` = p_sid ) AS student_answer,
            ( SELECT r.`score`
-             FROM `res_experiment_result` r
-             WHERE r.`item_id` = i.`id`
-               AND r.`student_id` = p_sid )                                                                          AS score,
-           i.`item_status`                                                                                           AS state
-    FROM `edu_experiment_item` i
+             FROM `t_student_item` r
+             WHERE r.`item_id` = i.`experiment_item_id`
+               AND r.`student_id` = p_sid ) AS score,
+           i.`state` AS state
+    FROM `t_experiment_item` i
     WHERE i.`experiment_id` = p_expid
-    ORDER BY i.`sort_order`;
+    ORDER BY i.`experiment_item_no`;
 END ;;
 
 -- ---------------------------------------------------------
@@ -127,19 +127,19 @@ END ;;
 DROP PROCEDURE IF EXISTS `p_student_experiment_score`;;
 CREATE PROCEDURE `p_student_experiment_score`(IN `p_sid` BIGINT)
 BEGIN
-    SELECT e.`id`                           AS experiment_id,
-           e.`sort_order`                   AS experiment_no,
-           e.`name`                         AS experiment_name,
-           e.`category_id`                  AS experiment_type,
-           e.`file_type`                    AS instruction_type,
+    SELECT e.`experiment_id`      AS experiment_id,
+           e.`experiment_no`      AS experiment_no,
+           e.`experiment_name`    AS experiment_name,
+           e.`experiment_type`    AS experiment_type,
+           e.`instruction_type`   AS instruction_type,
            ( SELECT SUM(r.`score`)
-             FROM `res_experiment_result` r
-                      JOIN `edu_experiment_item` i ON r.`item_id` = i.`id`
-             WHERE i.`experiment_id` = e.`id`
+             FROM `t_student_item` r
+                      JOIN `t_experiment_item` i ON r.`item_id` = i.`experiment_item_id`
+             WHERE i.`experiment_id` = e.`experiment_id`
                AND r.`student_id` = p_sid ) AS score,
-           e.`publish_status`               AS state
-    FROM `edu_experiment` e
-    ORDER BY e.`sort_order`;
+           e.`state` AS state
+    FROM `t_experiment` e
+    ORDER BY e.`experiment_no`;
 END ;;
 
 DELIMITER ;

@@ -10,15 +10,15 @@ import lombok.Data;
 
 /**
  * 学生实验提交记录表
- * @TableName res_experiment_result
+ * @TableName t_student_item
  */
-@TableName(value ="res_experiment_result")
+@TableName(value ="t_student_item")
 @Data
 public class ResExperimentResult implements Serializable {
     /**
      * 提交记录主键ID
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "student_item_id", type = IdType.AUTO)
     private Long id;
 
     /**
@@ -36,7 +36,7 @@ public class ResExperimentResult implements Serializable {
     /**
      * 提交的实验内容
      */
-    @TableField(value = "sub_content")
+    @TableField(value = "content")
     private String subContent;
 
     /**
@@ -48,25 +48,25 @@ public class ResExperimentResult implements Serializable {
     /**
      * 提交时间
      */
-    @TableField(value = "submitted_at")
+    @TableField(value = "fill_time")
     private Date submittedAt;
 
     /**
      * 评分标记
      */
-    @TableField(value = "grading_status")
+    @TableField(value = "score_flag")
     private Integer gradingStatus;
 
     /**
      * 
      */
-    @TableField(value = "created_at")
+    @TableField(exist = false)
     private Date createdAt;
 
     /**
      * 
      */
-    @TableField(value = "updated_at")
+    @TableField(exist = false)
     private Date updatedAt;
 
     @TableField(exist = false)

@@ -10,15 +10,15 @@ import lombok.Data;
 
 /**
  * 实验成绩汇总缓存表
- * @TableName res_score_summary
+ * @TableName t_score
  */
-@TableName(value ="res_score_summary")
+@TableName(value ="t_score")
 @Data
 public class ResScoreSummary implements Serializable {
     /**
      * 成绩汇总主键ID
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "score_id", type = IdType.AUTO)
     private Long id;
 
     /**
@@ -36,19 +36,19 @@ public class ResScoreSummary implements Serializable {
     /**
      * 总成绩
      */
-    @TableField(value = "total_score")
+    @TableField(value = "score")
     private Integer totalScore;
 
     /**
      * 
      */
-    @TableField(value = "created_at")
+    @TableField(exist = false)
     private Date createdAt;
 
     /**
      * 
      */
-    @TableField(value = "updated_at")
+    @TableField(exist = false)
     private Date updatedAt;
 
     @TableField(exist = false)

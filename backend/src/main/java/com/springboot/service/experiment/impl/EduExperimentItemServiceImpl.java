@@ -22,6 +22,10 @@ public class EduExperimentItemServiceImpl extends ServiceImpl<EduExperimentItemM
 
     @Override
     public QueryWrapper<EduExperimentItem> getQueryWrapper(EduExperimentItemQueryRequest queryRequest) {
+        if (queryRequest == null) {
+            return ServiceMethodSupport.buildQueryWrapper(null);
+        }
+        queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
         return ServiceMethodSupport.buildQueryWrapper(queryRequest);
     }
 
@@ -33,5 +37,23 @@ public class EduExperimentItemServiceImpl extends ServiceImpl<EduExperimentItemM
     @Override
     public Page<EduExperimentItemVO> getEduExperimentItemVOPage(Page<EduExperimentItem> entityPage, HttpServletRequest request) {
         return ServiceMethodSupport.toVOPage(entityPage, EduExperimentItemVO::objToVo);
+    }
+
+    private String mapSortField(String sortField) {
+        if (sortField == null) {
+            return null;
+        }
+        return switch (sortField) {
+            case "id" -> "experiment_item_id";
+            case "sortOrder" -> "experiment_item_no";
+            case "itemName" -> "experiment_item_name";
+            case "questionType" -> "experiment_item_type";
+            case "questionContent" -> "experiment_item_content";
+            case "experimentId" -> "experiment_id";
+            case "standardAnswer" -> "experiment_item_answer";
+            case "maxScore" -> "experiment_item_score";
+            case "itemStatus" -> "state";
+            default -> sortField;
+        };
     }
 }

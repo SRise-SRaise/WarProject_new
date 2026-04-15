@@ -22,6 +22,10 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
 
     @Override
     public QueryWrapper<EduExperiment> getQueryWrapper(EduExperimentQueryRequest queryRequest) {
+        if (queryRequest == null) {
+            return ServiceMethodSupport.buildQueryWrapper(null);
+        }
+        queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
         return ServiceMethodSupport.buildQueryWrapper(queryRequest);
     }
 
@@ -33,5 +37,22 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
     @Override
     public Page<EduExperimentVO> getEduExperimentVOPage(Page<EduExperiment> entityPage, HttpServletRequest request) {
         return ServiceMethodSupport.toVOPage(entityPage, EduExperimentVO::objToVo);
+    }
+
+    private String mapSortField(String sortField) {
+        if (sortField == null) {
+            return null;
+        }
+        return switch (sortField) {
+            case "id" -> "experiment_id";
+            case "sortOrder" -> "experiment_no";
+            case "name" -> "experiment_name";
+            case "categoryId" -> "experiment_type";
+            case "fileType" -> "instruction_type";
+            case "requirement" -> "experiment_requirement";
+            case "contentDesc" -> "experiment_content";
+            case "publishStatus" -> "state";
+            default -> sortField;
+        };
     }
 }

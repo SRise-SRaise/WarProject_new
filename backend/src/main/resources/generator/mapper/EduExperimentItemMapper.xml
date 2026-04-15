@@ -5,21 +5,19 @@
 <mapper namespace="com.springboot.mapper.EduExperimentItemMapper">
 
     <resultMap id="BaseResultMap" type="com.springboot.model.entity.EduExperimentItem">
-            <id property="id" column="id" />
-            <result property="sortOrder" column="sort_order" />
-            <result property="itemName" column="item_name" />
-            <result property="questionType" column="question_type" />
-            <result property="questionContent" column="question_content" />
+            <id property="id" column="experiment_item_id" />
+            <result property="sortOrder" column="experiment_item_no" />
+            <result property="itemName" column="experiment_item_name" />
+            <result property="questionType" column="experiment_item_type" />
+            <result property="questionContent" column="experiment_item_content" />
             <result property="experimentId" column="experiment_id" />
-            <result property="standardAnswer" column="standard_answer" />
-            <result property="maxScore" column="max_score" />
-            <result property="itemStatus" column="item_status" />
-            <result property="createdAt" column="created_at" />
-            <result property="updatedAt" column="updated_at" />
+            <result property="standardAnswer" column="experiment_item_answer" />
+            <result property="maxScore" column="experiment_item_score" />
+            <result property="itemStatus" column="state" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,sort_order,item_name,question_type,question_content,experiment_id,
-        standard_answer,max_score,item_status,created_at,updated_at
+        experiment_item_id,experiment_item_no,experiment_item_name,experiment_item_type,
+        experiment_item_content,experiment_id,experiment_item_answer,experiment_item_score,state
     </sql>
 </mapper>

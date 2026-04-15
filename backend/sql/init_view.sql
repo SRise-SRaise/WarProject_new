@@ -10,14 +10,14 @@ FROM `auth_class`;
 -- 2. v_student_answer_data_info (学生实验提交统计)
 CREATE OR REPLACE VIEW `v_student_answer_data_info`
 AS
-SELECT MAX(`id`) AS `maxId`, MAX(`submitted_at`) AS `lastAccess`, COUNT(`id`) AS `count`
-FROM `res_experiment_result`;
+SELECT MAX(`student_item_id`) AS `maxId`, MAX(`fill_time`) AS `lastAccess`, COUNT(`student_item_id`) AS `count`
+FROM `t_student_item`;
 
 -- 3. v_student_answer_log_info (学生实验提交日志统计)
 CREATE OR REPLACE VIEW `v_student_answer_log_info`
 AS
-SELECT MAX(`id`) AS `maxId`, MAX(`snapshot_time`) AS `lastAccess`, COUNT(`id`) AS `count`
-FROM `res_submission_log`;
+SELECT MAX(`log_id`) AS `maxId`, MAX(`fill_time`) AS `lastAccess`, COUNT(`log_id`) AS `count`
+FROM `t_student_item_log`;
 
 -- 4. v_sys_log_info (系统日志统计)
 CREATE OR REPLACE VIEW `v_sys_log_info`
@@ -34,16 +34,16 @@ FROM `auth_student`;
 -- 6. v_student_experiment_score (核心：学生-实验维度的基础成绩视图)
 CREATE OR REPLACE VIEW `v_student_experiment_score`
 AS
-SELECT r.`score`       AS `score`,
-       r.`student_id`  AS `student_id`,
-       e.`id`          AS `experiment_id`,
-       e.`sort_order`  AS `experiment_no`,
-       e.`name`        AS `experiment_name`,
-       e.`category_id` AS `experiment_type`,
-       e.`file_type`   AS `instruction_type`
-FROM `edu_experiment` e
-         LEFT JOIN ( `res_experiment_result` r JOIN `edu_experiment_item` i ON r.`item_id` = i.`id` )
-                   ON i.`experiment_id` = e.`id`;
+SELECT r.`score`              AS `score`,
+       r.`student_id`         AS `student_id`,
+       e.`experiment_id`      AS `experiment_id`,
+       e.`experiment_no`      AS `experiment_no`,
+       e.`experiment_name`    AS `experiment_name`,
+       e.`experiment_type`    AS `experiment_type`,
+       e.`instruction_type`   AS `instruction_type`
+FROM `t_experiment` e
+         LEFT JOIN (`t_student_item` r JOIN `t_experiment_item` i ON r.`item_id` = i.`experiment_item_id`)
+                   ON i.`experiment_id` = e.`experiment_id`;
 
 -- 7. v_clazz_experiments_score (展示班级维度下各学生的各实验总分)
 CREATE OR REPLACE VIEW `v_clazz_experiments_score`
@@ -61,13 +61,13 @@ GROUP BY v.`student_id`, v.`experiment_id`;
 -- 8. v_student_expeirment_items (学生实验子项目联合视图)
 CREATE OR REPLACE VIEW `v_student_expeirment_items`
 AS
-SELECT i.`sort_order`    AS `itemNo`,
-       i.`item_name`     AS `itemName`,
-       i.`question_type` AS `itemType`,
-       r.`score`         AS `score`,
-       r.`submitted_at`  AS `fillTime`,
-       r.`student_id`    AS `studentId`,
-       i.`id`            AS `itemId`,
-       i.`experiment_id` AS `experimentId`
-FROM `edu_experiment_item` i
-         JOIN `res_experiment_result` r ON r.`item_id` = i.`id`;
+SELECT i.`experiment_item_no`   AS `itemNo`,
+       i.`experiment_item_name` AS `itemName`,
+       i.`experiment_item_type` AS `itemType`,
+       r.`score`                AS `score`,
+       r.`fill_time`            AS `fillTime`,
+       r.`student_id`           AS `studentId`,
+       i.`experiment_item_id`   AS `itemId`,
+       i.`experiment_id`        AS `experimentId`
+FROM `t_experiment_item` i
+         JOIN `t_student_item` r ON r.`item_id` = i.`experiment_item_id`;

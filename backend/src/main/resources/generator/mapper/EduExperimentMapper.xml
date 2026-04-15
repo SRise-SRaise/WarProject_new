@@ -5,20 +5,18 @@
 <mapper namespace="com.springboot.mapper.EduExperimentMapper">
 
     <resultMap id="BaseResultMap" type="com.springboot.model.entity.EduExperiment">
-            <id property="id" column="id" />
-            <result property="sortOrder" column="sort_order" />
-            <result property="name" column="name" />
-            <result property="categoryId" column="category_id" />
-            <result property="fileType" column="file_type" />
-            <result property="requirement" column="requirement" />
-            <result property="contentDesc" column="content_desc" />
-            <result property="publishStatus" column="publish_status" />
-            <result property="createdAt" column="created_at" />
-            <result property="updatedAt" column="updated_at" />
+            <id property="id" column="experiment_id" />
+            <result property="sortOrder" column="experiment_no" />
+            <result property="name" column="experiment_name" />
+            <result property="categoryId" column="experiment_type" />
+            <result property="fileType" column="instruction_type" />
+            <result property="requirement" column="experiment_requirement" />
+            <result property="contentDesc" column="experiment_content" />
+            <result property="publishStatus" column="state" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,sort_order,name,category_id,file_type,requirement,
-        content_desc,publish_status,created_at,updated_at
+        experiment_id,experiment_no,experiment_name,experiment_type,instruction_type,
+        experiment_requirement,experiment_content,state
     </sql>
 </mapper>

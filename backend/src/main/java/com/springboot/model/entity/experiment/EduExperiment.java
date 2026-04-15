@@ -10,69 +10,69 @@ import lombok.Data;
 
 /**
  * 实验项目表
- * @TableName edu_experiment
+ * @TableName t_experiment
  */
-@TableName(value ="edu_experiment")
+@TableName(value ="t_experiment")
 @Data
 public class EduExperiment implements Serializable {
     /**
      * 实验项目主键ID
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "experiment_id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 实验序号(排序)
      */
-    @TableField(value = "sort_order")
+    @TableField(value = "experiment_no")
     private Integer sortOrder;
 
     /**
      * 实验名称
      */
-    @TableField(value = "name")
+    @TableField(value = "experiment_name")
     private String name;
 
     /**
      * 实验类型
      */
-    @TableField(value = "category_id")
+    @TableField(value = "experiment_type")
     private Integer categoryId;
 
     /**
      * 指导书文件类型
      */
-    @TableField(value = "file_type")
+    @TableField(value = "instruction_type")
     private String fileType;
 
     /**
      * 实验要求
      */
-    @TableField(value = "requirement")
+    @TableField(value = "experiment_requirement")
     private String requirement;
 
     /**
      * 实验内容描述
      */
-    @TableField(value = "content_desc")
+    @TableField(value = "experiment_content")
     private String contentDesc;
 
     /**
      * 发布状态
      */
-    @TableField(value = "publish_status")
+    @TableField(value = "state")
     private Integer publishStatus;
 
     /**
      * 
      */
-    @TableField(value = "created_at")
+    @TableField(exist = false)
     private Date createdAt;
 
     /**
      * 
      */
-    @TableField(value = "updated_at")
+    @TableField(exist = false)
     private Date updatedAt;
 
     @TableField(exist = false)
