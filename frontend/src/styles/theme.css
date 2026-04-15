@@ -23,9 +23,9 @@
   --shadow-panel: 0 28px 60px rgba(17, 47, 87, 0.12);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 28px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -54,7 +54,7 @@ body {
   margin: 0;
   color: var(--color-text-main);
   font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  background: linear-gradient(180deg, #f9fbfe 0%, #eff3f8 220px, #edf1f6 100%);
+  background: var(--color-bg-page);
 }
 
 button,
@@ -89,8 +89,7 @@ a {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 6px 16px rgba(17, 47, 87, 0.06);
 }
 
 .app-panel-grid {
@@ -131,7 +130,7 @@ a {
 }
 
 .app-section-card {
-  padding: 28px;
+  padding: 22px;
 }
 
 .app-subtle-text {
@@ -170,10 +169,10 @@ a {
 }
 
 .app-list-card {
-  padding: 18px 20px;
+  padding: 16px 18px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(194, 206, 222, 0.5);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 248, 251, 0.96) 100%);
+  border: 1px solid rgba(194, 206, 222, 0.6);
+  background: #ffffff;
 }
 
 .app-list-card__title {
@@ -211,6 +210,12 @@ a {
 .ant-tabs-nav,
 .ant-collapse {
   border-radius: var(--radius-sm);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th,
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .ant-card {
