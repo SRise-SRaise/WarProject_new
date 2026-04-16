@@ -93,6 +93,24 @@
               </a-checkbox-group>
             </template>
 
+            <!-- 判断题 -->
+            <template v-else-if="pq.question?.questionType === 4">
+              <a-radio-group 
+                :value="getAnswer(pq.questionId)" 
+                @change="(e: any) => setAnswer(pq.questionId, e.target.value)"
+                class="judge-options"
+              >
+                <a-radio value="1" class="judge-option correct">
+                  <CheckCircleFilled class="judge-icon" />
+                  <span>正确</span>
+                </a-radio>
+                <a-radio value="0" class="judge-option wrong">
+                  <CloseCircleFilled class="judge-icon" />
+                  <span>错误</span>
+                </a-radio>
+              </a-radio-group>
+            </template>
+
             <!-- 简答题 / 编程题 / 综合题 -->
             <template v-else-if="pq.question?.questionType === 5 || pq.question?.questionType === 6 || pq.question?.questionType === 7">
               <a-textarea
@@ -156,7 +174,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { ClockCircleOutlined, CheckCircleOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons-vue'
 import { useExamStudentStore } from '@/stores/exam/student'
 import { QUESTION_TYPE_MAP, type QuestionType } from '@/stores/exam/types'
 
@@ -589,6 +607,42 @@ onUnmounted(() => {
 .answer-textarea {
   font-size: 14px;
   line-height: 1.6;
+}
+
+/* 判断题样式 */
+.judge-options {
+  display: flex;
+  gap: 24px;
+}
+
+.judge-option {
+  display: flex;
+  align-items: center;
+  padding: 16px 32px;
+  background: #fafafa;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.judge-option:hover {
+  background: #f0f0f0;
+}
+
+.judge-option.correct .judge-icon {
+  color: #52c41a;
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.judge-option.wrong .judge-icon {
+  color: #ff4d4f;
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.judge-option span {
+  font-size: 15px;
+  font-weight: 500;
 }
 
 /* 答题卡 */

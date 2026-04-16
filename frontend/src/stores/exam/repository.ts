@@ -60,10 +60,12 @@ let studentAnswerRecords: StudentAnswerRecord[] = [
     earnedScore: 0,
     status: 'submitted',
     answers: {
-      1: { answer: 'B', autoScore: 20, manualScore: null, maxScore: 20 },
-      2: { answer: ['A', 'B', 'D'], autoScore: 20, manualScore: null, maxScore: 20 },
-      3: { answer: '题库作为共享资产，放在exam模块可以统一管理题目质量，保证评分口径一致性，方便考试和作业共用题目资源。', autoScore: null, manualScore: null, maxScore: 30 },
-      8: { answer: 'Model负责数据存储和业务逻辑处理；View负责界面展示；Controller负责接收用户输入，协调Model和View之间的交互。', autoScore: null, manualScore: null, maxScore: 30 },
+      1: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'B', 'D'], autoScore: 15, manualScore: null, maxScore: 15 },
+      9: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
+      10: { answer: '1', autoScore: 10, manualScore: null, maxScore: 10 },
+      3: { answer: '题库作为共享资产，放在exam模块可以统一管理题目质量，保证评分口径一致性，方便考试和作业共用题目资源。', autoScore: null, manualScore: null, maxScore: 25 },
+      8: { answer: 'Model负责数据存储和业务逻辑处理；View负责界面展示；Controller负责接收用户输入，协调Model和View之间的交互。', autoScore: null, manualScore: null, maxScore: 25 },
     }
   },
   {
@@ -78,10 +80,12 @@ let studentAnswerRecords: StudentAnswerRecord[] = [
     earnedScore: 85,
     status: 'graded',
     answers: {
-      1: { answer: 'B', autoScore: 20, manualScore: null, maxScore: 20 },
-      2: { answer: ['A', 'B', 'D'], autoScore: 20, manualScore: null, maxScore: 20 },
-      3: { answer: '因为考试是题库的主要使用场景，统一管理有利于质量控制。', autoScore: null, manualScore: 20, maxScore: 30, comment: '回答基本正确，但可以更详细说明共享资产的概念' },
-      8: { answer: 'MVC是软件设计模式，M是模型层，V是视图层，C是控制层，三者分工明确。', autoScore: null, manualScore: 25, maxScore: 30, comment: '理解正确，描述较为简洁' },
+      1: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'B', 'D'], autoScore: 15, manualScore: null, maxScore: 15 },
+      9: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
+      10: { answer: '0', autoScore: 0, manualScore: null, maxScore: 10 },
+      3: { answer: '因为考试是题库的主要使用场景，统一管理有利于质量控制。', autoScore: null, manualScore: 20, maxScore: 25, comment: '回答基本正确，但可以更详细说明共享资产的概念' },
+      8: { answer: 'MVC是软件设计模式，M是模型层，V是视图层，C是控制层，三者分工明确。', autoScore: null, manualScore: 25, maxScore: 25, comment: '理解正确，描述较为简洁' },
     }
   },
   {
@@ -96,10 +100,12 @@ let studentAnswerRecords: StudentAnswerRecord[] = [
     earnedScore: 0,
     status: 'submitted',
     answers: {
-      1: { answer: 'C', autoScore: 0, manualScore: null, maxScore: 20 },
-      2: { answer: ['A', 'C'], autoScore: 10, manualScore: null, maxScore: 20 },
-      3: { answer: '题库放在exam模块更合理。', autoScore: null, manualScore: null, maxScore: 30 },
-      8: { answer: 'MVC就是把代码分成三部分。', autoScore: null, manualScore: null, maxScore: 30 },
+      1: { answer: 'C', autoScore: 0, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'C'], autoScore: 7, manualScore: null, maxScore: 15 },
+      9: { answer: '1', autoScore: 0, manualScore: null, maxScore: 10 },
+      10: { answer: '1', autoScore: 10, manualScore: null, maxScore: 10 },
+      3: { answer: '题库放在exam模块更合理。', autoScore: null, manualScore: null, maxScore: 25 },
+      8: { answer: 'MVC就是把代码分成三部分。', autoScore: null, manualScore: null, maxScore: 25 },
     }
   },
   {
@@ -114,8 +120,9 @@ let studentAnswerRecords: StudentAnswerRecord[] = [
     earnedScore: 0,
     status: 'submitted',
     answers: {
-      4: { answer: 'null,undefined', autoScore: 20, manualScore: null, maxScore: 20 },
-      5: { answer: 'B', autoScore: 20, manualScore: null, maxScore: 20 },
+      4: { answer: 'null,undefined', autoScore: 15, manualScore: null, maxScore: 15 },
+      5: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      11: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
       6: { answer: 'function unique(arr) { return Array.from(new Set(arr)); }', autoScore: null, manualScore: null, maxScore: 40 },
       7: { answer: '200,404,500', autoScore: 20, manualScore: null, maxScore: 20 },
     }
@@ -209,15 +216,18 @@ let papersList: Paper[] = [
 let paperQuestionIdCounter = 100
 let paperQuestions: PaperQuestion[] = [
   // 试卷1的题目
-  { id: 1, paperId: 1, questionId: 1, score: 20, questionOrder: 1, sectionName: '单选题' },
-  { id: 2, paperId: 1, questionId: 2, score: 20, questionOrder: 2, sectionName: '多选题' },
-  { id: 3, paperId: 1, questionId: 3, score: 30, questionOrder: 3, sectionName: '简答题' },
-  { id: 4, paperId: 1, questionId: 8, score: 30, questionOrder: 4, sectionName: '简答题' },
+  { id: 1, paperId: 1, questionId: 1, score: 15, questionOrder: 1, sectionName: '单选题' },
+  { id: 2, paperId: 1, questionId: 2, score: 15, questionOrder: 2, sectionName: '多选题' },
+  { id: 3, paperId: 1, questionId: 9, score: 10, questionOrder: 3, sectionName: '判断题' },
+  { id: 4, paperId: 1, questionId: 10, score: 10, questionOrder: 4, sectionName: '判断题' },
+  { id: 5, paperId: 1, questionId: 3, score: 25, questionOrder: 5, sectionName: '简答题' },
+  { id: 6, paperId: 1, questionId: 8, score: 25, questionOrder: 6, sectionName: '简答题' },
   // 试卷2的题目
-  { id: 5, paperId: 2, questionId: 4, score: 20, questionOrder: 1, sectionName: '填空题' },
-  { id: 6, paperId: 2, questionId: 5, score: 20, questionOrder: 2, sectionName: '单选题' },
-  { id: 7, paperId: 2, questionId: 6, score: 40, questionOrder: 3, sectionName: '编程题' },
-  { id: 8, paperId: 2, questionId: 7, score: 20, questionOrder: 4, sectionName: '填空题' },
+  { id: 7, paperId: 2, questionId: 4, score: 15, questionOrder: 1, sectionName: '填空题' },
+  { id: 8, paperId: 2, questionId: 5, score: 15, questionOrder: 2, sectionName: '单选题' },
+  { id: 9, paperId: 2, questionId: 11, score: 10, questionOrder: 3, sectionName: '判断题' },
+  { id: 10, paperId: 2, questionId: 6, score: 40, questionOrder: 4, sectionName: '编程题' },
+  { id: 11, paperId: 2, questionId: 7, score: 20, questionOrder: 5, sectionName: '填空题' },
 ]
 
 // 模拟题目数据
@@ -333,6 +343,42 @@ let questions: QuestionItem[] = [
     creatorTeacherId: 1,
     createdAt: '2026-04-14 09:30:00',
     updatedAt: '2026-04-14 09:30:00'
+  },
+  {
+    id: 9,
+    questionContent: 'JavaScript 是一种强类型语言。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '0',
+    analysis: 'JavaScript 是一种弱类型（动态类型）语言，变量类型可以在运行时改变。',
+    difficulty: 1,
+    creatorTeacherId: 2,
+    createdAt: '2026-04-14 10:00:00',
+    updatedAt: '2026-04-14 10:00:00'
+  },
+  {
+    id: 10,
+    questionContent: 'HTTP 协议是一种无状态协议。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '1',
+    analysis: 'HTTP 是无状态协议，服务器不会保存客户端的任何状态信息，每次请求都是独立的。',
+    difficulty: 1,
+    creatorTeacherId: 1,
+    createdAt: '2026-04-14 10:15:00',
+    updatedAt: '2026-04-14 10:15:00'
+  },
+  {
+    id: 11,
+    questionContent: 'RESTful API 中，POST 方法通常用于获取资源。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '0',
+    analysis: 'RESTful API 中，GET 用于获取资源，POST 用于创建资源。',
+    difficulty: 2,
+    creatorTeacherId: 1,
+    createdAt: '2026-04-14 10:30:00',
+    updatedAt: '2026-04-14 10:30:00'
   }
 ]
 
@@ -977,6 +1023,11 @@ export const examRepository = {
           if (!hasWrong && correct > 0) {
             earned = Math.round(pq.score * (correct / correctArr.length))
           }
+        }
+      } else if (question.questionType === 4) {
+        // 判断题：1=正确，0=错误
+        if (answer === question.standardAnswer) {
+          earned = pq.score
         }
       } else if (question.questionType === 5 || question.questionType === 6 || question.questionType === 7) {
         // 简答/编程/综合题：根据答案长度给分（简化逻辑）

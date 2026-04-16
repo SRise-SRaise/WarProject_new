@@ -237,11 +237,11 @@
             <div class="answer-section">
               <div class="student-answer">
                 <div class="content-label">学生答案：</div>
-                <div class="answer-text">{{ formatStudentAnswer(currentRecord.record.answers[pq.questionId]?.answer) }}</div>
+                <div class="answer-text">{{ formatStudentAnswer(currentRecord.record.answers[pq.questionId]?.answer, pq.question?.questionType) }}</div>
               </div>
               <div class="standard-answer">
                 <div class="content-label">参考答案：</div>
-                <div class="answer-text correct">{{ pq.question?.standardAnswer }}</div>
+                <div class="answer-text correct">{{ formatStandardAnswer(pq.question?.standardAnswer || '', pq.question?.questionType) }}</div>
               </div>
             </div>
 
@@ -405,6 +405,7 @@ function getQuestionTypeColor(type?: QuestionType) {
     case 1: return 'cyan'
     case 2: return 'blue'
     case 3: return 'purple'
+    case 4: return 'geekblue'
     case 5: return 'orange'
     case 6: return 'green'
     case 7: return 'red'
@@ -428,10 +429,21 @@ function formatQuestionContent(content: string) {
   return content.replace(/____/g, '<span class="blank-mark">______</span>')
 }
 
-function formatStudentAnswer(answer: string | string[] | undefined) {
+function formatStudentAnswer(answer: string | string[] | undefined, questionType?: QuestionType) {
   if (!answer) return '未作答'
   if (Array.isArray(answer)) return answer.join(', ')
+  // 判断题特殊处理
+  if (questionType === 4) {
+    return answer === '1' ? '正确' : '错误'
+  }
   return answer
+}
+
+function formatStandardAnswer(standardAnswer: string, questionType?: QuestionType) {
+  if (questionType === 4) {
+    return standardAnswer === '1' ? '正确' : '错误'
+  }
+  return standardAnswer
 }
 
 function parseOptions(optionsText: string) {
