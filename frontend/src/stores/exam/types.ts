@@ -269,6 +269,7 @@ export interface Exam {
   paperId: number | null
   durationMin: number | null
   startTime: string | null
+  endTime: string | null
   isPublished: boolean
   createdAt: string
   updatedAt: string
@@ -282,6 +283,7 @@ export interface ExamAddRequest {
   paperId?: number
   durationMin?: number
   startTime?: string
+  endTime?: string
 }
 
 // 考试更新请求
@@ -291,6 +293,7 @@ export interface ExamUpdateRequest {
   paperId?: number
   durationMin?: number
   startTime?: string
+  endTime?: string
   isPublished?: boolean
 }
 
@@ -303,7 +306,17 @@ export interface ExamQueryRequest {
 }
 
 // 考试状态类型
-export type ExamStatus = 'draft' | 'ready' | 'published' | 'ongoing' | 'ended'
+export type ExamStatus = 'draft' | 'ready' | 'published' | 'scheduled' | 'ongoing' | 'ended'
+
+function resolveExamEndTime(exam: Exam): Date | null {
+  if (exam.endTime) {
+    return new Date(exam.endTime)
+  }
+  if (exam.startTime && exam.durationMin) {
+    return new Date(new Date(exam.startTime).getTime() + exam.durationMin * 60 * 1000)
+  }
+  return null
+}
 
 // 计算考试状态
 export function getExamStatus(exam: Exam): ExamStatus {
@@ -311,13 +324,13 @@ export function getExamStatus(exam: Exam): ExamStatus {
     return exam.paperId ? 'ready' : 'draft'
   }
   if (!exam.startTime) return 'published'
-  
+
   const now = new Date()
   const start = new Date(exam.startTime)
-  const end = new Date(start.getTime() + (exam.durationMin || 0) * 60 * 1000)
-  
-  if (now < start) return 'published'
-  if (now >= start && now <= end) return 'ongoing'
+  const end = resolveExamEndTime(exam)
+
+  if (now < start) return 'scheduled'
+  if (!end || now <= end) return 'ongoing'
   return 'ended'
 }
 

@@ -108,6 +108,10 @@
             <span v-if="record.startTime">{{ formatDateTime(record.startTime) }}</span>
             <span v-else class="empty-text">未设置</span>
           </template>
+          <template v-else-if="column.key === 'endTime'">
+            <span v-if="record.endTime">{{ formatDateTime(record.endTime) }}</span>
+            <span v-else class="empty-text">未设置</span>
+          </template>
           <template v-else-if="column.key === 'paperInfo'">
             <div class="paper-info">
               <span>{{ record.paper?.questionCount ?? 0 }} 题</span>
@@ -247,6 +251,20 @@
           </a-col>
         </a-row>
 
+        <a-form-item label="结束时间" name="endTime">
+          <a-date-picker
+            v-model:value="formData.endTimeValue"
+            show-time
+            placeholder="请选择结束时间"
+            style="width: 100%"
+            format="YYYY-MM-DD HH:mm"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+          <template #extra>
+            <span class="form-hint">用于学生端识别考试是否过期，建议晚于开始时间</span>
+          </template>
+        </a-form-item>
+
         <!-- 试卷预览 -->
         <div v-if="selectedPaperDetail" class="paper-preview">
           <div class="paper-preview__header">
@@ -304,6 +322,7 @@ const columns: TableColumnType[] = [
   { title: '状态', key: 'status', width: 100 },
   { title: '时长', key: 'duration', width: 100 },
   { title: '开始时间', key: 'startTime', width: 150 },
+  { title: '结束时间', key: 'endTime', width: 150 },
   { title: '试卷信息', key: 'paperInfo', width: 120 },
   { title: '更新时间', key: 'updatedAt', width: 160 },
   { title: '操作', key: 'actions', width: 200, fixed: 'right' }
@@ -323,11 +342,23 @@ const formData = reactive({
   paperId: undefined as number | undefined,
   durationMin: undefined as number | undefined,
   startTimeValue: undefined as dayjs.Dayjs | undefined,
+  endTimeValue: undefined as dayjs.Dayjs | undefined,
 })
 
 // 表单验证规则
 const formRules = {
   examName: [{ required: true, message: '请输入考试名称' }],
+  endTime: [
+    {
+      validator: async () => {
+        if (formData.startTimeValue && formData.endTimeValue && formData.endTimeValue.isBefore(formData.startTimeValue)) {
+          return Promise.reject('结束时间不能早于开始时间')
+        }
+        return Promise.resolve()
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 // 选中试卷的详情
@@ -342,13 +373,17 @@ function getExamStatusLocal(exam: Exam): string {
     return exam.paperId ? 'ready' : 'draft'
   }
   if (!exam.startTime) return 'published'
-  
+
   const now = new Date()
   const start = new Date(exam.startTime)
-  const end = new Date(start.getTime() + (exam.durationMin || 0) * 60 * 1000)
-  
+  const end = exam.endTime
+    ? new Date(exam.endTime)
+    : exam.durationMin
+      ? new Date(start.getTime() + exam.durationMin * 60 * 1000)
+      : null
+
   if (now < start) return 'scheduled'
-  if (now >= start && now <= end) return 'ongoing'
+  if (!end || now <= end) return 'ongoing'
   return 'ended'
 }
 
@@ -445,6 +480,7 @@ function openAddModal() {
   formData.paperId = undefined
   formData.durationMin = 90
   formData.startTimeValue = undefined
+  formData.endTimeValue = undefined
   modalVisible.value = true
 }
 
@@ -456,6 +492,7 @@ function openEditModal(exam: Exam) {
   formData.paperId = exam.paperId || undefined
   formData.durationMin = exam.durationMin || undefined
   formData.startTimeValue = exam.startTime ? dayjs(exam.startTime) : undefined
+  formData.endTimeValue = exam.endTime ? dayjs(exam.endTime) : undefined
   modalVisible.value = true
   loadPapersForSelect()
 }
@@ -473,6 +510,7 @@ async function handleModalOk() {
         paperId: formData.paperId,
         durationMin: formData.durationMin,
         startTime: formData.startTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
+        endTime: formData.endTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
       }
       const success = await examStore.updateExam(request)
       if (success) {
@@ -487,6 +525,7 @@ async function handleModalOk() {
         paperId: formData.paperId,
         durationMin: formData.durationMin,
         startTime: formData.startTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
+        endTime: formData.endTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
       }
       const id = await examStore.addExam(request)
       if (id) {

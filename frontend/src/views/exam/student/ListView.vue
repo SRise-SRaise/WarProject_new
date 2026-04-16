@@ -16,8 +16,17 @@
           <FileTextOutlined />
         </div>
         <div class="stat-info">
-          <span class="stat-value">{{ publishedExams.length }}</span>
+          <span class="stat-value">{{ activeExamCount }}</span>
           <span class="stat-label">可参加考试</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon slate">
+          <ClockCircleOutlined />
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ expiredExamCount }}</span>
+          <span class="stat-label">已过期考试</span>
         </div>
       </div>
     </div>
@@ -63,15 +72,24 @@
               </div>
             </template>
             <template v-else-if="column.key === 'startTime'">
-              <span v-if="record.startTime">{{ formatDateTime(record.startTime) }}</span>
-              <span v-else class="text-muted">随时可考</span>
+              <div class="time-block">
+                <span v-if="record.startTime">开始：{{ formatDateTime(record.startTime) }}</span>
+                <span v-else class="text-muted">开始：随时可考</span>
+                <span v-if="record.endTime">结束：{{ formatDateTime(record.endTime) }}</span>
+                <span v-else class="text-muted">结束：未设置</span>
+              </div>
             </template>
             <template v-else-if="column.key === 'status'">
               <a-tag :color="getStatusColor(record)">{{ getStatusText(record) }}</a-tag>
             </template>
             <template v-else-if="column.key === 'action'">
-              <a-button type="primary" size="small" @click="enterExam(record)">
-                进入考试
+              <a-button
+                :type="isExamExpired(record) ? 'default' : 'primary'"
+                size="small"
+                :disabled="isExamExpired(record)"
+                @click="enterExam(record)"
+              >
+                {{ isExamExpired(record) ? '考试已过期' : '进入考试' }}
               </a-button>
             </template>
           </template>
@@ -82,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { FileTextOutlined, ClockCircleOutlined, TrophyOutlined, InboxOutlined } from '@ant-design/icons-vue'
@@ -92,6 +110,9 @@ import type { Exam } from '@/stores/exam/types'
 const router = useRouter()
 const examStore = useExamStudentStore()
 const { publishedExams, loading } = storeToRefs(examStore)
+
+const activeExamCount = computed(() => publishedExams.value.filter((exam) => !isExamExpired(exam)).length)
+const expiredExamCount = computed(() => publishedExams.value.filter((exam) => isExamExpired(exam)).length)
 
 const columns = [
   { title: '考试名称', key: 'examName', width: '30%' },
@@ -111,29 +132,43 @@ function formatDateTime(dateStr: string): string {
   })
 }
 
+function resolveExamEnd(exam: Exam): Date | null {
+  if (exam.endTime) return new Date(exam.endTime)
+  if (exam.startTime && exam.durationMin) {
+    return new Date(new Date(exam.startTime).getTime() + exam.durationMin * 60 * 1000)
+  }
+  return null
+}
+
+function isExamExpired(exam: Exam): boolean {
+  const end = resolveExamEnd(exam)
+  return !!end && new Date() > end
+}
+
 function getStatusColor(exam: Exam): string {
-  if (!exam.startTime) return 'green'
+  if (!exam.startTime) return isExamExpired(exam) ? 'default' : 'green'
   const now = new Date()
   const start = new Date(exam.startTime)
-  const end = new Date(start.getTime() + (exam.durationMin || 0) * 60 * 1000)
-  
+  const end = resolveExamEnd(exam)
+
   if (now < start) return 'blue'
-  if (now >= start && now <= end) return 'green'
+  if (!end || now <= end) return 'green'
   return 'default'
 }
 
 function getStatusText(exam: Exam): string {
-  if (!exam.startTime) return '可开始'
+  if (!exam.startTime) return isExamExpired(exam) ? '已过期' : '可开始'
   const now = new Date()
   const start = new Date(exam.startTime)
-  const end = new Date(start.getTime() + (exam.durationMin || 0) * 60 * 1000)
-  
+  const end = resolveExamEnd(exam)
+
   if (now < start) return '未开始'
-  if (now >= start && now <= end) return '进行中'
-  return '已结束'
+  if (!end || now <= end) return '进行中'
+  return '已过期'
 }
 
 function enterExam(exam: Exam): void {
+  if (isExamExpired(exam)) return
   router.push(`/exams/${exam.id}/take`)
 }
 
@@ -201,6 +236,11 @@ onMounted(async () => {
   color: #1677ff;
 }
 
+.stat-icon.slate {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 .stat-info {
   display: flex;
   flex-direction: column;
@@ -255,6 +295,12 @@ onMounted(async () => {
 .paper-name {
   font-size: 12px;
   color: #999;
+}
+
+.time-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .exam-info-cell {

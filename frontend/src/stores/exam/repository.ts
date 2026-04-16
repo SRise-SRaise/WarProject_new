@@ -138,6 +138,7 @@ let examsList: Exam[] = [
     paperId: 1,
     durationMin: 90,
     startTime: '2026-04-20 09:00:00',
+    endTime: '2026-04-20 10:30:00',
     isPublished: true,
     createdAt: '2026-04-10 10:00:00',
     updatedAt: '2026-04-15 14:30:00'
@@ -148,6 +149,7 @@ let examsList: Exam[] = [
     paperId: 2,
     durationMin: 45,
     startTime: '2026-04-18 14:00:00',
+    endTime: '2026-04-18 14:45:00',
     isPublished: true,
     createdAt: '2026-04-12 09:00:00',
     updatedAt: '2026-04-14 16:20:00'
@@ -158,6 +160,7 @@ let examsList: Exam[] = [
     paperId: null,
     durationMin: 120,
     startTime: null,
+    endTime: null,
     isPublished: false,
     createdAt: '2026-04-14 11:00:00',
     updatedAt: '2026-04-14 11:00:00'
@@ -168,6 +171,7 @@ let examsList: Exam[] = [
     paperId: 3,
     durationMin: 60,
     startTime: null,
+    endTime: null,
     isPublished: false,
     createdAt: '2026-04-15 08:30:00',
     updatedAt: '2026-04-15 08:30:00'
@@ -835,6 +839,7 @@ export const examRepository = {
       paperId: request.paperId || null,
       durationMin: request.durationMin || null,
       startTime: request.startTime || null,
+      endTime: request.endTime || null,
       isPublished: false,
       createdAt: now,
       updatedAt: now
@@ -855,6 +860,7 @@ export const examRepository = {
     if (request.paperId !== undefined) updated.paperId = request.paperId
     if (request.durationMin !== undefined) updated.durationMin = request.durationMin
     if (request.startTime !== undefined) updated.startTime = request.startTime
+    if (request.endTime !== undefined) updated.endTime = request.endTime
     if (request.isPublished !== undefined) updated.isPublished = request.isPublished
     updated.updatedAt = now
     
@@ -901,10 +907,14 @@ export const examRepository = {
     let ongoing = 0
     
     examsList.forEach(e => {
-      if (e.isPublished && e.startTime && e.durationMin) {
+      if (e.isPublished && e.startTime) {
         const start = new Date(e.startTime)
-        const end = new Date(start.getTime() + e.durationMin * 60 * 1000)
-        if (now >= start && now <= end) ongoing++
+        const end = e.endTime
+          ? new Date(e.endTime)
+          : e.durationMin
+            ? new Date(start.getTime() + e.durationMin * 60 * 1000)
+            : null
+        if (now >= start && (!end || now <= end)) ongoing++
       }
     })
     
