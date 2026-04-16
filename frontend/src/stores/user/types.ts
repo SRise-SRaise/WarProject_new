@@ -15,6 +15,7 @@ export interface UserSession {
   department: string
   major?: string
   classCode?: string
+  className?: string
   lastLoginIp?: string
   email: string
   phone: string

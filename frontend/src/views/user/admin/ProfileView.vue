@@ -1,92 +1,149 @@
 <template>
-  <div class="app-panel-grid">
-    <section class="app-surface-card app-section-card">
+  <div class="profile-page">
+    <a-card :bordered="false" class="profile-card profile-card--hero">
       <div class="profile-hero">
-        <div class="profile-hero__identity">
-          <div class="profile-avatar">{{ session?.avatar }}</div>
-          <div>
-            <h1 class="profile-hero__title">{{ session?.name }}</h1>
-            <p class="profile-hero__meta">{{ session?.title }} · {{ session?.department }}</p>
-            <div class="profile-hero__tags">
-              <a-tag v-for="focus in session?.focusAreas" :key="focus">{{ focus }}</a-tag>
+        <div class="profile-hero__left">
+          <div class="profile-avatar">{{ session?.avatar || '教' }}</div>
+          <div class="profile-hero__info">
+            <h1>{{ session?.name || '教师用户' }}</h1>
+            <div class="profile-tags">
+              <a-tag color="gold">{{ session?.title || '教师' }}</a-tag>
             </div>
           </div>
         </div>
-        <a-button type="primary" size="large" @click="saveProfile">保存教师设置</a-button>
-      </div>
-    </section>
-
-    <section class="app-kpi-grid">
-      <MetricCard
-        v-for="item in teacherDashboard.metrics.slice(0, 3)"
-        :key="item.label"
-        :title="item.label"
-        :value="item.value"
-        :description="item.description"
-        :trend="item.trend"
-        :tone="item.tone"
-      />
-    </section>
-
-    <section class="app-split-grid">
-      <div class="app-panel-grid">
-        <section class="app-surface-card app-section-card app-panel-grid">
-          <SectionHeader eyebrow="教师资料" title="当前档案" description="保留对教师工作最有帮助的核心资料。" tight />
-          <div class="app-key-value">
-            <div class="app-key-value__item">
-              <p class="app-key-value__label">院系</p>
-              <p class="app-key-value__value">{{ session?.department }}</p>
-            </div>
-            <div class="app-key-value__item">
-              <p class="app-key-value__label">邮箱</p>
-              <p class="app-key-value__value">{{ session?.email }}</p>
-            </div>
-            <div class="app-key-value__item">
-              <p class="app-key-value__label">联系电话</p>
-              <p class="app-key-value__value">{{ session?.phone }}</p>
-            </div>
-            <div class="app-key-value__item">
-              <p class="app-key-value__label">最近登录</p>
-              <p class="app-key-value__value">{{ session?.lastLogin }}</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="app-surface-card app-section-card app-panel-grid">
-          <SectionHeader eyebrow="通知偏好" title="后台提醒" description="控制班级风险、资料发布和教研协同提醒。" tight />
-          <div class="profile-preferences">
-            <div v-for="item in preferences" :key="item.key" class="profile-preferences__item">
-              <div>
-                <h3>{{ item.label }}</h3>
-                <p>保存后仅作用于当前本地教师会话。</p>
-              </div>
-              <a-switch v-model:checked="item.enabled" />
-            </div>
-          </div>
-        </section>
+        <a-button type="primary" size="large" @click="saveProfile">保存个人信息</a-button>
       </div>
 
-      <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="可编辑项" title="更新教师信息" description="围绕工作台使用场景，仅保留对教学协同有帮助的常用字段。" tight />
+      <section class="profile-section">
+        <h3 class="profile-section__title">当前登录教师信息</h3>
+        <div class="login-info-grid">
+          <div class="login-info-item">
+            <span>用户ID</span>
+            <strong>{{ session?.id || '--' }}</strong>
+          </div>
+          <div class="login-info-item">
+            <span>教师工号</span>
+            <strong>{{ session?.account || '--' }}</strong>
+          </div>
+          <div class="login-info-item">
+            <span>姓名</span>
+            <strong>{{ session?.name || '--' }}</strong>
+          </div>
+          <div class="login-info-item">
+            <span>角色</span>
+            <strong>{{ session?.title || '教师' }}</strong>
+          </div>
+          <div class="login-info-item">
+            <span>院系</span>
+            <strong>{{ session?.department || '未设置' }}</strong>
+          </div>
+          <div class="login-info-item">
+            <span>最后登录IP</span>
+            <strong>{{ session?.lastLoginIp || '--' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <h3 class="profile-section__title">账号与安全</h3>
+        <a-descriptions :column="1" size="small">
+          <a-descriptions-item label="账号">{{ session?.account || '--' }}</a-descriptions-item>
+          <a-descriptions-item label="身份">{{ session?.title || '教师' }}</a-descriptions-item>
+          <a-descriptions-item label="最近登录">{{ session?.lastLogin || '--' }}</a-descriptions-item>
+        </a-descriptions>
+        <div class="profile-security-tip">
+          密码可在个人中心自行修改，修改成功后会自动退出，请使用新密码重新登录。
+        </div>
+        <a-button type="primary" ghost class="profile-password-btn" @click="openPasswordModal">
+          修改密码
+        </a-button>
+      </section>
+
+      <section class="profile-section">
+        <h3 class="profile-section__title">教学概览</h3>
+        <div class="overview-list">
+          <div v-for="item in teacherDashboard.metrics.slice(0, 3)" :key="item.label" class="overview-item">
+            <div class="overview-item__head">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+            <p>{{ item.description }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <h3 class="profile-section__title">基本信息</h3>
         <a-form layout="vertical">
-          <a-form-item label="邮箱">
-            <a-input v-model:value="formState.email" size="large" />
-          </a-form-item>
-          <a-form-item label="手机号">
-            <a-input v-model:value="formState.phone" size="large" />
-          </a-form-item>
-          <a-form-item label="办公地点">
-            <a-input v-model:value="formState.location" size="large" />
-          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :xs="24" :md="12">
+              <a-form-item label="邮箱">
+                <a-input v-model:value="formState.email" size="large" placeholder="请输入邮箱" />
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :md="12">
+              <a-form-item label="手机号">
+                <a-input v-model:value="formState.phone" size="large" placeholder="请输入手机号" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :xs="24" :md="12">
+              <a-form-item label="办公地点">
+                <a-input v-model:value="formState.location" size="large" placeholder="如：行政楼A302" />
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :md="12">
+              <a-form-item label="当前关注（用 / 分隔）">
+                <a-input
+                  v-model:value="formState.focusAreasText"
+                  size="large"
+                  placeholder="例如：班级管理 / 资料建设 / 考试评阅"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
           <a-form-item label="简介说明">
-            <a-textarea v-model:value="formState.signature" :rows="4" />
-          </a-form-item>
-          <a-form-item label="当前关注（用 / 分隔）">
-            <a-input v-model:value="formState.focusAreasText" size="large" placeholder="例如：班级组织 / 资料 / 教学反馈" />
+            <a-textarea v-model:value="formState.signature" :rows="4" placeholder="介绍你的教学方向或课程建设计划" />
           </a-form-item>
         </a-form>
       </section>
-    </section>
+
+      <section class="profile-section">
+        <h3 class="profile-section__title">通知偏好</h3>
+        <div class="profile-preferences">
+          <div v-for="item in preferences" :key="item.key" class="profile-preferences__item">
+            <div>
+              <h3>{{ item.label }}</h3>
+              <p>开启后将接收对应教学提醒。</p>
+            </div>
+            <a-switch v-model:checked="item.enabled" />
+          </div>
+        </div>
+      </section>
+    </a-card>
+
+    <a-modal
+      v-model:open="passwordModalVisible"
+      title="修改密码"
+      :confirm-loading="passwordSubmitting"
+      ok-text="确认修改"
+      cancel-text="取消"
+      @ok="submitPasswordChange"
+      @cancel="closePasswordModal"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="旧密码" required>
+          <a-input-password v-model:value="passwordForm.oldPassword" placeholder="请输入当前密码" />
+        </a-form-item>
+        <a-form-item label="新密码" required>
+          <a-input-password v-model:value="passwordForm.newPassword" placeholder="请输入新密码（至少 8 位）" />
+        </a-form-item>
+        <a-form-item label="确认新密码" required>
+          <a-input-password v-model:value="passwordForm.confirmPassword" placeholder="请再次输入新密码" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -94,8 +151,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { message } from 'ant-design-vue'
-import MetricCard from '@/components/common/MetricCard.vue'
-import SectionHeader from '@/components/common/SectionHeader.vue'
+import { useRouter } from 'vue-router'
+import { changePassword } from '@/api/authController'
 import { useAppStore } from '@/stores/common/app'
 import { useAuthStore } from '@/stores/user/auth'
 import type { NotificationPreference } from '@/stores/user/types'
@@ -108,6 +165,13 @@ interface ProfileFormState {
   focusAreasText: string
 }
 
+interface PasswordFormState {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const { teacherDashboard } = storeToRefs(appStore)
@@ -121,6 +185,13 @@ const formState = reactive<ProfileFormState>({
   focusAreasText: ''
 })
 const preferences = ref<NotificationPreference[]>([])
+const passwordModalVisible = ref(false)
+const passwordSubmitting = ref(false)
+const passwordForm = reactive<PasswordFormState>({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
 
 watch(
   () => authStore.session,
@@ -157,20 +228,97 @@ function saveProfile(): void {
   message.success('教师个人设置已保存。')
 }
 
+function resetPasswordForm(): void {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+}
+
+function openPasswordModal(): void {
+  resetPasswordForm()
+  passwordModalVisible.value = true
+}
+
+function closePasswordModal(): void {
+  passwordModalVisible.value = false
+}
+
+async function submitPasswordChange(): Promise<void> {
+  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    message.warning('请完整填写密码信息')
+    return
+  }
+  if (passwordForm.newPassword.length < 8) {
+    message.warning('新密码长度不能小于 8 位')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    message.warning('两次输入的新密码不一致')
+    return
+  }
+  passwordSubmitting.value = true
+  try {
+    const response = await changePassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword
+    })
+    if (response.data?.code !== 0 || !response.data?.data) {
+      throw new Error(response.data?.message || '修改密码失败')
+    }
+    message.success('密码修改成功，请重新登录')
+    closePasswordModal()
+    authStore.logout()
+    await router.replace('/user/login')
+  } catch (error) {
+    const err = error as Error
+    message.error(err.message || '修改密码失败')
+  } finally {
+    passwordSubmitting.value = false
+  }
+}
+
 onMounted(async () => {
+  await authStore.refreshSessionFromServer()
   await appStore.ensureReady()
 })
 </script>
 
 <style scoped>
+.profile-page { display: grid; }
+
+.profile-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(18, 38, 63, 0.06);
+}
+
+.profile-card--hero {
+  background: linear-gradient(135deg, #fffaf0 0%, #ffffff 100%);
+}
+
+.profile-section {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fffcf6;
+  border: 1px solid #f3e8cf;
+}
+
+.profile-section__title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #594214;
+}
+
 .profile-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: 16px;
 }
 
-.profile-hero__identity {
+.profile-hero__left {
   display: flex;
   align-items: center;
   gap: 18px;
@@ -183,33 +331,103 @@ onMounted(async () => {
   width: 72px;
   height: 72px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-primary-deep) 0%, var(--color-primary) 100%);
-  color: var(--color-text-on-dark);
+  background: linear-gradient(135deg, #c08a2b 0%, #d6a853 100%);
+  color: #fff;
   font-size: 28px;
   font-weight: 800;
 }
 
-.profile-hero__title {
-  margin: 0;
-  font-size: 32px;
-  font-family: Georgia, 'Times New Roman', 'Songti SC', serif;
+.profile-hero__info h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
-.profile-hero__meta {
-  margin: 10px 0 0;
-  color: var(--color-text-secondary);
-}
-
-.profile-hero__tags {
+.profile-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 12px;
+}
+
+.profile-security-tip {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #7f6328;
+  font-size: 13px;
+}
+
+.profile-password-btn {
+  margin-top: 12px;
+}
+
+.login-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.login-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffdf8;
+  border: 1px solid #f3e8cf;
+}
+
+.login-info-item span {
+  font-size: 12px;
+  color: #8a7446;
+}
+
+.login-info-item strong {
+  font-size: 14px;
+  color: #5a4417;
+  word-break: break-all;
+}
+
+.overview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.overview-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffdf8;
+  border: 1px solid #f3e8cf;
+}
+
+.overview-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.overview-item__head span {
+  color: #7a6130;
+  font-size: 13px;
+}
+
+.overview-item__head strong {
+  color: #b47a18;
+  font-size: 16px;
+}
+
+.overview-item p {
+  margin: 0;
+  color: #8f7b53;
+  font-size: 12px;
 }
 
 .profile-preferences {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .profile-preferences__item {
@@ -217,10 +435,10 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-muted);
-  border: 1px solid rgba(194, 206, 222, 0.55);
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fffdf8;
+  border: 1px solid #f3e8cf;
 }
 
 .profile-preferences__item h3 {
@@ -230,13 +448,17 @@ onMounted(async () => {
 
 .profile-preferences__item p {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: #8f7b53;
   font-size: 13px;
 }
 
 @media (max-width: 720px) {
+  .login-info-grid {
+    grid-template-columns: 1fr;
+  }
+
   .profile-hero,
-  .profile-hero__identity,
+  .profile-hero__left,
   .profile-preferences__item {
     align-items: flex-start;
     flex-direction: column;

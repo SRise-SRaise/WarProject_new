@@ -2,6 +2,21 @@
 /* eslint-disable */
 import request from "@/request";
 
+/** 此处后端没有提供注释 POST /auth/change/password */
+export async function changePassword(
+  body: API.AuthChangePasswordRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/auth/change/password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
 /** 此处后端没有提供注释 GET /auth/get/login */
 export async function getLoginUser1(options?: { [key: string]: any }) {
   return request<API.BaseResponseLoginPrincipal>("/auth/get/login", {

@@ -52,7 +52,7 @@ public class FileController {
         // 文件目录：根据业务来划分
         String uuid = RandomStringUtils.randomAlphanumeric(8);
         String filename = uuid + "-" + multipartFile.getOriginalFilename();
-        String filepath = String.format("%s/%s", fileUploadBizEnum.getValue(), filename);
+        String filepath = buildUploadFilePath(fileUploadBizEnum, filename);
 
         File targetFile = new File(uploadPath, filepath);
         File dir = targetFile.getParentFile();
@@ -93,6 +93,16 @@ public class FileController {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
             }
         }
+    }
+
+    /**
+     * 统一文件落盘子目录，避免不同业务文件混在同一层。
+     */
+    private String buildUploadFilePath(FileUploadBizEnum fileUploadBizEnum, String filename) {
+        if (FileUploadBizEnum.LECTURE_MATERIAL.equals(fileUploadBizEnum)) {
+            return String.format("%s/materials/%s", fileUploadBizEnum.getValue(), filename);
+        }
+        return String.format("%s/%s", fileUploadBizEnum.getValue(), filename);
     }
 }
 

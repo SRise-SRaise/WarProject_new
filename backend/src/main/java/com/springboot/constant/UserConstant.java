@@ -16,6 +16,11 @@ public interface UserConstant {
      */
     String AUTH_LOGIN_STATE = "auth_login";
 
+    /**
+     * 新认证体系会话令牌键（用于单账号单会话）
+     */
+    String AUTH_LOGIN_SESSION_TOKEN = "auth_login_session_token";
+
     //  region 权限
 
     /**

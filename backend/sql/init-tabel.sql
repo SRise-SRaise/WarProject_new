@@ -388,6 +388,7 @@ CREATE TABLE `edu_lecture`
     `lecture_name`   VARCHAR(50)       DEFAULT NULL COMMENT '课件名称',
     `category_id`    INT               DEFAULT NULL COMMENT '课件分类',
     `file_extension` VARCHAR(10)       DEFAULT NULL COMMENT '文件格式',
+    `file_path`      VARCHAR(255)      DEFAULT NULL COMMENT '文件路径',
     `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)

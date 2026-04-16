@@ -40,6 +40,12 @@ public class EduLecture implements Serializable {
     private String fileExtension;
 
     /**
+     * 文件路径
+     */
+    @TableField(value = "file_path")
+    private String filePath;
+
+    /**
      * 
      */
     @TableField(value = "created_at")
@@ -70,6 +76,7 @@ public class EduLecture implements Serializable {
             && (this.getLectureName() == null ? other.getLectureName() == null : this.getLectureName().equals(other.getLectureName()))
             && (this.getCategoryId() == null ? other.getCategoryId() == null : this.getCategoryId().equals(other.getCategoryId()))
             && (this.getFileExtension() == null ? other.getFileExtension() == null : this.getFileExtension().equals(other.getFileExtension()))
+            && (this.getFilePath() == null ? other.getFilePath() == null : this.getFilePath().equals(other.getFilePath()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
     }
@@ -82,6 +89,7 @@ public class EduLecture implements Serializable {
         result = prime * result + ((getLectureName() == null) ? 0 : getLectureName().hashCode());
         result = prime * result + ((getCategoryId() == null) ? 0 : getCategoryId().hashCode());
         result = prime * result + ((getFileExtension() == null) ? 0 : getFileExtension().hashCode());
+        result = prime * result + ((getFilePath() == null) ? 0 : getFilePath().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
         return result;
@@ -97,6 +105,7 @@ public class EduLecture implements Serializable {
         sb.append(", lectureName=").append(lectureName);
         sb.append(", categoryId=").append(categoryId);
         sb.append(", fileExtension=").append(fileExtension);
+        sb.append(", filePath=").append(filePath);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);
         sb.append(", serialVersionUID=").append(serialVersionUID);
