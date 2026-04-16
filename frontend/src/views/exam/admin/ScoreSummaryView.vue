@@ -139,12 +139,39 @@
     <!-- 批改弹窗 -->
     <a-modal
       v-model:open="gradingModalVisible"
-      :title="gradingModalTitle"
-      width="900px"
+      :title="null"
+      width="960px"
       :footer="null"
+      :bodyStyle="{ padding: 0 }"
       @cancel="closeGradingModal"
     >
       <div v-if="currentRecord" class="grading-modal-content">
+        <!-- 弹窗顶部导航 -->
+        <div class="modal-header">
+          <div class="header-left">
+            <h3 class="modal-title">
+              {{ currentRecord.record.status === 'graded' ? '查看详情' : '批改试卷' }}
+            </h3>
+            <span class="student-indicator">
+              第 {{ currentRecordIndex + 1 }} / {{ studentRecords.length }} 位学生
+            </span>
+          </div>
+          <div class="header-nav">
+            <a-button 
+              :disabled="currentRecordIndex <= 0"
+              @click="goToPrevStudent"
+            >
+              <LeftOutlined /> 上一个
+            </a-button>
+            <a-button 
+              :disabled="currentRecordIndex >= studentRecords.length - 1"
+              @click="goToNextStudent"
+            >
+              下一个 <RightOutlined />
+            </a-button>
+          </div>
+        </div>
+
         <!-- 学生信息 -->
         <div class="student-header">
           <div class="student-detail">
@@ -161,7 +188,13 @@
           </div>
           <div class="student-detail">
             <span class="label">当前得分：</span>
-            <span class="value score">{{ currentRecord.record.earnedScore }} / {{ currentRecord.record.totalScore }}</span>
+            <span class="value score">{{ calculatedTotalScore }} / {{ currentRecord.record.totalScore }}</span>
+          </div>
+          <div class="student-detail">
+            <span class="label">状态：</span>
+            <a-tag :color="getStatusColor(currentRecord.record.status)">
+              {{ getStatusText(currentRecord.record.status) }}
+            </a-tag>
           </div>
         </div>
 
@@ -178,6 +211,11 @@
                 {{ QUESTION_TYPE_MAP[pq.question?.questionType as QuestionType] || '未知' }}
               </a-tag>
               <span class="question-score">（{{ pq.score }} 分）</span>
+              <span class="question-graded-status">
+                <a-tag v-if="getQuestionGradedScore(pq.questionId) !== null" color="green" size="small">
+                  已评: {{ getQuestionGradedScore(pq.questionId) }}分
+                </a-tag>
+              </span>
             </div>
 
             <div class="question-content">
@@ -209,57 +247,72 @@
 
             <!-- 评分区域 -->
             <div class="grading-section">
-              <div class="auto-score" v-if="currentRecord.record.answers[pq.questionId]?.autoScore !== null">
-                <span class="label">系统评分：</span>
-                <span class="score">{{ currentRecord.record.answers[pq.questionId]?.autoScore }} 分</span>
+              <!-- 自动评分的题目（填空题、选择题） -->
+              <div v-if="!needsManualGrading(pq.question?.questionType)" class="auto-graded">
+                <span class="label">系统自动评分：</span>
+                <a-tag :color="currentRecord.record.answers[pq.questionId]?.autoScore === pq.score ? 'green' : 'orange'">
+                  {{ currentRecord.record.answers[pq.questionId]?.autoScore ?? 0 }} / {{ pq.score }} 分
+                </a-tag>
               </div>
               
               <!-- 需要手动批改的题目（简答题、编程题、综合题） -->
-              <div v-if="needsManualGrading(pq.question?.questionType)" class="manual-grading">
-                <div class="grading-input">
-                  <span class="label">评分（满分 {{ pq.score }} 分）：</span>
-                  <a-input-number
-                    v-model:value="gradingScores[pq.questionId]"
-                    :min="0"
-                    :max="pq.score"
-                    :disabled="currentRecord.record.status === 'graded'"
-                  />
-                  <a-button
-                    v-if="currentRecord.record.status !== 'graded'"
-                    type="primary"
-                    size="small"
-                    :loading="gradingSubmitting"
-                    @click="submitGrade(pq.questionId, pq.score)"
-                  >
-                    确认评分
-                  </a-button>
+              <div v-else class="manual-grading">
+                <div class="grading-row">
+                  <div class="grading-input">
+                    <span class="label">评分（满分 {{ pq.score }} 分）：</span>
+                    <a-input-number
+                      v-model:value="gradingScores[pq.questionId]"
+                      :min="0"
+                      :max="pq.score"
+                      :disabled="currentRecord.record.status === 'graded'"
+                      style="width: 100px"
+                    />
+                  </div>
+                  <div class="grading-comment-inline">
+                    <span class="label">评语：</span>
+                    <a-input
+                      v-model:value="gradingComments[pq.questionId]"
+                      placeholder="输入评语（可选）"
+                      :disabled="currentRecord.record.status === 'graded'"
+                      style="flex: 1"
+                    />
+                  </div>
                 </div>
-                <div class="grading-comment">
-                  <span class="label">评语：</span>
-                  <a-textarea
-                    v-model:value="gradingComments[pq.questionId]"
-                    :rows="2"
-                    placeholder="输入评语（可选）"
-                    :disabled="currentRecord.record.status === 'graded'"
-                  />
+                <div v-if="currentRecord.record.answers[pq.questionId]?.comment && currentRecord.record.status === 'graded'" class="existing-comment">
+                  <span class="label">已有评语：</span>
+                  <span class="comment-text">{{ currentRecord.record.answers[pq.questionId]?.comment }}</span>
                 </div>
-                <div v-if="currentRecord.record.answers[pq.questionId]?.manualScore !== null" class="graded-info">
-                  <a-tag color="green">
-                    已评分: {{ currentRecord.record.answers[pq.questionId]?.manualScore }} 分
-                  </a-tag>
-                  <span v-if="currentRecord.record.answers[pq.questionId]?.comment" class="graded-comment">
-                    评语: {{ currentRecord.record.answers[pq.questionId]?.comment }}
-                  </span>
-                </div>
-              </div>
-              
-              <!-- 自动评分的题目 -->
-              <div v-else class="auto-graded">
-                <a-tag :color="currentRecord.record.answers[pq.questionId]?.autoScore === pq.score ? 'green' : 'orange'">
-                  得分: {{ currentRecord.record.answers[pq.questionId]?.autoScore ?? 0 }} / {{ pq.score }}
-                </a-tag>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 底部操作栏 -->
+        <div class="modal-footer">
+          <div class="footer-left">
+            <span class="total-info">
+              当前评分合计：<strong>{{ calculatedTotalScore }}</strong> / {{ currentRecord.record.totalScore }} 分
+            </span>
+          </div>
+          <div class="footer-right">
+            <a-button @click="closeGradingModal">关闭</a-button>
+            <a-button 
+              v-if="currentRecord.record.status !== 'graded'"
+              type="primary"
+              :loading="gradingSubmitting"
+              @click="submitAllGrades"
+            >
+              确认评分并保存
+            </a-button>
+            <a-button 
+              v-if="currentRecordIndex < studentRecords.length - 1"
+              type="primary"
+              ghost
+              @click="submitAndNext"
+              :loading="gradingSubmitting"
+            >
+              {{ currentRecord.record.status !== 'graded' ? '保存并批改下一个' : '批改下一个' }}
+            </a-button>
           </div>
         </div>
       </div>
@@ -277,6 +330,8 @@ import {
   ClockCircleOutlined,
   BarChartOutlined,
   FileSearchOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from '@ant-design/icons-vue'
 import { useExamAdminStore } from '@/stores/exam/admin'
 import { QUESTION_TYPE_MAP, type QuestionType, type StudentAnswerRecord } from '@/stores/exam/types'
@@ -289,6 +344,7 @@ const gradingModalVisible = ref(false)
 const gradingSubmitting = ref(false)
 const gradingScores = reactive<Record<number, number>>({})
 const gradingComments = reactive<Record<number, string>>({})
+const currentRecordIndex = ref(0)
 
 const scoreColumns = [
   { title: '学生信息', key: 'studentInfo', width: 180 },
@@ -299,10 +355,22 @@ const scoreColumns = [
   { title: '操作', key: 'action', width: 120 },
 ]
 
-const gradingModalTitle = computed(() => {
-  if (!currentRecord.value) return '批改试卷'
-  const status = currentRecord.value.record.status === 'graded' ? '查看详情' : '批改试卷'
-  return `${status} - ${currentRecord.value.record.studentName}`
+// 计算当前总得分（包括自动评分 + 手动输入的评分）
+const calculatedTotalScore = computed(() => {
+  if (!currentRecord.value) return 0
+  
+  let total = 0
+  currentRecord.value.paper.questions.forEach(pq => {
+    const answer = currentRecord.value!.record.answers[pq.questionId]
+    if (answer?.autoScore !== null) {
+      total += answer.autoScore
+    }
+    if (needsManualGrading(pq.question?.questionType)) {
+      // 使用输入框中的值
+      total += gradingScores[pq.questionId] || 0
+    }
+  })
+  return total
 })
 
 onMounted(async () => {
@@ -348,8 +416,15 @@ function needsManualGrading(type?: QuestionType) {
   return type === 5 || type === 6 || type === 7  // 简答、编程、综合题需要手动批改
 }
 
+function getQuestionGradedScore(questionId: number): number | null {
+  if (!currentRecord.value) return null
+  const answer = currentRecord.value.record.answers[questionId]
+  if (answer?.autoScore !== null) return answer.autoScore
+  if (answer?.manualScore !== null) return answer.manualScore
+  return null
+}
+
 function formatQuestionContent(content: string) {
-  // 将填空题的 ____ 转换为高亮显示
   return content.replace(/____/g, '<span class="blank-mark">______</span>')
 }
 
@@ -368,7 +443,14 @@ function parseOptions(optionsText: string) {
 }
 
 async function openGradingModal(record: StudentAnswerRecord) {
-  await examStore.loadRecordDetail(record.id)
+  // 找到当前记录的索引
+  currentRecordIndex.value = studentRecords.value.findIndex(r => r.id === record.id)
+  await loadRecordAndInitScores(record.id)
+  gradingModalVisible.value = true
+}
+
+async function loadRecordAndInitScores(recordId: number) {
+  await examStore.loadRecordDetail(recordId)
   
   // 初始化评分和评语
   if (currentRecord.value) {
@@ -378,44 +460,67 @@ async function openGradingModal(record: StudentAnswerRecord) {
       gradingComments[pq.questionId] = answer?.comment ?? ''
     })
   }
-  
-  gradingModalVisible.value = true
 }
 
 function closeGradingModal() {
   gradingModalVisible.value = false
 }
 
-async function submitGrade(questionId: number, maxScore: number) {
+async function goToPrevStudent() {
+  if (currentRecordIndex.value <= 0) return
+  currentRecordIndex.value--
+  const prevRecord = studentRecords.value[currentRecordIndex.value]
+  await loadRecordAndInitScores(prevRecord.id)
+}
+
+async function goToNextStudent() {
+  if (currentRecordIndex.value >= studentRecords.value.length - 1) return
+  currentRecordIndex.value++
+  const nextRecord = studentRecords.value[currentRecordIndex.value]
+  await loadRecordAndInitScores(nextRecord.id)
+}
+
+async function submitAllGrades() {
   if (!currentRecord.value) return
-  
-  const score = gradingScores[questionId]
-  if (score === undefined || score < 0 || score > maxScore) {
-    message.error(`评分必须在 0 到 ${maxScore} 之间`)
-    return
-  }
   
   gradingSubmitting.value = true
   try {
-    const result = await examStore.gradeAnswer({
-      recordId: currentRecord.value.record.id,
-      questionId,
-      score,
-      comment: gradingComments[questionId] || undefined
-    })
+    // 批量提交所有需要手动批改的题目
+    const manualQuestions = currentRecord.value.paper.questions.filter(
+      pq => needsManualGrading(pq.question?.questionType)
+    )
     
-    if (result) {
-      message.success('评分成功')
-      // 刷新学生记录列表
-      if (selectedExamId.value) {
-        await examStore.loadStudentRecords(selectedExamId.value)
+    for (const pq of manualQuestions) {
+      const score = gradingScores[pq.questionId]
+      if (score === undefined || score < 0 || score > pq.score) {
+        message.error(`第 ${currentRecord.value.paper.questions.indexOf(pq) + 1} 题评分必须在 0 到 ${pq.score} 之间`)
+        return
       }
-    } else {
-      message.error('评分失败')
+      
+      await examStore.gradeAnswer({
+        recordId: currentRecord.value.record.id,
+        questionId: pq.questionId,
+        score,
+        comment: gradingComments[pq.questionId] || undefined
+      })
+    }
+    
+    message.success('评分保存成功')
+    
+    // 刷新学生记录列表
+    if (selectedExamId.value) {
+      await examStore.loadStudentRecords(selectedExamId.value)
     }
   } finally {
     gradingSubmitting.value = false
   }
+}
+
+async function submitAndNext() {
+  if (currentRecord.value?.status !== 'graded') {
+    await submitAllGrades()
+  }
+  await goToNextStudent()
 }
 </script>
 
@@ -567,18 +672,53 @@ async function submitGrade(questionId: number, maxScore: number) {
 
 /* 批改弹窗样式 */
 .grading-modal-content {
-  max-height: 70vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.student-indicator {
+  font-size: 14px;
+  color: #666;
+  padding: 4px 12px;
+  background: #e6f7ff;
+  border-radius: 4px;
+}
+
+.header-nav {
+  display: flex;
+  gap: 8px;
 }
 
 .student-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
-  padding: 16px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  gap: 20px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .student-detail {
@@ -603,9 +743,12 @@ async function submitGrade(questionId: number, maxScore: number) {
 }
 
 .questions-grading {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .question-grading-item {
@@ -631,6 +774,10 @@ async function submitGrade(questionId: number, maxScore: number) {
 .question-score {
   color: #666;
   font-size: 14px;
+}
+
+.question-graded-status {
+  margin-left: auto;
 }
 
 .question-content {
@@ -714,17 +861,14 @@ async function submitGrade(questionId: number, maxScore: number) {
   border-top: 1px dashed #e8e8e8;
 }
 
-.auto-score {
-  margin-bottom: 12px;
+.auto-graded {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.auto-score .label {
+.auto-graded .label {
   color: #666;
-}
-
-.auto-score .score {
-  font-weight: 500;
-  color: #1890ff;
 }
 
 .manual-grading {
@@ -733,43 +877,79 @@ async function submitGrade(questionId: number, maxScore: number) {
   gap: 12px;
 }
 
+.grading-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
 .grading-input {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .grading-input .label {
   color: #333;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.grading-comment {
+.grading-comment-inline {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
-.grading-comment .label {
+.grading-comment-inline .label {
   color: #333;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.graded-info {
+.existing-comment {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f6ffed;
+  border-radius: 4px;
 }
 
-.graded-comment {
+.existing-comment .label {
+  color: #52c41a;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.existing-comment .comment-text {
+  color: #333;
+}
+
+/* 底部操作栏 */
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.footer-left {
+  font-size: 14px;
   color: #666;
-  font-size: 13px;
 }
 
-.auto-graded {
+.footer-left strong {
+  color: #1890ff;
+  font-size: 18px;
+}
+
+.footer-right {
   display: flex;
-  align-items: center;
+  gap: 12px;
 }
 
 @media (max-width: 768px) {
@@ -784,6 +964,32 @@ async function submitGrade(questionId: number, maxScore: number) {
   .student-header {
     flex-direction: column;
     gap: 12px;
+  }
+  
+  .modal-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .grading-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .grading-comment-inline {
+    width: 100%;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .footer-right {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
