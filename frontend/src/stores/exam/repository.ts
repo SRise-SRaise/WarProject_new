@@ -17,6 +17,7 @@ import type {
   ExamRecordItem,
   ExamStudentItem,
   ExamUpdateRequest,
+  GradeAnswerRequest,
   PageResult,
   Paper,
   PaperAddRequest,
@@ -33,6 +34,7 @@ import type {
   QuestionTypeItem,
   QuestionUpdateRequest,
   ScoreSummaryItem,
+  StudentAnswerRecord,
 } from './types'
 import { QUESTION_TYPE_MAP } from './types'
 
@@ -43,6 +45,89 @@ let scoreSummary = CommonUtil.deepClone(scoreSummaryFixtures)
 const questionBanks = CommonUtil.deepClone(questionBankFixtures)
 const questionTypes = CommonUtil.deepClone(questionTypeFixtures)
 const papers = CommonUtil.deepClone(paperFixtures)
+
+// 模拟学生答题记录（用于教师批改）
+let studentAnswerRecords: StudentAnswerRecord[] = [
+  {
+    id: 1,
+    examId: 1,
+    studentId: 1001,
+    studentName: '张三',
+    studentNo: '2024001',
+    className: '软件工程2024级1班',
+    submittedAt: '2026-04-20 10:25:00',
+    totalScore: 100,
+    earnedScore: 0,
+    status: 'submitted',
+    answers: {
+      1: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'B', 'D'], autoScore: 15, manualScore: null, maxScore: 15 },
+      9: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
+      10: { answer: '1', autoScore: 10, manualScore: null, maxScore: 10 },
+      3: { answer: '题库作为共享资产，放在exam模块可以统一管理题目质量，保证评分口径一致性，方便考试和作业共用题目资源。', autoScore: null, manualScore: null, maxScore: 25 },
+      8: { answer: 'Model负责数据存储和业务逻辑处理；View负责界面展示；Controller负责接收用户输入，协调Model和View之间的交互。', autoScore: null, manualScore: null, maxScore: 25 },
+    }
+  },
+  {
+    id: 2,
+    examId: 1,
+    studentId: 1002,
+    studentName: '李四',
+    studentNo: '2024002',
+    className: '软件工程2024级1班',
+    submittedAt: '2026-04-20 10:28:00',
+    totalScore: 100,
+    earnedScore: 85,
+    status: 'graded',
+    answers: {
+      1: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'B', 'D'], autoScore: 15, manualScore: null, maxScore: 15 },
+      9: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
+      10: { answer: '0', autoScore: 0, manualScore: null, maxScore: 10 },
+      3: { answer: '因为考试是题库的主要使用场景，统一管理有利于质量控制。', autoScore: null, manualScore: 20, maxScore: 25, comment: '回答基本正确，但可以更详细说明共享资产的概念' },
+      8: { answer: 'MVC是软件设计模式，M是模型层，V是视图层，C是控制层，三者分工明确。', autoScore: null, manualScore: 25, maxScore: 25, comment: '理解正确，描述较为简洁' },
+    }
+  },
+  {
+    id: 3,
+    examId: 1,
+    studentId: 1003,
+    studentName: '王五',
+    studentNo: '2024003',
+    className: '软件工程2024级1班',
+    submittedAt: '2026-04-20 10:30:00',
+    totalScore: 100,
+    earnedScore: 0,
+    status: 'submitted',
+    answers: {
+      1: { answer: 'C', autoScore: 0, manualScore: null, maxScore: 15 },
+      2: { answer: ['A', 'C'], autoScore: 7, manualScore: null, maxScore: 15 },
+      9: { answer: '1', autoScore: 0, manualScore: null, maxScore: 10 },
+      10: { answer: '1', autoScore: 10, manualScore: null, maxScore: 10 },
+      3: { answer: '题库放在exam模块更合理。', autoScore: null, manualScore: null, maxScore: 25 },
+      8: { answer: 'MVC就是把代码分成三部分。', autoScore: null, manualScore: null, maxScore: 25 },
+    }
+  },
+  {
+    id: 4,
+    examId: 2,
+    studentId: 1001,
+    studentName: '张三',
+    studentNo: '2024001',
+    className: '软件工程2024级1班',
+    submittedAt: '2026-04-18 14:40:00',
+    totalScore: 100,
+    earnedScore: 0,
+    status: 'submitted',
+    answers: {
+      4: { answer: 'null,undefined', autoScore: 15, manualScore: null, maxScore: 15 },
+      5: { answer: 'B', autoScore: 15, manualScore: null, maxScore: 15 },
+      11: { answer: '0', autoScore: 10, manualScore: null, maxScore: 10 },
+      6: { answer: 'function unique(arr) { return Array.from(new Set(arr)); }', autoScore: null, manualScore: null, maxScore: 40 },
+      7: { answer: '200,404,500', autoScore: 20, manualScore: null, maxScore: 20 },
+    }
+  },
+]
 
 // 模拟考试数据
 let examIdCounter = 10
@@ -131,15 +216,18 @@ let papersList: Paper[] = [
 let paperQuestionIdCounter = 100
 let paperQuestions: PaperQuestion[] = [
   // 试卷1的题目
-  { id: 1, paperId: 1, questionId: 1, score: 20, questionOrder: 1, sectionName: '单选题' },
-  { id: 2, paperId: 1, questionId: 2, score: 20, questionOrder: 2, sectionName: '多选题' },
-  { id: 3, paperId: 1, questionId: 3, score: 30, questionOrder: 3, sectionName: '简答题' },
-  { id: 4, paperId: 1, questionId: 8, score: 30, questionOrder: 4, sectionName: '简答题' },
+  { id: 1, paperId: 1, questionId: 1, score: 15, questionOrder: 1, sectionName: '单选题' },
+  { id: 2, paperId: 1, questionId: 2, score: 15, questionOrder: 2, sectionName: '多选题' },
+  { id: 3, paperId: 1, questionId: 9, score: 10, questionOrder: 3, sectionName: '判断题' },
+  { id: 4, paperId: 1, questionId: 10, score: 10, questionOrder: 4, sectionName: '判断题' },
+  { id: 5, paperId: 1, questionId: 3, score: 25, questionOrder: 5, sectionName: '简答题' },
+  { id: 6, paperId: 1, questionId: 8, score: 25, questionOrder: 6, sectionName: '简答题' },
   // 试卷2的题目
-  { id: 5, paperId: 2, questionId: 4, score: 20, questionOrder: 1, sectionName: '填空题' },
-  { id: 6, paperId: 2, questionId: 5, score: 20, questionOrder: 2, sectionName: '单选题' },
-  { id: 7, paperId: 2, questionId: 6, score: 40, questionOrder: 3, sectionName: '编程题' },
-  { id: 8, paperId: 2, questionId: 7, score: 20, questionOrder: 4, sectionName: '填空题' },
+  { id: 7, paperId: 2, questionId: 4, score: 15, questionOrder: 1, sectionName: '填空题' },
+  { id: 8, paperId: 2, questionId: 5, score: 15, questionOrder: 2, sectionName: '单选题' },
+  { id: 9, paperId: 2, questionId: 11, score: 10, questionOrder: 3, sectionName: '判断题' },
+  { id: 10, paperId: 2, questionId: 6, score: 40, questionOrder: 4, sectionName: '编程题' },
+  { id: 11, paperId: 2, questionId: 7, score: 20, questionOrder: 5, sectionName: '填空题' },
 ]
 
 // 模拟题目数据
@@ -255,6 +343,42 @@ let questions: QuestionItem[] = [
     creatorTeacherId: 1,
     createdAt: '2026-04-14 09:30:00',
     updatedAt: '2026-04-14 09:30:00'
+  },
+  {
+    id: 9,
+    questionContent: 'JavaScript 是一种强类型语言。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '0',
+    analysis: 'JavaScript 是一种弱类型（动态类型）语言，变量类型可以在运行时改变。',
+    difficulty: 1,
+    creatorTeacherId: 2,
+    createdAt: '2026-04-14 10:00:00',
+    updatedAt: '2026-04-14 10:00:00'
+  },
+  {
+    id: 10,
+    questionContent: 'HTTP 协议是一种无状态协议。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '1',
+    analysis: 'HTTP 是无状态协议，服务器不会保存客户端的任何状态信息，每次请求都是独立的。',
+    difficulty: 1,
+    creatorTeacherId: 1,
+    createdAt: '2026-04-14 10:15:00',
+    updatedAt: '2026-04-14 10:15:00'
+  },
+  {
+    id: 11,
+    questionContent: 'RESTful API 中，POST 方法通常用于获取资源。',
+    questionType: 4,
+    optionsText: null,
+    standardAnswer: '0',
+    analysis: 'RESTful API 中，GET 用于获取资源，POST 用于创建资源。',
+    difficulty: 2,
+    creatorTeacherId: 1,
+    createdAt: '2026-04-14 10:30:00',
+    updatedAt: '2026-04-14 10:30:00'
   }
 ]
 
@@ -796,5 +920,250 @@ export const examRepository = {
   async getAllPapers(): Promise<Paper[]> {
     await CommonUtil.sleep(50)
     return CommonUtil.deepClone(papersList.filter(p => p.questionCount > 0))
+  },
+
+  // ========== 学生端考试方法 ==========
+  // 获取学生可参加的考试（已发布且有试卷的考试）
+  async getPublishedExamsForStudent(): Promise<Exam[]> {
+    await CommonUtil.sleep(80)
+    const published = examsList.filter(e => e.isPublished && e.paperId)
+    
+    return CommonUtil.deepClone(published.map(e => ({
+      ...e,
+      paper: e.paperId ? papersList.find(p => p.id === e.paperId) : undefined
+    })))
+  },
+
+  // 获取考试详情（含完整试卷和题目，用于学生答题）
+  async getExamDetailForStudent(examId: number): Promise<{
+    exam: Exam
+    paper: PaperDetail
+  } | null> {
+    await CommonUtil.sleep(100)
+    const exam = examsList.find(e => e.id === examId)
+    if (!exam || !exam.isPublished || !exam.paperId) return null
+    
+    const paper = papersList.find(p => p.id === exam.paperId)
+    if (!paper) return null
+    
+    // 获取试卷的题目列表
+    const pqs = paperQuestions
+      .filter(pq => pq.paperId === paper.id)
+      .sort((a, b) => a.questionOrder - b.questionOrder)
+      .map(pq => ({
+        ...pq,
+        question: questions.find(q => q.id === pq.questionId)
+      }))
+    
+    return CommonUtil.deepClone({
+      exam: {
+        ...exam,
+        paper
+      },
+      paper: {
+        ...paper,
+        questions: pqs
+      }
+    })
+  },
+
+  // 提交学生答案
+  async submitStudentAnswers(examId: number, answers: Record<number, string | string[]>): Promise<{
+    totalScore: number
+    earnedScore: number
+    questionScores: Record<number, { earned: number; max: number }>
+  }> {
+    await CommonUtil.sleep(150)
+    const exam = examsList.find(e => e.id === examId)
+    if (!exam || !exam.paperId) {
+      return { totalScore: 0, earnedScore: 0, questionScores: {} }
+    }
+    
+    const pqs = paperQuestions.filter(pq => pq.paperId === exam.paperId)
+    let totalScore = 0
+    let earnedScore = 0
+    const questionScores: Record<number, { earned: number; max: number }> = {}
+    
+    pqs.forEach(pq => {
+      const question = questions.find(q => q.id === pq.questionId)
+      if (!question) return
+      
+      totalScore += pq.score
+      const answer = answers[pq.questionId]
+      let earned = 0
+      
+      // 评分逻辑
+      if (question.questionType === 1) {
+        // 填空题：答案用逗号分隔，逐个比对
+        const correctAnswers = question.standardAnswer.split(',').map(a => a.trim().toLowerCase())
+        const studentAnswers = (typeof answer === 'string' ? answer : '').split(',').map(a => a.trim().toLowerCase())
+        let correctCount = 0
+        correctAnswers.forEach((ca, idx) => {
+          if (studentAnswers[idx] === ca) correctCount++
+        })
+        earned = Math.round(pq.score * (correctCount / correctAnswers.length))
+      } else if (question.questionType === 2) {
+        // 单选题
+        if (answer === question.standardAnswer) {
+          earned = pq.score
+        }
+      } else if (question.questionType === 3) {
+        // 多选题
+        const correctArr = question.standardAnswer.split(',').sort()
+        const answerArr = (Array.isArray(answer) ? answer : []).sort()
+        if (correctArr.join(',') === answerArr.join(',')) {
+          earned = pq.score
+        } else {
+          // 部分正确得一半分
+          const correctSet = new Set(correctArr)
+          const answerSet = new Set(answerArr)
+          let correct = 0
+          answerArr.forEach(a => { if (correctSet.has(a)) correct++ })
+          const hasWrong = answerArr.some(a => !correctSet.has(a))
+          if (!hasWrong && correct > 0) {
+            earned = Math.round(pq.score * (correct / correctArr.length))
+          }
+        }
+      } else if (question.questionType === 4) {
+        // 判断题：1=正确，0=错误
+        if (answer === question.standardAnswer) {
+          earned = pq.score
+        }
+      } else if (question.questionType === 5 || question.questionType === 6 || question.questionType === 7) {
+        // 简答/编程/综合题：根据答案长度给分（简化逻辑）
+        const text = typeof answer === 'string' ? answer.trim() : ''
+        if (text.length >= 50) earned = pq.score
+        else if (text.length >= 30) earned = Math.round(pq.score * 0.8)
+        else if (text.length >= 15) earned = Math.round(pq.score * 0.6)
+        else if (text.length > 0) earned = Math.round(pq.score * 0.3)
+      }
+      
+      earnedScore += earned
+      questionScores[pq.questionId] = { earned, max: pq.score }
+    })
+    
+    return { totalScore, earnedScore, questionScores }
+  },
+
+  // ========== 教师批改方法 ==========
+  // 获取某考试的所有学生答题记录
+  async getStudentAnswerRecords(examId: number): Promise<StudentAnswerRecord[]> {
+    await CommonUtil.sleep(80)
+    return CommonUtil.deepClone(studentAnswerRecords.filter(r => r.examId === examId))
+  },
+
+  // 获取单个学生答题记录详情
+  async getStudentAnswerRecordById(recordId: number): Promise<{
+    record: StudentAnswerRecord
+    exam: Exam
+    paper: PaperDetail
+  } | null> {
+    await CommonUtil.sleep(60)
+    const record = studentAnswerRecords.find(r => r.id === recordId)
+    if (!record) return null
+    
+    const exam = examsList.find(e => e.id === record.examId)
+    if (!exam || !exam.paperId) return null
+    
+    const paper = papersList.find(p => p.id === exam.paperId)
+    if (!paper) return null
+    
+    const pqs = paperQuestions
+      .filter(pq => pq.paperId === paper.id)
+      .sort((a, b) => a.questionOrder - b.questionOrder)
+      .map(pq => ({
+        ...pq,
+        question: questions.find(q => q.id === pq.questionId)
+      }))
+    
+    return CommonUtil.deepClone({
+      record,
+      exam: { ...exam, paper },
+      paper: { ...paper, questions: pqs }
+    })
+  },
+
+  // 教师批改答案
+  async gradeAnswer(request: GradeAnswerRequest): Promise<boolean> {
+    await CommonUtil.sleep(100)
+    const record = studentAnswerRecords.find(r => r.id === request.recordId)
+    if (!record) return false
+    
+    const answerInfo = record.answers[request.questionId]
+    if (!answerInfo) return false
+    
+    answerInfo.manualScore = request.score
+    if (request.comment) answerInfo.comment = request.comment
+    
+    // 重新计算总得分
+    let totalEarned = 0
+    Object.values(record.answers).forEach(a => {
+      if (a.autoScore !== null) totalEarned += a.autoScore
+      if (a.manualScore !== null) totalEarned += a.manualScore
+    })
+    record.earnedScore = totalEarned
+    
+    // 检查是否所有需要手动批改的题目都已批改
+    const allGraded = Object.values(record.answers).every(a => 
+      a.autoScore !== null || a.manualScore !== null
+    )
+    if (allGraded) {
+      record.status = 'graded'
+    } else {
+      record.status = 'grading'
+    }
+    
+    return true
+  },
+
+  // 获取成绩统计数据
+  async getScoreStatistics(examId: number): Promise<{
+    totalStudents: number
+    submittedCount: number
+    gradedCount: number
+    pendingCount: number
+    averageScore: number
+    highestScore: number
+    lowestScore: number
+    passRate: number
+  }> {
+    await CommonUtil.sleep(60)
+    const records = studentAnswerRecords.filter(r => r.examId === examId)
+    const gradedRecords = records.filter(r => r.status === 'graded')
+    
+    const scores = gradedRecords.map(r => r.earnedScore)
+    const passScore = 60  // 及格分数线
+    
+    return {
+      totalStudents: records.length,
+      submittedCount: records.length,
+      gradedCount: gradedRecords.length,
+      pendingCount: records.filter(r => r.status !== 'graded').length,
+      averageScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+      highestScore: scores.length > 0 ? Math.max(...scores) : 0,
+      lowestScore: scores.length > 0 ? Math.min(...scores) : 0,
+      passRate: scores.length > 0 ? Math.round(scores.filter(s => s >= passScore).length / scores.length * 100) : 0
+    }
+  },
+
+  // 获取所有已发布考试（用于成绩分析页面）
+  async getPublishedExamsForGrading(): Promise<Array<Exam & { 
+    submittedCount: number
+    gradedCount: number 
+    pendingCount: number
+  }>> {
+    await CommonUtil.sleep(80)
+    const published = examsList.filter(e => e.isPublished && e.paperId)
+    
+    return CommonUtil.deepClone(published.map(e => {
+      const records = studentAnswerRecords.filter(r => r.examId === e.id)
+      return {
+        ...e,
+        paper: e.paperId ? papersList.find(p => p.id === e.paperId) : undefined,
+        submittedCount: records.length,
+        gradedCount: records.filter(r => r.status === 'graded').length,
+        pendingCount: records.filter(r => r.status !== 'graded').length
+      }
+    }))
   },
 }

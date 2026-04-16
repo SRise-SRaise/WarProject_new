@@ -8,6 +8,7 @@ import type {
   ExamQueryRequest,
   ExamRecordItem,
   ExamUpdateRequest,
+  GradeAnswerRequest,
   PageResult,
   Paper,
   PaperAddRequest,
@@ -23,6 +24,7 @@ import type {
   QuestionTypeItem,
   QuestionUpdateRequest,
   ScoreSummaryItem,
+  StudentAnswerRecord,
 } from './types'
 
 export const useExamAdminStore = defineStore('exam-admin', () => {
@@ -76,6 +78,26 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
   })
   const allPapers = ref<Paper[]>([])
   const examLoading = ref(false)
+
+  // 批改相关状态
+  const gradingExams = ref<Array<Exam & { submittedCount: number; gradedCount: number; pendingCount: number }>>([])
+  const studentRecords = ref<StudentAnswerRecord[]>([])
+  const currentRecord = ref<{
+    record: StudentAnswerRecord
+    exam: Exam
+    paper: PaperDetail
+  } | null>(null)
+  const scoreStats = reactive({
+    totalStudents: 0,
+    submittedCount: 0,
+    gradedCount: 0,
+    pendingCount: 0,
+    averageScore: 0,
+    highestScore: 0,
+    lowestScore: 0,
+    passRate: 0
+  })
+  const gradingLoading = ref(false)
 
   async function ensureLoaded(): Promise<void> {
     if (hydrated.value) return
@@ -328,6 +350,50 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     return result
   }
 
+  // 批改管理方法
+  async function loadGradingExams(): Promise<void> {
+    gradingLoading.value = true
+    try {
+      gradingExams.value = await examRepository.getPublishedExamsForGrading()
+    } finally {
+      gradingLoading.value = false
+    }
+  }
+
+  async function loadStudentRecords(examId: number): Promise<void> {
+    gradingLoading.value = true
+    try {
+      studentRecords.value = await examRepository.getStudentAnswerRecords(examId)
+      const stats = await examRepository.getScoreStatistics(examId)
+      Object.assign(scoreStats, stats)
+    } finally {
+      gradingLoading.value = false
+    }
+  }
+
+  async function loadRecordDetail(recordId: number): Promise<void> {
+    gradingLoading.value = true
+    try {
+      currentRecord.value = await examRepository.getStudentAnswerRecordById(recordId)
+    } finally {
+      gradingLoading.value = false
+    }
+  }
+
+  async function gradeAnswer(request: GradeAnswerRequest): Promise<boolean> {
+    const result = await examRepository.gradeAnswer(request)
+    if (result && currentRecord.value) {
+      // 重新加载当前记录
+      await loadRecordDetail(request.recordId)
+      // 更新统计
+      if (currentRecord.value) {
+        const stats = await examRepository.getScoreStatistics(currentRecord.value.exam.id)
+        Object.assign(scoreStats, stats)
+      }
+    }
+    return result
+  }
+
   return {
     questionBanks,
     questionTypes,
@@ -380,5 +446,15 @@ export const useExamAdminStore = defineStore('exam-admin', () => {
     deleteExam,
     publishExam,
     unpublishExam,
+    // 批改相关
+    gradingExams,
+    studentRecords,
+    currentRecord,
+    scoreStats,
+    gradingLoading,
+    loadGradingExams,
+    loadStudentRecords,
+    loadRecordDetail,
+    gradeAnswer,
   }
 })

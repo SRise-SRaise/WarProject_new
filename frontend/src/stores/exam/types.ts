@@ -71,17 +71,25 @@ export interface QuestionTypeItem {
   summary: string
 }
 
-// 题目类型枚举（1-填空 2-单选 3-多选 5-简答 6-编程 7-综合）
-// 注：填空题使用 ____ 或 {{blank}} 标记填空位置，答案用逗号分隔对应多个空
-export type QuestionType = 1 | 2 | 3 | 5 | 6 | 7
+// 题目类型枚举（1-填空 2-单选 3-多选 4-判断 5-简答 6-编程 7-综合）
+// 注：填空题使用 ____ 标记填空位置，答案用逗号分隔对应多个空
+// 注：判断题答案使用 1 表示正确，0 表示错误
+export type QuestionType = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 export const QUESTION_TYPE_MAP: Record<QuestionType, string> = {
   1: '填空',
   2: '单选',
   3: '多选',
+  4: '判断',
   5: '简答',
   6: '编程',
   7: '综合'
+}
+
+// 判断题答案映射
+export const JUDGE_ANSWER_MAP: Record<string, string> = {
+  '1': '正确',
+  '0': '错误'
 }
 
 export const DIFFICULTY_MAP: Record<number, string> = {
@@ -311,4 +319,46 @@ export function getExamStatus(exam: Exam): ExamStatus {
   if (now < start) return 'published'
   if (now >= start && now <= end) return 'ongoing'
   return 'ended'
+}
+
+// 学生答题结果
+export interface StudentExamResult {
+  totalScore: number
+  earnedScore: number
+  questionScores: Record<number, { earned: number; max: number }>
+}
+
+// 学生考试详情（含试卷和题目）
+export interface StudentExamDetail {
+  exam: Exam
+  paper: PaperDetail
+}
+
+// 学生答题记录（用于教师批改）
+export interface StudentAnswerRecord {
+  id: number
+  examId: number
+  studentId: number
+  studentName: string
+  studentNo: string
+  className: string
+  submittedAt: string
+  totalScore: number
+  earnedScore: number
+  status: 'submitted' | 'grading' | 'graded'
+  answers: Record<number, {
+    answer: string | string[]
+    autoScore: number | null  // 系统自动评分（填空/选择题）
+    manualScore: number | null  // 教师手动评分（简答/编程题）
+    maxScore: number
+    comment?: string  // 教师评语
+  }>
+}
+
+// 批改请求
+export interface GradeAnswerRequest {
+  recordId: number
+  questionId: number
+  score: number
+  comment?: string
 }

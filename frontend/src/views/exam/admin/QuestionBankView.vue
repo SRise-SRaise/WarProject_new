@@ -29,6 +29,10 @@
         <div class="stat-card__label">多选题</div>
       </div>
       <div class="stat-card">
+        <div class="stat-card__value">{{ questionStats.byType[4] || 0 }}</div>
+        <div class="stat-card__label">判断题</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-card__value">{{ questionStats.byType[1] || 0 }}</div>
         <div class="stat-card__label">填空题</div>
       </div>
@@ -234,6 +238,17 @@
               <a-checkbox v-for="opt in formOptions" :key="opt.key" :value="opt.key">{{ opt.key }}</a-checkbox>
             </a-checkbox-group>
           </template>
+          <template v-else-if="formData.questionType === 4">
+            <!-- 判断题答案 -->
+            <a-radio-group v-model:value="formData.standardAnswer" button-style="solid">
+              <a-radio-button value="1">
+                <CheckOutlined /> 正确
+              </a-radio-button>
+              <a-radio-button value="0">
+                <CloseOutlined /> 错误
+              </a-radio-button>
+            </a-radio-group>
+          </template>
           <template v-else-if="formData.questionType === 1">
             <!-- 填空答案 -->
             <div class="fill-blank-answers">
@@ -281,7 +296,9 @@ import {
   DeleteOutlined,
   EyeOutlined,
   FileSearchOutlined,
-  MinusCircleOutlined
+  MinusCircleOutlined,
+  CheckOutlined,
+  CloseOutlined
 } from '@ant-design/icons-vue'
 import { useExamAdminStore } from '@/stores/exam/admin'
 import type { QuestionItem, QuestionType, QuestionAddRequest, QuestionUpdateRequest } from '@/stores/exam/types'
@@ -349,6 +366,7 @@ function getTypeColor(type: QuestionType): string {
     1: 'blue',
     2: 'green',
     3: 'orange',
+    4: 'cyan',
     5: 'purple',
     6: 'red',
     7: 'gold'
@@ -378,6 +396,10 @@ function formatAnswer(item: QuestionItem): string {
     const answers = item.standardAnswer.split(',')
     if (answers.length === 1) return answers[0]
     return answers.map((a, i) => `(${i + 1}) ${a}`).join('  ')
+  }
+  if (item.questionType === 4) {
+    // 判断题，1=正确，0=错误
+    return item.standardAnswer === '1' ? '正确' : '错误'
   }
   return item.standardAnswer
 }
@@ -666,7 +688,7 @@ onMounted(async () => {
 /* 统计卡片 */
 .stats-section {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
