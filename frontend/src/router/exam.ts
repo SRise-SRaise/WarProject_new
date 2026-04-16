@@ -4,9 +4,7 @@ import { BarChartOutlined, ContainerOutlined, FileSearchOutlined, ScheduleOutlin
 import type { MenuGroup } from './meta'
 
 const ExamListView = () => import('@/views/exam/student/ListView.vue')
-const ExamConfirmView = () => import('@/views/exam/student/ConfirmView.vue')
 const ExamTakeView = () => import('@/views/exam/student/TakeView.vue')
-const ExamResultView = () => import('@/views/exam/student/ResultView.vue')
 const AdminQuestionBankView = () => import('@/views/exam/admin/QuestionBankView.vue')
 const AdminPaperListView = () => import('@/views/exam/admin/PaperListView.vue')
 const AdminExamListView = () => import('@/views/exam/admin/ExamListView.vue')
@@ -20,10 +18,8 @@ const examRoutes: RouteRecordRaw[] = [
     path: '/exams',
     component: BasicLayout,
     children: [
-      { path: '', name: 'StudentExamList', component: ExamListView, meta: { title: '考试列表', requiresAuth: true, audience: 'student', shell: 'student', navLabel: '考试', summary: '查看待参加、已完成和即将开放的考试。' } },
-      { path: ':id/confirm', name: 'StudentExamConfirm', component: ExamConfirmView, meta: { title: '考试确认', requiresAuth: true, audience: 'student', shell: 'student', summary: '确认考试规则、题目数量和共享题库说明。' } },
-      { path: ':id/take', name: 'StudentExamTake', component: ExamTakeView, meta: { title: '开始答题', requiresAuth: true, audience: 'student', shell: 'student', summary: '在统一答题页中完成本场考试。' } },
-      { path: ':id/result', name: 'StudentExamResult', component: ExamResultView, meta: { title: '考试结果', requiresAuth: true, audience: 'student', shell: 'student', summary: '查看成绩摘要、复盘建议和共享题库说明。' } },
+      { path: '', name: 'StudentExamList', component: ExamListView, meta: { title: '考试列表', requiresAuth: true, audience: 'student', shell: 'student', navLabel: '考试', summary: '查看可参加的考试，点击进入答题。' } },
+      { path: ':id/take', name: 'StudentExamTake', component: ExamTakeView, meta: { title: '开始答题', requiresAuth: true, audience: 'student', shell: 'student', summary: '在统一答题页中完成本场考试，支持倒计时和答题卡。' } },
     ],
   },
 ]

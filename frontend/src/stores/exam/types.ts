@@ -312,3 +312,16 @@ export function getExamStatus(exam: Exam): ExamStatus {
   if (now >= start && now <= end) return 'ongoing'
   return 'ended'
 }
+
+// 学生答题结果
+export interface StudentExamResult {
+  totalScore: number
+  earnedScore: number
+  questionScores: Record<number, { earned: number; max: number }>
+}
+
+// 学生考试详情（含试卷和题目）
+export interface StudentExamDetail {
+  exam: Exam
+  paper: PaperDetail
+}

@@ -797,4 +797,122 @@ export const examRepository = {
     await CommonUtil.sleep(50)
     return CommonUtil.deepClone(papersList.filter(p => p.questionCount > 0))
   },
+
+  // ========== 学生端考试方法 ==========
+  // 获取学生可参加的考试（已发布且有试卷的考试）
+  async getPublishedExamsForStudent(): Promise<Exam[]> {
+    await CommonUtil.sleep(80)
+    const published = examsList.filter(e => e.isPublished && e.paperId)
+    
+    return CommonUtil.deepClone(published.map(e => ({
+      ...e,
+      paper: e.paperId ? papersList.find(p => p.id === e.paperId) : undefined
+    })))
+  },
+
+  // 获取考试详情（含完整试卷和题目，用于学生答题）
+  async getExamDetailForStudent(examId: number): Promise<{
+    exam: Exam
+    paper: PaperDetail
+  } | null> {
+    await CommonUtil.sleep(100)
+    const exam = examsList.find(e => e.id === examId)
+    if (!exam || !exam.isPublished || !exam.paperId) return null
+    
+    const paper = papersList.find(p => p.id === exam.paperId)
+    if (!paper) return null
+    
+    // 获取试卷的题目列表
+    const pqs = paperQuestions
+      .filter(pq => pq.paperId === paper.id)
+      .sort((a, b) => a.questionOrder - b.questionOrder)
+      .map(pq => ({
+        ...pq,
+        question: questions.find(q => q.id === pq.questionId)
+      }))
+    
+    return CommonUtil.deepClone({
+      exam: {
+        ...exam,
+        paper
+      },
+      paper: {
+        ...paper,
+        questions: pqs
+      }
+    })
+  },
+
+  // 提交学生答案
+  async submitStudentAnswers(examId: number, answers: Record<number, string | string[]>): Promise<{
+    totalScore: number
+    earnedScore: number
+    questionScores: Record<number, { earned: number; max: number }>
+  }> {
+    await CommonUtil.sleep(150)
+    const exam = examsList.find(e => e.id === examId)
+    if (!exam || !exam.paperId) {
+      return { totalScore: 0, earnedScore: 0, questionScores: {} }
+    }
+    
+    const pqs = paperQuestions.filter(pq => pq.paperId === exam.paperId)
+    let totalScore = 0
+    let earnedScore = 0
+    const questionScores: Record<number, { earned: number; max: number }> = {}
+    
+    pqs.forEach(pq => {
+      const question = questions.find(q => q.id === pq.questionId)
+      if (!question) return
+      
+      totalScore += pq.score
+      const answer = answers[pq.questionId]
+      let earned = 0
+      
+      // 评分逻辑
+      if (question.questionType === 1) {
+        // 填空题：答案用逗号分隔，逐个比对
+        const correctAnswers = question.standardAnswer.split(',').map(a => a.trim().toLowerCase())
+        const studentAnswers = (typeof answer === 'string' ? answer : '').split(',').map(a => a.trim().toLowerCase())
+        let correctCount = 0
+        correctAnswers.forEach((ca, idx) => {
+          if (studentAnswers[idx] === ca) correctCount++
+        })
+        earned = Math.round(pq.score * (correctCount / correctAnswers.length))
+      } else if (question.questionType === 2) {
+        // 单选题
+        if (answer === question.standardAnswer) {
+          earned = pq.score
+        }
+      } else if (question.questionType === 3) {
+        // 多选题
+        const correctArr = question.standardAnswer.split(',').sort()
+        const answerArr = (Array.isArray(answer) ? answer : []).sort()
+        if (correctArr.join(',') === answerArr.join(',')) {
+          earned = pq.score
+        } else {
+          // 部分正确得一半分
+          const correctSet = new Set(correctArr)
+          const answerSet = new Set(answerArr)
+          let correct = 0
+          answerArr.forEach(a => { if (correctSet.has(a)) correct++ })
+          const hasWrong = answerArr.some(a => !correctSet.has(a))
+          if (!hasWrong && correct > 0) {
+            earned = Math.round(pq.score * (correct / correctArr.length))
+          }
+        }
+      } else if (question.questionType === 5 || question.questionType === 6 || question.questionType === 7) {
+        // 简答/编程/综合题：根据答案长度给分（简化逻辑）
+        const text = typeof answer === 'string' ? answer.trim() : ''
+        if (text.length >= 50) earned = pq.score
+        else if (text.length >= 30) earned = Math.round(pq.score * 0.8)
+        else if (text.length >= 15) earned = Math.round(pq.score * 0.6)
+        else if (text.length > 0) earned = Math.round(pq.score * 0.3)
+      }
+      
+      earnedScore += earned
+      questionScores[pq.questionId] = { earned, max: pq.score }
+    })
+    
+    return { totalScore, earnedScore, questionScores }
+  },
 }
