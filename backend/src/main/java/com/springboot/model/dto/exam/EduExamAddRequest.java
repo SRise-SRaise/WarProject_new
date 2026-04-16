@@ -13,6 +13,8 @@ public class EduExamAddRequest implements Serializable {
 
     private Date startTime;
 
+    private Date endTime;
+
     private Boolean isPublished;
 
     private static final long serialVersionUID = 1L;

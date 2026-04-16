@@ -218,6 +218,7 @@ CREATE TABLE `edu_exam`
     `paper_id`     BIGINT               DEFAULT NULL COMMENT '本次考试使用的试卷ID',
     `duration_min` INT                  DEFAULT NULL COMMENT '考试时长',
     `start_time`   DATETIME             DEFAULT NULL COMMENT '开始时间',
+    `end_time`     DATETIME             DEFAULT NULL COMMENT '结束时间',
     `is_published` BIT(1)               DEFAULT NULL COMMENT '开放标记',
     `created_at`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

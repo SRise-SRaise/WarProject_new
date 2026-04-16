@@ -18,6 +18,8 @@ public class EduExamQueryRequest extends PageRequest implements Serializable {
 
     private Date startTime;
 
+    private Date endTime;
+
     private Boolean isPublished;
 
     private Date createdAt;
