@@ -325,3 +325,32 @@ export interface StudentExamDetail {
   exam: Exam
   paper: PaperDetail
 }
+
+// 学生答题记录（用于教师批改）
+export interface StudentAnswerRecord {
+  id: number
+  examId: number
+  studentId: number
+  studentName: string
+  studentNo: string
+  className: string
+  submittedAt: string
+  totalScore: number
+  earnedScore: number
+  status: 'submitted' | 'grading' | 'graded'
+  answers: Record<number, {
+    answer: string | string[]
+    autoScore: number | null  // 系统自动评分（填空/选择题）
+    manualScore: number | null  // 教师手动评分（简答/编程题）
+    maxScore: number
+    comment?: string  // 教师评语
+  }>
+}
+
+// 批改请求
+export interface GradeAnswerRequest {
+  recordId: number
+  questionId: number
+  score: number
+  comment?: string
+}
