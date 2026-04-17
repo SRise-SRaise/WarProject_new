@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getLoginUser1, login, register } from '@/api/authController'
+import { getLoginUser1, login, logout as apiLogout, register } from '@/api/authController'
 import { getAuthStudentVoById } from '@/api/authStudentController'
 import { CommonUtil } from '@/utils'
 import type {
@@ -366,11 +366,12 @@ async function tryApiLogin(credentials: AuthCredentials): Promise<UserSession | 
   try {
     const role: UserRole = credentials.role ?? (credentials.account.toLowerCase().includes('teacher') ? 'teacher' : 'student')
     const roleType = role === 'teacher' ? '教师' : '学生'
-    const response = await login({
+    const doLogin = () => login({
       roleType,
       loginAccount: credentials.account,
       loginPassword: credentials.password
     })
+    let response = await doLogin()
     const payload = response.data?.data?.loginPrincipal
     if (!payload) {
       return null
@@ -407,7 +408,61 @@ async function tryApiLogin(credentials: AuthCredentials): Promise<UserSession | 
     }
     return session
   } catch (error) {
-    throw new Error(getErrorMessage(error))
+    const messageText = getErrorMessage(error)
+    const isSameAccountMultiLogin =
+      messageText.includes('该账号已在其他浏览器登录')
+      || ((messageText.includes('账号') || messageText.includes('同一账号')) && messageText.includes('登录') && messageText.includes('其他浏览器'))
+      || (messageText.includes('账号') && messageText.includes('已登录') && (messageText.includes('其他端') || messageText.includes('其他设备')))
+    if (isSameAccountMultiLogin) {
+      try {
+        // 尝试清理同浏览器残留的后端会话（若已退出/无会话，该请求会失败但可忽略）
+        await apiLogout()
+        const role: UserRole = credentials.role ?? (credentials.account.toLowerCase().includes('teacher') ? 'teacher' : 'student')
+        const roleType = role === 'teacher' ? '教师' : '学生'
+        const retry = await login({
+          roleType,
+          loginAccount: credentials.account,
+          loginPassword: credentials.password
+        })
+        const payload = retry.data?.data?.loginPrincipal
+        if (!payload) {
+          throw new Error(messageText)
+        }
+        const payloadUserId = typeof payload.userId === 'number'
+          ? payload.userId
+          : (typeof payload.userId === 'string' ? Number(payload.userId) : undefined)
+        const inferPayload = payload as unknown as Record<string, unknown>
+        const parsedRole = inferRoleFromPayload(inferPayload, credentials.account)
+        const matchedAccount = mergeAccounts().find((item) => item.account === credentials.account)
+        const account = matchedAccount ?? {
+          id: payloadUserId && !Number.isNaN(payloadUserId) ? String(payloadUserId) : CommonUtil.generateId(parsedRole),
+          account: credentials.account,
+          password: credentials.password,
+          role: parsedRole,
+          name: payload.displayName || inferNameFromPayload(inferPayload, credentials.account, parsedRole)
+        }
+        const baseSession = buildSessionFromAccount(account)
+        const session = buildSessionFromPrincipal(
+          {
+            userId: payloadUserId && !Number.isNaN(payloadUserId) ? payloadUserId : undefined,
+            roleType: payload.roleType,
+            loginAccount: payload.loginAccount,
+            displayName: payload.displayName,
+            major: payload.major,
+            classCode: payload.classCode,
+            lastLoginIp: (payload as { lastLoginIp?: string }).lastLoginIp
+          },
+          baseSession
+        )
+        if (payloadUserId && !Number.isNaN(payloadUserId)) {
+          session.id = String(payloadUserId)
+        }
+        return session
+      } catch {
+        throw new Error(messageText)
+      }
+    }
+    throw new Error(messageText)
   }
 }
 
@@ -480,6 +535,8 @@ export const useAuthStore = defineStore('user-auth', () => {
   }
 
   function logout(): void {
+    // 尽力清理后端会话，避免同浏览器再次登录被“单点登录”拦截
+    void apiLogout().catch(() => null)
     session.value = null
     writeStoredSession(null)
   }
