@@ -13,6 +13,8 @@ import com.springboot.model.entity.exam.EduQuestionType;
 import com.springboot.model.vo.exam.EduQuestionTypeVO;
 import com.springboot.service.exam.EduQuestionTypeService;
 import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,11 @@ public class EduQuestionTypeController {
 
     @Resource
     private EduQuestionTypeService eduQuestionTypeService;
+
+    @GetMapping("/list/all")
+    public BaseResponse<List<Map<String, Object>>> listAllEduQuestionTypes() {
+        return ResultUtils.success(eduQuestionTypeService.listAllTypes());
+    }
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduQuestionType(@RequestBody EduQuestionTypeAddRequest addRequest) {

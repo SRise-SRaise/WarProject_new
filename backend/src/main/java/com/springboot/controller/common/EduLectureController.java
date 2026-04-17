@@ -47,7 +47,7 @@ public class EduLectureController {
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        boolean result = eduLectureService.removeById(id);
+        boolean result = eduLectureService.removeByIdWithFile(id);
         return ResultUtils.success(result);
     }
 
@@ -59,7 +59,7 @@ public class EduLectureController {
         EduLecture entity = new EduLecture();
         BeanUtils.copyProperties(updateRequest, entity);
         eduLectureService.validEduLecture(entity, false);
-        boolean result = eduLectureService.updateById(entity);
+        boolean result = eduLectureService.updateByIdWithFileCleanup(entity);
         return ResultUtils.success(result);
     }
 

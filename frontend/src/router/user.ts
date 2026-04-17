@@ -5,7 +5,7 @@ import type { MenuGroup } from './meta'
 
 const StudentProfileView = () => import('@/views/user/student/ProfileView.vue')
 const AdminUserManagementView = () => import('@/views/user/admin/UserManagementView.vue')
-const AdminClassManagementView = () => import('@/views/user/admin/ClassManagementView.vue')
+const AdminClassManagementView = () => import('@/views/user/admin/ClassManagementBaseInfoView.vue')
 const AdminProfileView = () => import('@/views/user/admin/ProfileView.vue')
 
 const peopleGroup: MenuGroup = {

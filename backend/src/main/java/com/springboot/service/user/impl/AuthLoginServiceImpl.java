@@ -6,6 +6,7 @@ import com.springboot.constant.UserConstant;
 import com.springboot.exception.BusinessException;
 import com.springboot.model.dto.user.AuthLoginRequest;
 import com.springboot.model.dto.user.AuthRegisterRequest;
+import com.springboot.model.dto.user.AuthChangePasswordRequest;
 import com.springboot.model.entity.user.AuthAssistant;
 import com.springboot.model.entity.user.AuthStudent;
 import com.springboot.model.entity.user.AuthTeacher;
@@ -21,6 +22,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class AuthLoginServiceImpl implements AuthLoginService {
@@ -30,6 +34,7 @@ public class AuthLoginServiceImpl implements AuthLoginService {
     private static final int MAX_ACCOUNT_LENGTH = 32;
     private static final int MAX_DISPLAY_NAME_LENGTH = 32;
     private static final int MAX_CLASS_CODE_LENGTH = 32;
+    private static final ConcurrentMap<String, String> ACCOUNT_SESSION_TOKEN_MAP = new ConcurrentHashMap<>();
 
     @Resource
     private AuthStudentService authStudentService;
@@ -57,7 +62,7 @@ public class AuthLoginServiceImpl implements AuthLoginService {
         LoginPrincipal loginPrincipal;
         switch (roleType) {
             case UserConstant.ROLE_TYPE_STUDENT:
-                loginPrincipal = studentLogin(loginAccount, loginPassword);
+                loginPrincipal = studentLogin(loginAccount, loginPassword, request);
                 break;
             case UserConstant.ROLE_TYPE_TEACHER:
                 loginPrincipal = teacherLogin(loginAccount, loginPassword);
@@ -68,7 +73,14 @@ public class AuthLoginServiceImpl implements AuthLoginService {
             default:
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "角色类型不支持");
         }
+        String accountSessionKey = buildAccountSessionKey(loginPrincipal);
+        if (ACCOUNT_SESSION_TOKEN_MAP.containsKey(accountSessionKey)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "该账号已在其他浏览器登录，请先退出后再试");
+        }
+        String sessionToken = UUID.randomUUID().toString();
+        ACCOUNT_SESSION_TOKEN_MAP.put(accountSessionKey, sessionToken);
         request.getSession().setAttribute(UserConstant.AUTH_LOGIN_STATE, loginPrincipal);
+        request.getSession().setAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN, sessionToken);
         return buildLoginVO(request, loginPrincipal);
     }
 
@@ -146,7 +158,11 @@ public class AuthLoginServiceImpl implements AuthLoginService {
         } else {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅支持学生或教师注册");
         }
+        String accountSessionKey = buildAccountSessionKey(loginPrincipal);
+        String sessionToken = UUID.randomUUID().toString();
+        ACCOUNT_SESSION_TOKEN_MAP.put(accountSessionKey, sessionToken);
         request.getSession().setAttribute(UserConstant.AUTH_LOGIN_STATE, loginPrincipal);
+        request.getSession().setAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN, sessionToken);
         return buildLoginVO(request, loginPrincipal);
     }
 
@@ -165,8 +181,76 @@ public class AuthLoginServiceImpl implements AuthLoginService {
         if (getLoginPrincipalPermitNull(request) == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "当前未登录");
         }
+        Object loginObj = request.getSession().getAttribute(UserConstant.AUTH_LOGIN_STATE);
+        if (loginObj instanceof LoginPrincipal) {
+            LoginPrincipal loginPrincipal = (LoginPrincipal) loginObj;
+            String accountSessionKey = buildAccountSessionKey(loginPrincipal);
+            String sessionToken = String.valueOf(request.getSession().getAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN));
+            ACCOUNT_SESSION_TOKEN_MAP.computeIfPresent(accountSessionKey,
+                    (key, activeToken) -> activeToken.equals(sessionToken) ? null : activeToken);
+        }
         request.getSession().removeAttribute(UserConstant.AUTH_LOGIN_STATE);
+        request.getSession().removeAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN);
         return true;
+    }
+
+    @Override
+    public boolean changePassword(AuthChangePasswordRequest changePasswordRequest, HttpServletRequest request) {
+        if (changePasswordRequest == null || request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数错误");
+        }
+        String oldPassword = StringUtils.trimToEmpty(changePasswordRequest.getOldPassword());
+        String newPassword = StringUtils.trimToEmpty(changePasswordRequest.getNewPassword());
+        String confirmPassword = StringUtils.trimToEmpty(changePasswordRequest.getConfirmPassword());
+        if (StringUtils.isAnyBlank(oldPassword, newPassword, confirmPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码参数不能为空");
+        }
+        if (newPassword.length() < MIN_PASSWORD_LENGTH) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "新密码长度不能小于8位");
+        }
+        if (!newPassword.equals(confirmPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "两次输入的新密码不一致");
+        }
+        if (oldPassword.equals(newPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "新密码不能与旧密码相同");
+        }
+        LoginPrincipal loginPrincipal = getLoginPrincipal(request);
+        String roleType = StringUtils.trimToEmpty(loginPrincipal.getRoleType()).toLowerCase();
+        String loginAccount = StringUtils.trimToEmpty(loginPrincipal.getLoginAccount());
+        if (StringUtils.isBlank(roleType) || StringUtils.isBlank(loginAccount)) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "登录态无效，请重新登录");
+        }
+        if (UserConstant.ROLE_TYPE_STUDENT.equals(roleType)) {
+            QueryWrapper<AuthStudent> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("student_code", loginAccount);
+            queryWrapper.orderByDesc("updated_at", "id");
+            queryWrapper.last("limit 1");
+            AuthStudent authStudent = authStudentService.getOne(queryWrapper, false);
+            if (authStudent == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "学生账号不存在");
+            }
+            if (!passwordMatched(oldPassword, authStudent.getPasswordMd5())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "旧密码错误");
+            }
+            authStudent.setPasswordMd5(DigestUtils.md5DigestAsHex((SALT + newPassword).getBytes()));
+            return authStudentService.updateById(authStudent);
+        }
+        if (UserConstant.ROLE_TYPE_TEACHER.equals(roleType)) {
+            QueryWrapper<AuthTeacher> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("username", loginAccount);
+            queryWrapper.orderByDesc("updated_at", "id");
+            queryWrapper.last("limit 1");
+            AuthTeacher authTeacher = authTeacherService.getOne(queryWrapper, false);
+            if (authTeacher == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "教师账号不存在");
+            }
+            if (!passwordMatched(oldPassword, authTeacher.getPasswordMd5())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "旧密码错误");
+            }
+            authTeacher.setPasswordMd5(DigestUtils.md5DigestAsHex((SALT + newPassword).getBytes()));
+            return authTeacherService.updateById(authTeacher);
+        }
+        throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "当前角色不支持修改密码");
     }
 
     @Override
@@ -188,15 +272,32 @@ public class AuthLoginServiceImpl implements AuthLoginService {
             return null;
         }
         LoginPrincipal loginPrincipal = (LoginPrincipal) loginObj;
+        String accountSessionKey = buildAccountSessionKey(loginPrincipal);
+        String activeToken = ACCOUNT_SESSION_TOKEN_MAP.get(accountSessionKey);
+        Object sessionTokenObj = request.getSession().getAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN);
+        String sessionToken = sessionTokenObj == null ? null : String.valueOf(sessionTokenObj);
+        if (StringUtils.isAnyBlank(activeToken, sessionToken) || !StringUtils.equals(activeToken, sessionToken)) {
+            request.getSession().removeAttribute(UserConstant.AUTH_LOGIN_STATE);
+            request.getSession().removeAttribute(UserConstant.AUTH_LOGIN_SESSION_TOKEN);
+            return null;
+        }
         // 兼容旧会话：历史 session 中可能没有 classCode/major，这里按当前数据库补齐一次
         enrichStudentPrincipal(loginPrincipal);
         request.getSession().setAttribute(UserConstant.AUTH_LOGIN_STATE, loginPrincipal);
         return loginPrincipal;
     }
 
-    private LoginPrincipal studentLogin(String loginAccount, String loginPassword) {
+    private String buildAccountSessionKey(LoginPrincipal loginPrincipal) {
+        String roleType = StringUtils.trimToEmpty(loginPrincipal == null ? null : loginPrincipal.getRoleType());
+        String loginAccount = StringUtils.trimToEmpty(loginPrincipal == null ? null : loginPrincipal.getLoginAccount());
+        return roleType + "::" + loginAccount;
+    }
+
+    private LoginPrincipal studentLogin(String loginAccount, String loginPassword, HttpServletRequest request) {
         QueryWrapper<AuthStudent> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_code", loginAccount);
+        queryWrapper.orderByDesc("updated_at", "id");
+        queryWrapper.last("limit 1");
         AuthStudent authStudent = authStudentService.getOne(queryWrapper, false);
         if (authStudent == null || !passwordMatched(loginPassword, authStudent.getPasswordMd5())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号或密码错误");
@@ -212,7 +313,14 @@ public class AuthLoginServiceImpl implements AuthLoginService {
         loginPrincipal.setDisplayName(authStudent.getStudentName());
         loginPrincipal.setMajor(authStudent.getRemark());
         loginPrincipal.setClassCode(authStudent.getClassCode());
-        loginPrincipal.setLastLoginIp(authStudent.getLastLoginIp());
+        String currentLoginIp = resolveClientIp(request);
+        if (StringUtils.isNotBlank(currentLoginIp)) {
+            authStudent.setLastLoginIp(currentLoginIp);
+            authStudentService.updateById(authStudent);
+            loginPrincipal.setLastLoginIp(currentLoginIp);
+        } else {
+            loginPrincipal.setLastLoginIp(authStudent.getLastLoginIp());
+        }
         return loginPrincipal;
     }
 
@@ -290,27 +398,50 @@ public class AuthLoginServiceImpl implements AuthLoginService {
         if (!UserConstant.ROLE_TYPE_STUDENT.equalsIgnoreCase(StringUtils.trimToEmpty(loginPrincipal.getRoleType()))) {
             return;
         }
-        if (StringUtils.isNoneBlank(
-                loginPrincipal.getClassCode(),
-                loginPrincipal.getMajor(),
-                loginPrincipal.getLastLoginIp())) {
-            return;
+        AuthStudent authStudent = null;
+        if (loginPrincipal.getUserId() != null) {
+            authStudent = authStudentService.getById(loginPrincipal.getUserId());
         }
-        String loginAccount = StringUtils.trimToEmpty(loginPrincipal.getLoginAccount());
-        if (StringUtils.isBlank(loginAccount)) {
-            return;
+        if (authStudent == null) {
+            String loginAccount = StringUtils.trimToEmpty(loginPrincipal.getLoginAccount());
+            if (StringUtils.isBlank(loginAccount)) {
+                return;
+            }
+            QueryWrapper<AuthStudent> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("student_code", loginAccount);
+            queryWrapper.orderByDesc("updated_at", "id");
+            queryWrapper.last("limit 1");
+            authStudent = authStudentService.getOne(queryWrapper, false);
         }
-        QueryWrapper<AuthStudent> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("student_code", loginAccount);
-        AuthStudent authStudent = authStudentService.getOne(queryWrapper, false);
         if (authStudent == null) {
             return;
         }
         if (StringUtils.isBlank(loginPrincipal.getDisplayName())) {
             loginPrincipal.setDisplayName(authStudent.getStudentName());
         }
+        if (StringUtils.isBlank(loginPrincipal.getLoginAccount())) {
+            loginPrincipal.setLoginAccount(authStudent.getStudentCode());
+        }
         loginPrincipal.setClassCode(authStudent.getClassCode());
         loginPrincipal.setMajor(authStudent.getRemark());
         loginPrincipal.setLastLoginIp(authStudent.getLastLoginIp());
+    }
+
+    /**
+     * 获取本次请求来源 IP（优先代理头）。
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        String forwarded = StringUtils.trimToNull(request.getHeader("X-Forwarded-For"));
+        if (forwarded != null) {
+            return StringUtils.trimToNull(forwarded.split(",")[0]);
+        }
+        String realIp = StringUtils.trimToNull(request.getHeader("X-Real-IP"));
+        if (realIp != null) {
+            return realIp;
+        }
+        return StringUtils.trimToNull(request.getRemoteAddr());
     }
 }

@@ -19,6 +19,8 @@ public class EduExamVO implements Serializable {
 
     private Date startTime;
 
+    private Date endTime;
+
     private Boolean isPublished;
 
     private Date createdAt;

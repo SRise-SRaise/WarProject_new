@@ -6,6 +6,7 @@ import com.springboot.common.ResultUtils;
 import com.springboot.exception.BusinessException;
 import com.springboot.model.dto.user.AuthLoginRequest;
 import com.springboot.model.dto.user.AuthRegisterRequest;
+import com.springboot.model.dto.user.AuthChangePasswordRequest;
 import com.springboot.model.vo.user.AuthLoginVO;
 import com.springboot.model.vo.user.LoginPrincipal;
 import com.springboot.service.user.AuthLoginService;
@@ -71,6 +72,18 @@ public class AuthController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         return ResultUtils.success(authLoginService.logout(request));
+    }
+
+    /**
+     * 修改当前登录用户密码
+     */
+    @PostMapping("/change/password")
+    public BaseResponse<Boolean> changePassword(@RequestBody AuthChangePasswordRequest changePasswordRequest,
+            HttpServletRequest request) {
+        if (changePasswordRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        return ResultUtils.success(authLoginService.changePassword(changePasswordRequest, request));
     }
 
     /**

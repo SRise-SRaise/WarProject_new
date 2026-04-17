@@ -1,41 +1,101 @@
 <template>
-  <div class="app-page-shell app-panel-grid">
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="考试模块" title="学生考试列表" description="围绕待参加、即将开放与已完成考试组织确认、答题和结果入口。">
-        <template #actions>
-          <a-button type="primary" @click="router.push('/learning')">返回学习概览</a-button>
-        </template>
-      </SectionHeader>
-    </section>
+  <div class="student-exam-page">
+    <!-- 页面头部 -->
+    <header class="page-header">
+      <div class="header-content">
+        <h1 class="page-title">我的考试</h1>
+        <p class="page-desc">查看已发布的考试，点击进入开始答题</p>
+      </div>
+      <a-button @click="router.push('/learning')">返回学习概览</a-button>
+    </header>
 
-    <section class="app-kpi-grid">
-      <MetricCard title="待参加" :value="String(readyCount)" description="已开放且可进入确认页的考试。" tone="warning" />
-      <MetricCard title="已完成" :value="String(completedCount)" description="已经提交并生成结果摘要的考试。" tone="success" />
-      <MetricCard title="共享题库" value="3 套" description="题库继续由 exam 模块维护，但同时服务作业与考试。" tone="accent" />
-    </section>
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <FileTextOutlined />
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ activeExamCount }}</span>
+          <span class="stat-label">可参加考试</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon slate">
+          <ClockCircleOutlined />
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ expiredExamCount }}</span>
+          <span class="stat-label">已过期考试</span>
+        </div>
+      </div>
+    </div>
 
-    <section class="exam-grid">
-      <article v-for="item in exams" :key="item.id" class="app-surface-card exam-card">
-        <div class="exam-card__head">
-          <div>
-            <div class="exam-card__tags"><a-tag v-for="tag in item.tags" :key="tag">{{ tag }}</a-tag></div>
-            <h2 class="exam-card__title">{{ item.title }}</h2>
-            <p class="app-list-card__meta">{{ item.topicLabel }} · {{ item.teacher }} · {{ item.schedule }}</p>
-          </div>
-          <StatusTag :type="statusTone(item.status)" :label="statusLabel(item.status)" />
+    <!-- 考试列表 -->
+    <div class="exam-list-section">
+      <div class="section-header">
+        <h2 class="section-title">考试列表</h2>
+      </div>
+
+      <a-spin :spinning="loading">
+        <div v-if="publishedExams.length === 0" class="empty-state">
+          <InboxOutlined class="empty-icon" />
+          <p class="empty-text">暂无可参加的考试</p>
         </div>
-        <p class="exam-card__summary">{{ item.summary }}</p>
-        <div class="exam-card__stats">
-          <span class="app-inline-stat">时长 {{ item.duration }}</span>
-          <span class="app-inline-stat">题目 {{ item.questionCount }}</span>
-        </div>
-        <a-space :size="10" wrap>
-          <a-button v-if="item.status === 'ready' || item.status === 'in_progress'" type="primary" @click="router.push(`/exams/${item.id}/confirm`)">进入确认</a-button>
-          <a-button v-else-if="item.status === 'completed'" type="primary" @click="router.push(`/exams/${item.id}/result`)">查看结果</a-button>
-          <a-button v-else>等待开放</a-button>
-        </a-space>
-      </article>
-    </section>
+
+        <a-table
+          v-else
+          :dataSource="publishedExams"
+          :columns="columns"
+          :pagination="false"
+          rowKey="id"
+          class="exam-table"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'examName'">
+              <div class="exam-name-cell">
+                <span class="exam-name">{{ record.examName }}</span>
+                <span v-if="record.paper" class="paper-name">试卷：{{ record.paper.paperName }}</span>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'info'">
+              <div class="exam-info-cell">
+                <span v-if="record.paper" class="info-item">
+                  <FileTextOutlined /> {{ record.paper.questionCount }} 题
+                </span>
+                <span v-if="record.paper" class="info-item">
+                  <TrophyOutlined /> {{ record.paper.totalScore }} 分
+                </span>
+                <span v-if="record.durationMin" class="info-item">
+                  <ClockCircleOutlined /> {{ record.durationMin }} 分钟
+                </span>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'startTime'">
+              <div class="time-block">
+                <span v-if="record.startTime">开始：{{ formatDateTime(record.startTime) }}</span>
+                <span v-else class="text-muted">开始：随时可考</span>
+                <span v-if="record.endTime">结束：{{ formatDateTime(record.endTime) }}</span>
+                <span v-else class="text-muted">结束：未设置</span>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'status'">
+              <a-tag :color="getStatusColor(record)">{{ getStatusText(record) }}</a-tag>
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a-button
+                :type="isExamExpired(record) ? 'default' : 'primary'"
+                size="small"
+                :disabled="isExamExpired(record)"
+                @click="enterExam(record)"
+              >
+                {{ isExamExpired(record) ? '考试已过期' : '进入考试' }}
+              </a-button>
+            </template>
+          </template>
+        </a-table>
+      </a-spin>
+    </div>
   </div>
 </template>
 
@@ -43,31 +103,73 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import MetricCard from '@/components/common/MetricCard.vue'
-import SectionHeader from '@/components/common/SectionHeader.vue'
-import StatusTag from '@/components/common/StatusTag.vue'
+import { FileTextOutlined, ClockCircleOutlined, TrophyOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { useExamStudentStore } from '@/stores/exam/student'
-import type { ExamStudentStatus } from '@/stores/exam/types'
+import type { Exam } from '@/stores/exam/types'
 
 const router = useRouter()
 const examStore = useExamStudentStore()
-const { exams } = storeToRefs(examStore)
+const { publishedExams, loading } = storeToRefs(examStore)
 
-const readyCount = computed(() => exams.value.filter((item) => item.status === 'ready' || item.status === 'in_progress').length)
-const completedCount = computed(() => exams.value.filter((item) => item.status === 'completed').length)
+const activeExamCount = computed(() => publishedExams.value.filter((exam) => !isExamExpired(exam)).length)
+const expiredExamCount = computed(() => publishedExams.value.filter((exam) => isExamExpired(exam)).length)
 
-function statusTone(status: ExamStudentStatus): 'warning' | 'processing' | 'success' | 'default' {
-  if (status === 'ready') return 'warning'
-  if (status === 'in_progress') return 'processing'
-  if (status === 'completed') return 'success'
+const columns = [
+  { title: '考试名称', key: 'examName', width: '30%' },
+  { title: '考试信息', key: 'info', width: '25%' },
+  { title: '开始时间', key: 'startTime', width: '20%' },
+  { title: '状态', key: 'status', width: '12%' },
+  { title: '操作', key: 'action', width: '13%' },
+]
+
+function formatDateTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function resolveExamEnd(exam: Exam): Date | null {
+  if (exam.endTime) return new Date(exam.endTime)
+  if (exam.startTime && exam.durationMin) {
+    return new Date(new Date(exam.startTime).getTime() + exam.durationMin * 60 * 1000)
+  }
+  return null
+}
+
+function isExamExpired(exam: Exam): boolean {
+  const end = resolveExamEnd(exam)
+  return !!end && new Date() > end
+}
+
+function getStatusColor(exam: Exam): string {
+  if (!exam.startTime) return isExamExpired(exam) ? 'default' : 'green'
+  const now = new Date()
+  const start = new Date(exam.startTime)
+  const end = resolveExamEnd(exam)
+
+  if (now < start) return 'blue'
+  if (!end || now <= end) return 'green'
   return 'default'
 }
 
-function statusLabel(status: ExamStudentStatus): string {
-  if (status === 'ready') return '待参加'
-  if (status === 'in_progress') return '进行中'
-  if (status === 'completed') return '已完成'
-  return '未开放'
+function getStatusText(exam: Exam): string {
+  if (!exam.startTime) return isExamExpired(exam) ? '已过期' : '可开始'
+  const now = new Date()
+  const start = new Date(exam.startTime)
+  const end = resolveExamEnd(exam)
+
+  if (now < start) return '未开始'
+  if (!end || now <= end) return '进行中'
+  return '已过期'
+}
+
+function enterExam(exam: Exam): void {
+  if (isExamExpired(exam)) return
+  router.push(`/exams/${exam.id}/take`)
 }
 
 onMounted(async () => {
@@ -76,46 +178,161 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.exam-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: var(--space-5);
-}
-
-.exam-card {
+.student-exam-page {
   padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.exam-card__head {
+.page-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.exam-card__tags,
-.exam-card__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
 }
 
-.exam-card__tags {
-  margin-bottom: 14px;
-}
-
-.exam-card__title {
+.page-desc {
+  color: #666;
   margin: 0;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
   font-size: 24px;
 }
 
-.exam-card__summary {
-  margin: 18px 0;
-  color: var(--color-text-secondary);
-  line-height: 1.8;
+.stat-icon.blue {
+  background: #e6f4ff;
+  color: #1677ff;
 }
 
-.exam-card__stats {
-  margin-bottom: 18px;
+.stat-icon.slate {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.exam-list-section {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.section-header {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.exam-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.exam-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exam-name {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.paper-name {
+  font-size: 12px;
+  color: #999;
+}
+
+.time-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exam-info-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.info-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.text-muted {
+  color: #999;
+}
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.empty-text {
+  margin-top: 16px;
+  color: #999;
 }
 </style>

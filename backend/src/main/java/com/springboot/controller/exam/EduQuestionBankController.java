@@ -13,6 +13,8 @@ import com.springboot.model.entity.exam.EduQuestionBank;
 import com.springboot.model.vo.exam.EduQuestionBankVO;
 import com.springboot.service.exam.EduQuestionBankService;
 import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,16 @@ public class EduQuestionBankController {
 
     @Resource
     private EduQuestionBankService eduQuestionBankService;
+
+    @GetMapping("/list/all")
+    public BaseResponse<List<EduQuestionBank>> listAllQuestions() {
+        return ResultUtils.success(eduQuestionBankService.listAllQuestions());
+    }
+
+    @GetMapping("/stats")
+    public BaseResponse<Map<String, Object>> getQuestionStats() {
+        return ResultUtils.success(eduQuestionBankService.getQuestionStats());
+    }
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduQuestionBank(@RequestBody EduQuestionBankAddRequest addRequest) {

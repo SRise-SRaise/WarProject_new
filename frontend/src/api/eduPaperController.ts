@@ -32,6 +32,21 @@ export async function deleteEduPaper(
   });
 }
 
+/** 此处后端没有提供注释 GET /exam/eduPaper/detail */
+export async function getPaperDetail(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getPaperDetailParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseMapStringObject>("/exam/eduPaper/detail", {
+    method: "GET",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 此处后端没有提供注释 GET /exam/eduPaper/get/vo */
 export async function getEduPaperVoById(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -47,6 +62,17 @@ export async function getEduPaperVoById(
   });
 }
 
+/** 此处后端没有提供注释 GET /exam/eduPaper/list/all */
+export async function listAllPapers(options?: { [key: string]: any }) {
+  return request<API.BaseResponseListMapStringObject>(
+    "/exam/eduPaper/list/all",
+    {
+      method: "GET",
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /exam/eduPaper/list/page */
 export async function listEduPaperByPage(
   body: API.EduPaperQueryRequest,
@@ -60,6 +86,24 @@ export async function listEduPaperByPage(
     data: body,
     ...(options || {}),
   });
+}
+
+/** 此处后端没有提供注释 POST /exam/eduPaper/list/page/full */
+export async function listPaperPageFull(
+  body: API.EduPaperQueryRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseMapStringObject>(
+    "/exam/eduPaper/list/page/full",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
 }
 
 /** 此处后端没有提供注释 POST /exam/eduPaper/list/page/vo */

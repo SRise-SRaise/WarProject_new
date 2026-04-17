@@ -40,6 +40,12 @@ public class EduExam implements Serializable {
     private Date startTime;
 
     /**
+     * 结束时间
+     */
+    @TableField(value = "end_time")
+    private Date endTime;
+
+    /**
      * 开放标记
      */
     @TableField(value = "is_published")
@@ -76,6 +82,7 @@ public class EduExam implements Serializable {
             && (this.getExamName() == null ? other.getExamName() == null : this.getExamName().equals(other.getExamName()))
             && (this.getDurationMin() == null ? other.getDurationMin() == null : this.getDurationMin().equals(other.getDurationMin()))
             && (this.getStartTime() == null ? other.getStartTime() == null : this.getStartTime().equals(other.getStartTime()))
+            && (this.getEndTime() == null ? other.getEndTime() == null : this.getEndTime().equals(other.getEndTime()))
             && (this.getIsPublished() == null ? other.getIsPublished() == null : this.getIsPublished().equals(other.getIsPublished()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
@@ -89,6 +96,7 @@ public class EduExam implements Serializable {
         result = prime * result + ((getExamName() == null) ? 0 : getExamName().hashCode());
         result = prime * result + ((getDurationMin() == null) ? 0 : getDurationMin().hashCode());
         result = prime * result + ((getStartTime() == null) ? 0 : getStartTime().hashCode());
+        result = prime * result + ((getEndTime() == null) ? 0 : getEndTime().hashCode());
         result = prime * result + ((getIsPublished() == null) ? 0 : getIsPublished().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
@@ -105,6 +113,7 @@ public class EduExam implements Serializable {
         sb.append(", examName=").append(examName);
         sb.append(", durationMin=").append(durationMin);
         sb.append(", startTime=").append(startTime);
+        sb.append(", endTime=").append(endTime);
         sb.append(", isPublished=").append(isPublished);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);

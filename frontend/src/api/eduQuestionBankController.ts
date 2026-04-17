@@ -50,6 +50,17 @@ export async function getEduQuestionBankVoById(
   );
 }
 
+/** 此处后端没有提供注释 GET /exam/eduQuestionBank/list/all */
+export async function listAllQuestions(options?: { [key: string]: any }) {
+  return request<API.BaseResponseListEduQuestionBank>(
+    "/exam/eduQuestionBank/list/all",
+    {
+      method: "GET",
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /exam/eduQuestionBank/list/page */
 export async function listEduQuestionBankByPage(
   body: API.EduQuestionBankQueryRequest,
@@ -81,6 +92,17 @@ export async function listEduQuestionBankVoByPage(
         "Content-Type": "application/json",
       },
       data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 GET /exam/eduQuestionBank/stats */
+export async function getQuestionStats(options?: { [key: string]: any }) {
+  return request<API.BaseResponseMapStringObject>(
+    "/exam/eduQuestionBank/stats",
+    {
+      method: "GET",
       ...(options || {}),
     }
   );

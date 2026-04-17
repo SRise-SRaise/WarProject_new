@@ -17,6 +17,24 @@ export async function addAuthStudent(
   });
 }
 
+/** 此处后端没有提供注释 POST /user/authStudent/batch/update/accountStatus */
+export async function batchUpdateAccountStatusByClass(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.batchUpdateAccountStatusByClassParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>(
+    "/user/authStudent/batch/update/accountStatus",
+    {
+      method: "POST",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /user/authStudent/delete */
 export async function deleteAuthStudent(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -43,6 +61,21 @@ export async function getAuthStudentVoById(
     params: {
       ...params,
     },
+    ...(options || {}),
+  });
+}
+
+/** 此处后端没有提供注释 POST /user/authStudent/import */
+export async function importAuthStudents(
+  body: API.AuthStudentImportRequest[],
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/user/authStudent/import", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
     ...(options || {}),
   });
 }
@@ -81,6 +114,21 @@ export async function listAuthStudentVoByPage(
       ...(options || {}),
     }
   );
+}
+
+/** 此处后端没有提供注释 POST /user/authStudent/reset/password */
+export async function resetAuthStudentPassword(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.resetAuthStudentPasswordParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/user/authStudent/reset/password", {
+    method: "POST",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
 }
 
 /** 此处后端没有提供注释 POST /user/authStudent/update */

@@ -9,13 +9,14 @@
             <result property="examName" column="exam_name" />
             <result property="durationMin" column="duration_min" />
             <result property="startTime" column="start_time" />
+            <result property="endTime" column="end_time" />
             <result property="isPublished" column="is_published" />
             <result property="createdAt" column="created_at" />
             <result property="updatedAt" column="updated_at" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,exam_name,duration_min,start_time,is_published,created_at,
+        id,exam_name,duration_min,start_time,end_time,is_published,created_at,
         updated_at
     </sql>
 </mapper>
