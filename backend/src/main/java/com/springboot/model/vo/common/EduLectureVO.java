@@ -19,6 +19,8 @@ public class EduLectureVO implements Serializable {
 
     private String fileExtension;
 
+    private String filePath;
+
     private Date createdAt;
 
     private Date updatedAt;

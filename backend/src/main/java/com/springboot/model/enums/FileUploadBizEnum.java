@@ -11,7 +11,12 @@ import org.apache.commons.lang3.ObjectUtils;
  */
 public enum FileUploadBizEnum {
 
-    USER_AVATAR("用户头像", "user_avatar");
+    USER_AVATAR("用户头像", "user_avatar"),
+
+    /**
+     * 资料/课件上传文件（用于教学资料管理、学生资料下载等）
+     */
+    LECTURE_MATERIAL("资料文件", "lecture_material");
 
     private final String text;
 

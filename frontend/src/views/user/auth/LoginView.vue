@@ -232,7 +232,8 @@ const handleSubmit = async (): Promise<void> => {
   try {
     const session = await authStore.login({
       account: formState.account,
-      password: formState.password
+      password: formState.password,
+      role: selectedRole.value
     })
 
     message.success(`欢迎回来，${session.name}`)

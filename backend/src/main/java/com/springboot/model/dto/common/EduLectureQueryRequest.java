@@ -18,6 +18,8 @@ public class EduLectureQueryRequest extends PageRequest implements Serializable 
 
     private String fileExtension;
 
+    private String filePath;
+
     private Date createdAt;
 
     private Date updatedAt;

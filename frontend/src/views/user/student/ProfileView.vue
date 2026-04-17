@@ -51,73 +51,34 @@
           <a-descriptions-item label="最近登录">{{ session?.lastLogin || '--' }}</a-descriptions-item>
         </a-descriptions>
         <div class="profile-security-tip">
-          密码修改、班级分配由教师端统一管理，个人中心仅维护基础资料与偏好设置。
+          密码可在个人中心自行修改，修改成功后会自动退出，请使用新密码重新登录。
         </div>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">学习概览</h3>
-        <div class="overview-list">
-          <div v-for="item in studentOverview.metrics.slice(0, 3)" :key="item.label" class="overview-item">
-            <div class="overview-item__head">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-            </div>
-            <p>{{ item.description }}</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">基本信息</h3>
-        <a-form layout="vertical">
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="邮箱">
-                <a-input v-model:value="formState.email" size="large" placeholder="请输入邮箱" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="手机号">
-                <a-input v-model:value="formState.phone" size="large" placeholder="请输入手机号" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="常用学习地点">
-                <a-input v-model:value="formState.location" size="large" placeholder="如：图书馆3楼" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="关注方向（用 / 分隔）">
-                <a-input
-                  v-model:value="formState.focusAreasText"
-                  size="large"
-                  placeholder="例如：资料 / 实验准备 / 阶段复盘"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="个性签名">
-            <a-textarea v-model:value="formState.signature" :rows="4" placeholder="介绍一下你的学习目标" />
-          </a-form-item>
-        </a-form>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">通知偏好</h3>
-        <div class="profile-preferences">
-          <div v-for="item in preferences" :key="item.key" class="profile-preferences__item">
-            <div>
-              <h3>{{ item.label }}</h3>
-              <p>开启后将接收对应学习提醒。</p>
-            </div>
-            <a-switch v-model:checked="item.enabled" />
-          </div>
-        </div>
+        <a-button type="primary" ghost class="profile-password-btn" @click="openPasswordModal">
+          修改密码
+        </a-button>
       </section>
     </a-card>
+    <a-modal
+      v-model:open="passwordModalVisible"
+      title="修改密码"
+      :confirm-loading="passwordSubmitting"
+      ok-text="确认修改"
+      cancel-text="取消"
+      @ok="submitPasswordChange"
+      @cancel="closePasswordModal"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="旧密码" required>
+          <a-input-password v-model:value="passwordForm.oldPassword" placeholder="请输入当前密码" />
+        </a-form-item>
+        <a-form-item label="新密码" required>
+          <a-input-password v-model:value="passwordForm.newPassword" placeholder="请输入新密码（至少 8 位）" />
+        </a-form-item>
+        <a-form-item label="确认新密码" required>
+          <a-input-password v-model:value="passwordForm.confirmPassword" placeholder="请再次输入新密码" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -125,6 +86,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { message } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
+import { changePassword } from '@/api/authController'
 import { useAppStore } from '@/stores/common/app'
 import { useAuthStore } from '@/stores/user/auth'
 import type { NotificationPreference } from '@/stores/user/types'
@@ -137,11 +100,17 @@ interface ProfileFormState {
   focusAreasText: string
 }
 
+interface PasswordFormState {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const { studentOverview } = storeToRefs(appStore)
 const session = computed(() => authStore.session)
-const focusAreas = computed(() => session.value?.focusAreas ?? [])
 
 const formState = reactive<ProfileFormState>({
   email: '',
@@ -151,6 +120,13 @@ const formState = reactive<ProfileFormState>({
   focusAreasText: ''
 })
 const preferences = ref<NotificationPreference[]>([])
+const passwordModalVisible = ref(false)
+const passwordSubmitting = ref(false)
+const passwordForm = reactive<PasswordFormState>({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
 
 watch(
   () => authStore.session,
@@ -185,6 +161,56 @@ function saveProfile(): void {
     preferences: preferences.value.map((item) => ({ ...item }))
   })
   message.success('学生个人设置已保存。')
+}
+
+function resetPasswordForm(): void {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+}
+
+function openPasswordModal(): void {
+  resetPasswordForm()
+  passwordModalVisible.value = true
+}
+
+function closePasswordModal(): void {
+  passwordModalVisible.value = false
+}
+
+async function submitPasswordChange(): Promise<void> {
+  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    message.warning('请完整填写密码信息')
+    return
+  }
+  if (passwordForm.newPassword.length < 8) {
+    message.warning('新密码长度不能小于 8 位')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    message.warning('两次输入的新密码不一致')
+    return
+  }
+  passwordSubmitting.value = true
+  try {
+    const response = await changePassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword
+    })
+    if (response.data?.code !== 0 || !response.data?.data) {
+      throw new Error(response.data?.message || '修改密码失败')
+    }
+    message.success('密码修改成功，请重新登录')
+    closePasswordModal()
+    authStore.logout()
+    await router.replace('/user/login')
+  } catch (error) {
+    const err = error as Error
+    message.error(err.message || '修改密码失败')
+  } finally {
+    passwordSubmitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -271,6 +297,10 @@ onMounted(async () => {
   background: #f6f9fc;
   color: #5b6b7a;
   font-size: 13px;
+}
+
+.profile-password-btn {
+  margin-top: 12px;
 }
 
 .login-info-grid {

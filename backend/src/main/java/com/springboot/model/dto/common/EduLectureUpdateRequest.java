@@ -14,5 +14,10 @@ public class EduLectureUpdateRequest implements Serializable {
 
     private String fileExtension;
 
+    /**
+     * 文件路径
+     */
+    private String filePath;
+
     private static final long serialVersionUID = 1L;
 }

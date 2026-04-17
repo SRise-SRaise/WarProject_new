@@ -3,407 +3,1023 @@
     <section class="app-surface-card app-section-card">
       <SectionHeader
         eyebrow="资料管理"
-        title="共享资料管理台账"
-        description="沿用学生侧的共享资料数据源，在教师后台统一查看资料覆盖范围、开放策略与最近更新。本波次保持只读，不在这里直接新增或编辑内容。"
+        title="共享资料管理"
+        description="集中维护资料名称、类型与附件文件，支持上传、下载、编辑和删除。"
       >
         <template #actions>
           <a-space :size="12" wrap>
-            <a-button @click="router.push('/materials')">查看学生资料页</a-button>
-            <a-button type="primary" :loading="loading" @click="refreshMaterials">刷新资料</a-button>
+            <a-button type="primary" :loading="loading" @click="refresh">刷新</a-button>
+            <a-button size="large" @click="openUploadModal">上传资料</a-button>
           </a-space>
         </template>
       </SectionHeader>
     </section>
 
     <section class="app-kpi-grid">
-      <MetricCard title="资料总数" :value="String(materials.length)" description="当前已经接入后台台账的共享资料数量。" tone="primary" />
-      <MetricCard title="覆盖主题" :value="String(topicCoverage)" description="按当前资料数据源计算出的主题域数量。" tone="accent" />
-      <MetricCard title="限范围开放" :value="String(limitedCount)" description="仅面向指定班级或方向开放的资料数量。" tone="warning" />
-      <MetricCard title="累计查看" :value="totalDownloadsLabel" description="用于判断资料热度的当前查看量累计。" tone="success" />
+      <MetricCard title="资料总数" :value="String(total)" description="满足当前筛选条件的资料数量。" tone="primary" />
+      <MetricCard title="当前页数量" :value="String(rows.length)" description="当前分页已加载的资料条数。" tone="accent" />
+      <MetricCard title="资料类型数" :value="String(categoryCount)" description="当前页涉及的资料类型数量。" tone="success" />
+      <MetricCard title="可下载资料" :value="String(downloadableCount)" description="当前页存在文件地址的资料数量。" tone="warning" />
     </section>
 
     <section class="app-surface-card app-section-card app-panel-grid">
       <div class="materials-toolbar">
         <a-input
-          v-model:value="materialStore.filters.keyword"
+          v-model:value="filters.lectureName"
           allow-clear
           size="large"
-          placeholder="搜索资料标题、摘要或标签"
+          placeholder="按资料名称搜索"
+          class="toolbar-input"
         />
-        <a-select v-model:value="materialStore.filters.topicLabel" size="large" :options="topicLabelOptions" />
-        <a-select v-model:value="materialStore.filters.type" size="large" :options="typeOptions" />
-        <a-button size="large" @click="materialStore.resetFilters()">重置筛选</a-button>
+        <a-auto-complete
+          v-model:value="filters.categoryInput"
+          class="toolbar-select"
+          size="large"
+          allow-clear
+          :options="categoryAutoCompleteOptions"
+          placeholder="资料类型（讲义/代码/软件/课件/参考资料 或自定义输入）"
+          :filter-option="false"
+        />
+        <a-select
+          v-model:value="filters.fileExtension"
+          allow-clear
+          size="large"
+          class="toolbar-select"
+          placeholder="文件后缀"
+          :options="fileExtensionOptions"
+        />
+        <a-input
+          v-model:value="filters.classCourseKeyword"
+          allow-clear
+          size="large"
+          placeholder="班级 / 课程关键词"
+          class="toolbar-input"
+        />
+        <a-range-picker
+          v-model:value="filters.uploadDateRange"
+          size="large"
+          class="toolbar-date"
+          :allow-clear="true"
+          format="YYYY-MM-DD"
+        />
+        <a-select
+          v-model:value="filters.publishStatus"
+          size="large"
+          class="toolbar-select"
+          :options="publishStatusOptions"
+        />
+        <a-select
+          v-model:value="filters.sizeLevel"
+          size="large"
+          class="toolbar-select"
+          :options="sizeLevelOptions"
+        />
+        <a-button size="large" class="toolbar-btn" @click="resetFilters">重置筛选</a-button>
+        <a-button size="large" class="toolbar-btn" @click="saveFilterPreset">保存筛选预设</a-button>
+        <a-button type="primary" size="large" class="toolbar-btn" @click="handleSearch">查询资料</a-button>
       </div>
-      <div class="materials-toolbar__summary">
-        <span class="app-inline-stat">当前显示 {{ filteredMaterials.length }} 份资料</span>
-        <span class="app-subtle-text">覆盖 {{ teacherCoverage }} 位维护教师，最近更新 {{ latestUpdatedAt || '暂无记录' }}</span>
+      <div class="toolbar-hint">高级筛选（上传时间 / 大小 / 发布状态 / 班级课程）作用于当前页数据。</div>
+
+      <div class="quick-tags">
+        <span class="tag-title">快速标签：</span>
+        <a-checkable-tag :checked="activeQuickTag === 'today'" @change="() => applyQuickTag('today')">今日上传</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'ppt'" @change="() => applyQuickTag('ppt')">课件/PPT</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'doc'" @change="() => applyQuickTag('doc')">文档资料</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'code'" @change="() => applyQuickTag('code')">代码示例</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'published'" @change="() => applyQuickTag('published')">已发布</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'large'" @change="() => applyQuickTag('large')">大文件</a-checkable-tag>
       </div>
+
+      <div class="saved-filters" v-if="recentSearches.length > 0 || filterPresets.length > 0">
+        <a-space wrap>
+          <span v-if="recentSearches.length > 0" class="tag-title">最近搜索：</span>
+          <a-tag v-for="item in recentSearches" :key="item" class="clickable-tag" @click="applyRecentSearch(item)">
+            {{ item }}
+          </a-tag>
+          <span v-if="filterPresets.length > 0" class="tag-title">常用预设：</span>
+          <a-tag v-for="item in filterPresets" :key="item.name" color="blue" class="clickable-tag" @click="applyFilterPreset(item.name)">
+            {{ item.name }}
+          </a-tag>
+        </a-space>
+      </div>
+
+      <a-table
+        :columns="columns"
+        :data-source="displayRows"
+        :loading="loading"
+        row-key="id"
+        :pagination="{
+          current,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (count: number) => `共 ${count} 条`
+        }"
+        @change="handleTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'lectureName'">
+            <div class="material-name-cell">
+              <span class="material-name">{{ record.lectureName || '--' }}</span>
+            </div>
+          </template>
+          <template v-else-if="column.key === 'categoryId'">
+            <span>{{ formatCategoryLabel(record.categoryId) }}</span>
+          </template>
+          <template v-else-if="column.key === 'fileExtension'">
+            <span>{{ record.fileExtension ? `.${record.fileExtension}` : '--' }}</span>
+          </template>
+          <template v-else-if="column.key === 'fileSize'">
+            <span>{{ formatFileSize(fileSizeMap[record.id]) }}</span>
+          </template>
+          <template v-else-if="column.key === 'createdAt'">
+            <span>{{ record.createdAt ? CommonUtil.formatDate(record.createdAt) : '--' }}</span>
+          </template>
+          <template v-else-if="column.key === 'updatedAt'">
+            <span>{{ record.updatedAt ? CommonUtil.formatDate(record.updatedAt) : '--' }}</span>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <div class="row-actions">
+              <a-tooltip title="下载资料">
+                <a-button type="text" size="small" @click="handleDownload(record)">
+                  <template #icon>
+                    <DownloadOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑资料">
+                <a-button type="text" size="small" @click="openEditModal(record)">
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="删除资料">
+                <a-button danger type="text" size="small" @click="handleDelete(record)">
+                  <template #icon>
+                    <DeleteOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </div>
+          </template>
+        </template>
+      </a-table>
+
+      <EmptyState v-if="!loading && displayRows.length === 0" description="暂无资料，请先上传或调整筛选条件。" />
     </section>
 
-    <section v-if="filteredMaterials.length > 0" class="app-split-grid">
-      <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader
-          eyebrow="资料总表"
-          title="当前资料清单"
-          description="点击资料名称即可在右侧查看摘要、附件和章节信息。当前页面只承担查看与筛选，不接入编辑动作。"
-          tight
-        />
-        <a-table
-          :columns="materialColumns"
-          :data-source="filteredMaterials"
-          :loading="loading"
-          row-key="id"
-          :pagination="{ pageSize: 6, hideOnSinglePage: true }"
-          :scroll="{ x: 1100 }"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'title'">
-              <button class="material-row-trigger" type="button" @click="selectMaterial(record.id)">
-                <span class="material-row-trigger__head">
-                  <span class="material-row-trigger__title">{{ record.title }}</span>
-                  <span
-                    class="material-row-trigger__hint"
-                    :class="{ 'material-row-trigger__hint--active': selectedMaterial?.id === record.id }"
-                  >
-                    {{ selectedMaterial?.id === record.id ? '当前侧览' : '查看侧览' }}
-                  </span>
-                </span>
-                <span class="material-row-trigger__summary">{{ record.summary }}</span>
-              </button>
-            </template>
-            <template v-else-if="column.key === 'type'">
-              <a-tag color="blue">{{ record.type }}</a-tag>
-            </template>
-            <template v-else-if="column.key === 'availability'">
-              <StatusTag :type="availabilityTone(record.availability)" :label="availabilityLabel(record.availability)" />
-            </template>
-            <template v-else-if="column.key === 'downloads'">
-              <span class="app-inline-stat">{{ record.downloads }} 次</span>
-            </template>
-          </template>
-        </a-table>
-      </section>
-
-      <div class="app-panel-grid">
-        <section class="app-surface-card app-section-card app-panel-grid">
-          <SectionHeader
-            eyebrow="资料侧览"
-            :title="selectedMaterial?.title ?? '暂无资料'"
-            :description="selectedMaterial?.summary ?? '筛选结果为空时不会显示资料侧览。'"
-            tight
-          >
-            <template #actions>
-              <a-button
-                v-if="selectedMaterial"
-                type="link"
-                @click="router.push(`/materials/${selectedMaterial.id}`)"
-              >
-                查看公共详情页
-              </a-button>
-            </template>
-          </SectionHeader>
-
-          <template v-if="selectedMaterial">
-            <div class="materials-preview__tags">
-              <a-tag color="blue">{{ selectedMaterial.type }}</a-tag>
-              <a-tag>{{ selectedMaterial.level }}</a-tag>
-              <StatusTag
-                :type="availabilityTone(selectedMaterial.availability)"
-                :label="availabilityLabel(selectedMaterial.availability)"
-              />
-            </div>
-
-            <div class="app-key-value">
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">主题</p>
-                <p class="app-key-value__value">{{ selectedMaterial.topicLabel }}</p>
-              </div>
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">维护教师</p>
-                <p class="app-key-value__value">{{ selectedMaterial.teacher }}</p>
-              </div>
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">开放范围</p>
-                <p class="app-key-value__value">{{ selectedMaterial.audience }}</p>
-              </div>
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">建议时长</p>
-                <p class="app-key-value__value">{{ selectedMaterial.duration }}</p>
-              </div>
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">最近更新</p>
-                <p class="app-key-value__value">{{ selectedMaterial.updatedAt }}</p>
-              </div>
-              <div class="app-key-value__item">
-                <p class="app-key-value__label">资料编号</p>
-                <p class="app-key-value__value">{{ selectedMaterial.id }}</p>
-              </div>
-            </div>
-
-            <section class="materials-preview__section">
-              <h3 class="materials-preview__title">资料封面说明</h3>
-              <p class="materials-preview__paragraph">{{ selectedMaterial.coverNote }}</p>
-            </section>
-
-            <section class="materials-preview__section">
-              <h3 class="materials-preview__title">附件清单</h3>
-              <div class="app-list">
-                <article
-                  v-for="attachment in selectedMaterial.attachments"
-                  :key="attachment.name"
-                  class="app-list-card preview-item-card"
-                >
-                  <div>
-                    <h3 class="app-list-card__title">{{ attachment.name }}</h3>
-                    <p class="app-list-card__meta">{{ attachment.kind }}</p>
-                  </div>
-                  <span class="app-inline-stat">{{ attachment.size }}</span>
-                </article>
-              </div>
-            </section>
-
-            <section class="materials-preview__section">
-              <h3 class="materials-preview__title">章节摘要</h3>
-              <div class="app-list">
-                <article v-for="section in selectedMaterial.sections" :key="section.heading" class="app-list-card">
-                  <h3 class="app-list-card__title">{{ section.heading }}</h3>
-                  <p class="app-list-card__meta">{{ section.content }}</p>
-                </article>
-              </div>
-            </section>
-          </template>
-        </section>
-
-        <section class="app-surface-card app-section-card app-panel-grid">
-          <SectionHeader
-            eyebrow="覆盖结构"
-            title="主题分布"
-            description="帮助教师快速判断当前资料集中在哪些主题域，以及主题对应的维护教师。"
-            tight
+    <a-modal
+      v-model:open="uploadModalVisible"
+      title="上传资料"
+      ok-text="上传"
+      cancel-text="取消"
+      :confirm-loading="uploadSubmitting"
+      @ok="handleUpload"
+      @cancel="closeUploadModal"
+    >
+      <a-form layout="vertical" :model="uploadForm">
+        <a-form-item label="资料名称" required>
+          <a-input v-model:value="uploadForm.lectureName" placeholder="请输入资料名称" size="large" />
+        </a-form-item>
+        <a-form-item label="资料类型" required>
+          <a-auto-complete
+            v-model:value="uploadForm.categoryInput"
+            size="large"
+            style="width: 100%"
+            allow-clear
+            :options="categoryAutoCompleteOptions"
+            placeholder="请选择或输入资料类型"
+            :filter-option="false"
           />
-          <div class="app-list">
-            <article v-for="item in topicBreakdown" :key="item.label" class="app-list-card topic-card">
-              <div>
-                <h3 class="app-list-card__title">{{ item.label }}</h3>
-                <p class="app-list-card__meta">{{ item.teachers.join(' / ') }}</p>
-              </div>
-              <span class="app-inline-stat">{{ item.count }} 份</span>
-            </article>
+          <p class="hint-text">可选：讲义、代码、软件、课件、参考资料；也可直接输入自定义类型编号（数字）。</p>
+        </a-form-item>
+        <a-form-item label="选择文件" required>
+          <div class="file-row">
+            <a-button size="large" @click="fileInputRef?.click()">选择文件</a-button>
+            <span class="file-name">{{ selectedFile?.name ?? '未选择文件' }}</span>
           </div>
-        </section>
-      </div>
-    </section>
+          <input
+            ref="fileInputRef"
+            type="file"
+            style="display: none"
+            @change="handleFileSelected"
+          />
+          <p class="hint-text">支持上传任意资料文件，资料类型请与后端分类编号保持一致。</p>
+        </a-form-item>
+      </a-form>
+    </a-modal>
 
-    <EmptyState v-else description="未找到符合条件的资料，可尝试调整筛选条件。" />
+    <a-modal
+      v-model:open="editModalVisible"
+      title="编辑资料"
+      ok-text="保存"
+      cancel-text="取消"
+      :confirm-loading="editSubmitting"
+      @ok="submitEdit"
+      @cancel="closeEditModal"
+    >
+      <a-form layout="vertical" :model="editForm">
+        <a-form-item label="资料名称" required>
+          <a-input v-model:value="editForm.lectureName" placeholder="请输入资料名称" size="large" />
+        </a-form-item>
+        <a-form-item label="资料类型" required>
+          <a-auto-complete
+            v-model:value="editForm.categoryInput"
+            size="large"
+            style="width: 100%"
+            allow-clear
+            :options="categoryAutoCompleteOptions"
+            placeholder="请选择或输入资料类型"
+            :filter-option="false"
+          />
+          <p class="hint-text">可选：讲义、代码、软件、课件、参考资料；也可直接输入自定义类型编号（数字）。</p>
+        </a-form-item>
+        <a-form-item label="重新上传文件">
+          <div class="file-row">
+            <a-button size="large" @click="editFileInputRef?.click()">选择新文件</a-button>
+            <span class="file-name">{{ editSelectedFileName }}</span>
+          </div>
+          <input
+            ref="editFileInputRef"
+            type="file"
+            style="display: none"
+            @change="handleEditFileSelected"
+          />
+          <p class="hint-text">不选择新文件时，仅更新资料名称与资料类型。</p>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { message } from 'ant-design-vue'
+import dayjs, { type Dayjs } from 'dayjs'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
-import EmptyState from '@/components/common/EmptyState.vue'
 import MetricCard from '@/components/common/MetricCard.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import SectionHeader from '@/components/common/SectionHeader.vue'
-import StatusTag from '@/components/common/StatusTag.vue'
-import { useMaterialStore } from '@/stores/common/material'
+import { addEduLecture, deleteEduLecture, listEduLectureVoByPage, updateEduLecture } from '@/api/eduLectureController'
+import { uploadFile } from '@/api/fileController'
+import { useAuthStore } from '@/stores/user/auth'
+import { CommonUtil } from '@/utils'
+
+interface LectureRow {
+  id: number
+  lectureName?: string
+  categoryId?: number
+  fileExtension?: string
+  filePath?: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
+}
+
+interface PaginationConfig {
+  current?: number
+  pageSize?: number
+}
 
 const router = useRouter()
-const materialStore = useMaterialStore()
-const { filteredMaterials, loading, materials, topicLabelOptions, typeOptions } = storeToRefs(materialStore)
+const authStore = useAuthStore()
 
-const selectedMaterialId = ref('')
+const loading = ref(false)
+const current = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const rows = ref<LectureRow[]>([])
+const fileSizeMap = ref<Record<number, number>>({})
+const activeQuickTag = ref<string | null>(null)
+const recentSearches = ref<string[]>([])
+const filterPresets = ref<Array<{ name: string; filters: Record<string, string> }>>([])
+const RECENT_SEARCHES_KEY = 'material.management.recent.searches'
+const FILTER_PRESETS_KEY = 'material.management.filter.presets'
 
-const limitedCount = computed(() => materials.value.filter((item) => item.availability === 'limited').length)
-const topicCoverage = computed(() => topicLabelOptions.value.filter((item) => item.value !== 'all').length)
-const totalDownloadsLabel = computed(() => materials.value.reduce((sum, item) => sum + item.downloads, 0).toLocaleString('zh-CN'))
-const teacherCoverage = computed(() => new Set(materials.value.map((item) => item.teacher)).size)
-const latestUpdatedAt = computed(() => materials.value.map((item) => item.updatedAt).sort((left, right) => right.localeCompare(left))[0] ?? '')
-
-const selectedMaterial = computed(() => {
-  return filteredMaterials.value.find((item) => item.id === selectedMaterialId.value) ?? filteredMaterials.value[0] ?? null
+const filters = reactive({
+  lectureName: '',
+  categoryInput: '' as string,
+  fileExtension: '' as string,
+  classCourseKeyword: '',
+  uploadDateRange: [] as [Dayjs, Dayjs] | [],
+  publishStatus: 'all' as 'all' | 'published' | 'draft',
+  sizeLevel: 'all' as 'all' | 'small' | 'medium' | 'large'
 })
 
-const topicBreakdown = computed(() => {
-  const summary = new Map<string, { label: string; count: number; teachers: Set<string> }>()
+const uploadForm = reactive({
+  lectureName: '',
+  categoryInput: '' as string
+})
 
-  for (const item of filteredMaterials.value) {
-    const existing = summary.get(item.topicLabel)
-    if (existing) {
-      existing.count += 1
-      existing.teachers.add(item.teacher)
-      continue
-    }
+const editForm = reactive({
+  id: null as number | null,
+  lectureName: '',
+  categoryInput: '' as string,
+  fileExtension: '',
+  filePath: ''
+})
 
-    summary.set(item.topicLabel, {
-      label: item.topicLabel,
-      count: 1,
-      teachers: new Set([item.teacher])
-    })
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const editFileInputRef = ref<HTMLInputElement | null>(null)
+const selectedFile = ref<File | null>(null)
+const editNewFile = ref<File | null>(null)
+const editSelectedFileName = computed(() => {
+  if (editNewFile.value) {
+    return editNewFile.value.name
   }
-
-  return [...summary.values()]
-    .map((item) => ({
-      label: item.label,
-      count: item.count,
-      teachers: [...item.teachers]
-    }))
-    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+  if (editForm.filePath) {
+    const name = extractOriginalFileName(editForm.filePath)
+    return name || editForm.filePath
+  }
+  return '未选择文件'
 })
+const uploadSubmitting = ref(false)
+const editSubmitting = ref(false)
+const uploadModalVisible = ref(false)
+const editModalVisible = ref(false)
 
-const materialColumns = [
-  { title: '资料', dataIndex: 'title', key: 'title', width: 320 },
-  { title: '主题', dataIndex: 'topicLabel', key: 'topicLabel', width: 180 },
-  { title: '类型', dataIndex: 'type', key: 'type', width: 110 },
-  { title: '维护教师', dataIndex: 'teacher', key: 'teacher', width: 120 },
-  { title: '开放状态', dataIndex: 'availability', key: 'availability', width: 120 },
-  { title: '查看量', dataIndex: 'downloads', key: 'downloads', width: 110 },
-  { title: '最近更新', dataIndex: 'updatedAt', key: 'updatedAt', width: 170 }
+const categoryCount = computed(() => new Set(rows.value.map((item) => item.categoryId).filter((item) => item != null)).size)
+const downloadableCount = computed(() => displayRows.value.filter((item) => !!item.filePath).length)
+const fileExtensionOptions = computed(() => {
+  const dynamic = new Set(rows.value.map((item) => (item.fileExtension || '').toLowerCase()).filter(Boolean))
+  const base = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'rar']
+  for (const ext of base) {
+    dynamic.add(ext)
+  }
+  return [...dynamic].sort().map((item) => ({ label: `.${item}`, value: item }))
+})
+const publishStatusOptions = [
+  { label: '发布状态：全部', value: 'all' },
+  { label: '已发布（有文件）', value: 'published' },
+  { label: '草稿（无文件）', value: 'draft' }
+]
+const sizeLevelOptions = [
+  { label: '文件大小：全部', value: 'all' },
+  { label: '小文件（<= 5MB）', value: 'small' },
+  { label: '中文件（5MB ~ 20MB）', value: 'medium' },
+  { label: '大文件（> 20MB）', value: 'large' }
+]
+const displayRows = computed(() => rows.value.filter((row) => matchRowWithAdvancedFilters(row)))
+
+const CATEGORY_OPTIONS = [
+  { label: '讲义', value: 1 },
+  { label: '代码', value: 2 },
+  { label: '软件', value: 3 },
+  { label: '课件', value: 4 },
+  { label: '参考资料', value: 5 }
+] as const
+
+const categoryAutoCompleteOptions = CATEGORY_OPTIONS.map((item) => ({ value: item.label }))
+
+const columns = [
+  { title: '资料名称', dataIndex: 'lectureName', key: 'lectureName', width: 280 },
+  { title: '资料类型', dataIndex: 'categoryId', key: 'categoryId', width: 120 },
+  { title: '文件后缀', dataIndex: 'fileExtension', key: 'fileExtension', width: 120 },
+  { title: '文件大小', key: 'fileSize', width: 130 },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 180 },
+  { title: '操作', key: 'actions', width: 140, fixed: 'right' as const }
 ]
 
-function selectMaterial(id: string): void {
-  selectedMaterialId.value = id
+function formatFileSize(sizeBytes?: number): string {
+  if (sizeBytes == null || sizeBytes < 0) {
+    return '--'
+  }
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`
+  }
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`
+  }
+  if (sizeBytes < 1024 * 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+  return `${(sizeBytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-function availabilityTone(availability: 'open' | 'limited'): 'success' | 'warning' {
-  return availability === 'open' ? 'success' : 'warning'
+function parseCategoryId(input: string): number | null {
+  const normalized = (input || '').trim()
+  if (!normalized) return null
+
+  const matched = CATEGORY_OPTIONS.find((item) => item.label === normalized)
+  if (matched) return matched.value
+
+  const asNumber = Number(normalized)
+  if (Number.isInteger(asNumber) && asNumber > 0) return asNumber
+  return null
 }
 
-function availabilityLabel(availability: 'open' | 'limited'): string {
-  return availability === 'open' ? '已开放' : '限范围开放'
+function formatCategoryLabel(categoryId?: number): string {
+  if (categoryId == null) return '--'
+  const matched = CATEGORY_OPTIONS.find((item) => item.value === categoryId)
+  return matched ? matched.label : String(categoryId)
 }
 
-async function refreshMaterials(): Promise<void> {
-  await materialStore.refresh()
-  message.success('资料台账已刷新')
+function resetUploadForm(): void {
+  uploadForm.lectureName = ''
+  uploadForm.categoryInput = ''
+  selectedFile.value = null
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
 }
 
-watch(
-  filteredMaterials,
-  (nextList) => {
-    if (nextList.some((item) => item.id === selectedMaterialId.value)) {
+function resetEditForm(): void {
+  editForm.id = null
+  editForm.lectureName = ''
+  editForm.categoryInput = ''
+  editForm.fileExtension = ''
+  editForm.filePath = ''
+  editNewFile.value = null
+  if (editFileInputRef.value) {
+    editFileInputRef.value.value = ''
+  }
+}
+
+function getFileExtension(fileName: string): string {
+  const index = fileName.lastIndexOf('.')
+  if (index < 0 || index === fileName.length - 1) {
+    return ''
+  }
+  return fileName.slice(index + 1).toLowerCase()
+}
+
+function extractOriginalFileName(pathOrUrl: string): string {
+  const rawName = pathOrUrl.split('/').pop()?.trim() || ''
+  // 后端上传默认会生成：8位随机串 + '-' + 原文件名
+  // 例如：Lkha1rZu-技术文档.docx → 技术文档.docx
+  if (/^[A-Za-z0-9]{8}-/.test(rawName)) {
+    return rawName.substring(9)
+  }
+  return rawName
+}
+
+function buildDownloadName(row: LectureRow): string {
+  const pathName = row.filePath?.split('/').pop()?.trim()
+  if (pathName) {
+    return extractOriginalFileName(pathName) || pathName
+  }
+  const extension = row.fileExtension ? `.${row.fileExtension}` : ''
+  return `${row.lectureName || '资料'}${extension}`
+}
+
+async function ensureTeacherSession(): Promise<boolean> {
+  if (!authStore.isAuthenticated) {
+    message.warning('请先登录教师账号')
+    router.replace('/user/login')
+    return false
+  }
+  await authStore.refreshSessionFromServer()
+  if (!authStore.isTeacher) {
+    message.warning('当前会话不是教师/管理员，请重新登录教师账号后再操作')
+    authStore.logout()
+    router.replace('/user/login')
+    return false
+  }
+  return true
+}
+
+async function uploadLectureFile(file: File): Promise<{ filePath: string; fileExtension: string }> {
+  const fileExtension = getFileExtension(file.name)
+  if (!fileExtension) {
+    throw new Error('无法识别文件后缀')
+  }
+
+  const response = await uploadFile({ biz: 'lecture_material' }, file)
+  const filePath = response.data?.data
+  if (!filePath) {
+    throw new Error(response.data?.message || '文件上传失败')
+  }
+
+  return {
+    filePath,
+    fileExtension
+  }
+}
+
+function getLocalStorageItem(key: string): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return window.localStorage.getItem(key)
+}
+
+function setLocalStorageItem(key: string, value: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.localStorage.setItem(key, value)
+}
+
+function loadSearchMeta(): void {
+  try {
+    const rawRecent = getLocalStorageItem(RECENT_SEARCHES_KEY)
+    recentSearches.value = rawRecent ? (JSON.parse(rawRecent) as string[]).slice(0, 8) : []
+  } catch {
+    recentSearches.value = []
+  }
+  try {
+    const rawPresets = getLocalStorageItem(FILTER_PRESETS_KEY)
+    filterPresets.value = rawPresets ? (JSON.parse(rawPresets) as Array<{ name: string; filters: Record<string, string> }>).slice(0, 12) : []
+  } catch {
+    filterPresets.value = []
+  }
+}
+
+function recordRecentSearch(): void {
+  const keyword = filters.lectureName.trim()
+  if (!keyword) {
+    return
+  }
+  const next = [keyword, ...recentSearches.value.filter((item) => item !== keyword)].slice(0, 8)
+  recentSearches.value = next
+  setLocalStorageItem(RECENT_SEARCHES_KEY, JSON.stringify(next))
+}
+
+function applyRecentSearch(keyword: string): void {
+  filters.lectureName = keyword
+  activeQuickTag.value = null
+  handleSearch()
+}
+
+function saveFilterPreset(): void {
+  const name = window.prompt('请输入预设名称（如：课件-本周-大文件）')?.trim()
+  if (!name) {
+    return
+  }
+  const serialized = {
+    lectureName: filters.lectureName.trim(),
+    categoryInput: filters.categoryInput,
+    fileExtension: filters.fileExtension,
+    classCourseKeyword: filters.classCourseKeyword.trim(),
+    publishStatus: filters.publishStatus,
+    sizeLevel: filters.sizeLevel
+  }
+  const deduped = filterPresets.value.filter((item) => item.name !== name)
+  const next = [{ name, filters: serialized }, ...deduped].slice(0, 12)
+  filterPresets.value = next
+  setLocalStorageItem(FILTER_PRESETS_KEY, JSON.stringify(next))
+  message.success(`已保存筛选预设：${name}`)
+}
+
+function applyFilterPreset(name: string): void {
+  const found = filterPresets.value.find((item) => item.name === name)
+  if (!found) {
+    return
+  }
+  filters.lectureName = found.filters.lectureName || ''
+  filters.categoryInput = found.filters.categoryInput || ''
+  filters.fileExtension = found.filters.fileExtension || ''
+  filters.classCourseKeyword = found.filters.classCourseKeyword || ''
+  filters.publishStatus = (found.filters.publishStatus as 'all' | 'published' | 'draft') || 'all'
+  filters.sizeLevel = (found.filters.sizeLevel as 'all' | 'small' | 'medium' | 'large') || 'all'
+  activeQuickTag.value = null
+  handleSearch()
+}
+
+function applyQuickTag(tag: string): void {
+  const isSame = activeQuickTag.value === tag
+  activeQuickTag.value = isSame ? null : tag
+  if (isSame) {
+    resetFilters()
+    return
+  }
+  if (tag === 'today') {
+    const start = dayjs().startOf('day')
+    const end = dayjs().endOf('day')
+    filters.uploadDateRange = [start, end]
+  } else if (tag === 'ppt') {
+    filters.fileExtension = 'pptx'
+    filters.categoryInput = '课件'
+  } else if (tag === 'doc') {
+    filters.fileExtension = 'docx'
+  } else if (tag === 'code') {
+    filters.categoryInput = '代码'
+  } else if (tag === 'published') {
+    filters.publishStatus = 'published'
+  } else if (tag === 'large') {
+    filters.sizeLevel = 'large'
+  }
+  current.value = 1
+}
+
+function matchSizeLevel(sizeBytes: number | undefined): boolean {
+  if (filters.sizeLevel === 'all') {
+    return true
+  }
+  if (sizeBytes == null || sizeBytes <= 0) {
+    return false
+  }
+  const mb = sizeBytes / (1024 * 1024)
+  if (filters.sizeLevel === 'small') {
+    return mb <= 5
+  }
+  if (filters.sizeLevel === 'medium') {
+    return mb > 5 && mb <= 20
+  }
+  return mb > 20
+}
+
+function matchRowWithAdvancedFilters(row: LectureRow): boolean {
+  if (filters.publishStatus === 'published' && !row.filePath) {
+    return false
+  }
+  if (filters.publishStatus === 'draft' && row.filePath) {
+    return false
+  }
+  const classCourse = filters.classCourseKeyword.trim().toLowerCase()
+  if (classCourse) {
+    const source = `${row.lectureName || ''} ${row.filePath || ''}`.toLowerCase()
+    if (!source.includes(classCourse)) {
+      return false
+    }
+  }
+  if (filters.uploadDateRange.length === 2) {
+    const createdAt = row.createdAt ? dayjs(row.createdAt) : null
+    if (!createdAt || !createdAt.isValid()) {
+      return false
+    }
+    const [start, end] = filters.uploadDateRange
+    if (createdAt.isBefore(start.startOf('day')) || createdAt.isAfter(end.endOf('day'))) {
+      return false
+    }
+  }
+  if (!matchSizeLevel(fileSizeMap.value[row.id])) {
+    return false
+  }
+  return true
+}
+
+async function fetchSizeForRow(row: LectureRow): Promise<void> {
+  if (!row.id || !row.filePath || fileSizeMap.value[row.id] != null) {
+    return
+  }
+  try {
+    const response = await fetch(row.filePath, {
+      method: 'HEAD',
+      credentials: 'include'
+    })
+    if (!response.ok) {
       return
     }
+    const sizeText = response.headers.get('content-length')
+    const size = sizeText ? Number(sizeText) : NaN
+    if (!Number.isNaN(size) && size >= 0) {
+      fileSizeMap.value = {
+        ...fileSizeMap.value,
+        [row.id]: size
+      }
+    }
+  } catch {
+    // ignore size probe errors
+  }
+}
 
-    selectedMaterialId.value = nextList[0]?.id ?? ''
-  },
-  { immediate: true }
-)
+function hydrateRowFileSizes(list: LectureRow[]): void {
+  for (const row of list) {
+    void fetchSizeForRow(row)
+  }
+}
+
+async function refresh(): Promise<void> {
+  if (!(await ensureTeacherSession())) {
+    return
+  }
+
+  loading.value = true
+  try {
+    const categoryId = parseCategoryId(filters.categoryInput)
+    const response = await listEduLectureVoByPage({
+      current: current.value,
+      pageSize: pageSize.value,
+      lectureName: filters.lectureName.trim() || undefined,
+      categoryId: categoryId ?? undefined,
+      fileExtension: filters.fileExtension || undefined
+    })
+
+    if (response.data?.code !== 0 || !response.data?.data) {
+      throw new Error(response.data?.message || '查询资料失败')
+    }
+
+    const pageData = response.data.data
+    rows.value = (pageData.records || []) as LectureRow[]
+    total.value = Number(pageData.total || 0)
+    hydrateRowFileSizes(rows.value)
+  } catch (error) {
+    const err = error as Error
+    const msg = err.message || '查询资料失败'
+    if (msg.includes('未登录')) {
+      message.warning('登录状态已失效，请重新登录后查看资料管理')
+      authStore.logout()
+      router.replace('/user/login')
+      return
+    }
+    message.error(msg)
+    rows.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleTableChange(pagination: PaginationConfig): void {
+  current.value = pagination.current ?? 1
+  pageSize.value = pagination.pageSize ?? 10
+  void refresh()
+}
+
+function handleSearch(): void {
+  recordRecentSearch()
+  current.value = 1
+  void refresh()
+}
+
+function resetFilters(): void {
+  filters.lectureName = ''
+  filters.categoryInput = ''
+  filters.fileExtension = ''
+  filters.classCourseKeyword = ''
+  filters.uploadDateRange = []
+  filters.publishStatus = 'all'
+  filters.sizeLevel = 'all'
+  activeQuickTag.value = null
+  current.value = 1
+  void refresh()
+}
+
+function handleFileSelected(event: Event): void {
+  const target = event.target as HTMLInputElement | null
+  selectedFile.value = target?.files?.[0] ?? null
+}
+
+function handleEditFileSelected(event: Event): void {
+  const target = event.target as HTMLInputElement | null
+  editNewFile.value = target?.files?.[0] ?? null
+}
+
+function openUploadModal(): void {
+  resetUploadForm()
+  editModalVisible.value = false
+  uploadModalVisible.value = true
+}
+
+function closeUploadModal(): void {
+  uploadModalVisible.value = false
+  uploadSubmitting.value = false
+  resetUploadForm()
+}
+
+function openEditModal(row: LectureRow): void {
+  editForm.id = row.id
+  editForm.lectureName = row.lectureName || ''
+  editForm.categoryInput = row.categoryId != null ? formatCategoryLabel(row.categoryId) : ''
+  editForm.fileExtension = row.fileExtension || ''
+  editForm.filePath = row.filePath || ''
+  editNewFile.value = null
+  if (editFileInputRef.value) {
+    editFileInputRef.value.value = ''
+  }
+  uploadModalVisible.value = false
+  editModalVisible.value = true
+}
+
+function closeEditModal(): void {
+  editModalVisible.value = false
+  editSubmitting.value = false
+  resetEditForm()
+}
+
+async function handleUpload(): Promise<void> {
+  if (!(await ensureTeacherSession())) {
+    return
+  }
+  if (!uploadForm.lectureName.trim()) {
+    message.warning('请填写资料名称')
+    return
+  }
+  const categoryId = parseCategoryId(uploadForm.categoryInput)
+  if (!categoryId) {
+    message.warning('请选择资料类型，或输入自定义类型编号（数字）')
+    return
+  }
+  if (!selectedFile.value) {
+    message.warning('请先选择文件')
+    return
+  }
+
+  uploadSubmitting.value = true
+  try {
+    const { filePath, fileExtension } = await uploadLectureFile(selectedFile.value)
+    const response = await addEduLecture({
+      lectureName: uploadForm.lectureName.trim(),
+      categoryId,
+      fileExtension,
+      filePath
+    } as API.EduLectureAddRequest & { filePath: string })
+
+    if (response.data?.code !== 0 || !response.data?.data) {
+      throw new Error(response.data?.message || '上传资料失败')
+    }
+
+    message.success('资料上传成功')
+    closeUploadModal()
+    current.value = 1
+    await refresh()
+  } catch (error) {
+    const err = error as Error
+    message.error(err.message || '上传资料失败')
+  } finally {
+    uploadSubmitting.value = false
+  }
+}
+
+async function submitEdit(): Promise<void> {
+  if (!(await ensureTeacherSession())) {
+    return
+  }
+  if (!editForm.id) {
+    message.error('未找到待编辑资料')
+    return
+  }
+  if (!editForm.lectureName.trim()) {
+    message.warning('请填写资料名称')
+    return
+  }
+  const categoryId = parseCategoryId(editForm.categoryInput)
+  if (!categoryId) {
+    message.warning('请选择资料类型，或输入自定义类型编号（数字）')
+    return
+  }
+
+  editSubmitting.value = true
+  try {
+    let filePath = editForm.filePath
+    let fileExtension = editForm.fileExtension
+
+    if (editNewFile.value) {
+      const uploaded = await uploadLectureFile(editNewFile.value)
+      filePath = uploaded.filePath
+      fileExtension = uploaded.fileExtension
+    }
+
+    const response = await updateEduLecture({
+      id: editForm.id,
+      lectureName: editForm.lectureName.trim(),
+      categoryId,
+      fileExtension,
+      filePath
+    } as API.EduLectureUpdateRequest & { filePath?: string })
+
+    if (response.data?.code !== 0 || !response.data?.data) {
+      throw new Error(response.data?.message || '保存资料失败')
+    }
+
+    message.success('资料更新成功')
+    closeEditModal()
+    await refresh()
+  } catch (error) {
+    const err = error as Error
+    message.error(err.message || '保存资料失败')
+  } finally {
+    editSubmitting.value = false
+  }
+}
+
+function handleDownload(row: LectureRow): void {
+  if (!row.filePath) {
+    message.warning('该资料缺少文件地址，无法下载')
+    return
+  }
+  CommonUtil.downloadFile(row.filePath, buildDownloadName(row))
+}
+
+function handleDelete(row: LectureRow): void {
+  Modal.confirm({
+    title: '删除资料确认',
+    content: `确定要删除资料「${row.lectureName || '--'}」吗？`,
+    okText: '删除',
+    cancelText: '取消',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      if (!(await ensureTeacherSession())) {
+        return
+      }
+      const response = await deleteEduLecture({ id: String(row.id) })
+      if (response.data?.code !== 0 || !response.data?.data) {
+        throw new Error(response.data?.message || '删除资料失败')
+      }
+      message.success('资料删除成功')
+      await refresh()
+    }
+  })
+}
 
 onMounted(async () => {
-  materialStore.resetFilters()
-  await materialStore.ensureLoaded()
+  loadSearchMeta()
+  await refresh()
 })
 </script>
 
 <style scoped>
 .materials-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) 220px 180px auto;
-  gap: var(--space-3);
-}
-
-.materials-toolbar__summary {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
-
-.material-row-trigger {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  text-align: left;
+.toolbar-date {
+  min-width: 240px;
+}
+.toolbar-hint {
+  margin-top: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.quick-tags {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.saved-filters {
+  margin-top: 10px;
+}
+.tag-title {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.clickable-tag {
   cursor: pointer;
 }
 
-.material-row-trigger__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+.toolbar-input {
+  flex: 1 1 220px;
+  min-width: 180px;
 }
 
-.material-row-trigger__title {
-  display: block;
-  color: var(--color-text-main);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.5;
+.toolbar-select {
+  flex: 0 0 180px;
+  min-width: 160px;
 }
 
-.material-row-trigger__summary {
-  display: block;
-  margin-top: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1.75;
-}
-
-.material-row-trigger__hint {
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  font-weight: 700;
+.toolbar-btn {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.material-row-trigger__hint--active {
-  color: var(--color-primary);
-}
-
-.materials-preview__tags {
+.material-name-cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: 4px;
 }
 
-.materials-preview__section {
-  display: grid;
-  gap: var(--space-3);
+.material-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
-.materials-preview__title {
-  margin: 0;
-  color: var(--color-text-main);
-  font-size: 16px;
-  font-weight: 700;
+.material-subtext {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
-.materials-preview__paragraph {
-  margin: 0;
-  color: var(--color-text-secondary);
-  line-height: 1.75;
+.row-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
-.preview-item-card,
-.topic-card {
+.file-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-@media (max-width: 980px) {
-  .materials-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .materials-toolbar__summary,
-  .preview-item-card,
-  .topic-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.file-name {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 720px) {
-  .material-row-trigger__head {
-    flex-direction: column;
+.hidden-file-input {
+  display: none;
+}
+
+.hint-text {
+  margin: 8px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .toolbar-select {
+    flex: 1 1 180px;
   }
 }
 </style>
