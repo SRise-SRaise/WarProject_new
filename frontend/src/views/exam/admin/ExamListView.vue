@@ -341,8 +341,8 @@ const formData = reactive({
   examName: '',
   paperId: undefined as number | undefined,
   durationMin: undefined as number | undefined,
-  startTimeValue: undefined as dayjs.Dayjs | undefined,
-  endTimeValue: undefined as dayjs.Dayjs | undefined,
+  startTimeValue: undefined as string | undefined,
+  endTimeValue: undefined as string | undefined,
 })
 
 // 表单验证规则
@@ -351,7 +351,11 @@ const formRules = {
   endTime: [
     {
       validator: async () => {
-        if (formData.startTimeValue && formData.endTimeValue && formData.endTimeValue.isBefore(formData.startTimeValue)) {
+        if (
+          formData.startTimeValue &&
+          formData.endTimeValue &&
+          dayjs(formData.endTimeValue).isBefore(dayjs(formData.startTimeValue))
+        ) {
           return Promise.reject('结束时间不能早于开始时间')
         }
         return Promise.resolve()
@@ -491,8 +495,8 @@ function openEditModal(exam: Exam) {
   formData.examName = exam.examName
   formData.paperId = exam.paperId || undefined
   formData.durationMin = exam.durationMin || undefined
-  formData.startTimeValue = exam.startTime ? dayjs(exam.startTime) : undefined
-  formData.endTimeValue = exam.endTime ? dayjs(exam.endTime) : undefined
+  formData.startTimeValue = exam.startTime || undefined
+  formData.endTimeValue = exam.endTime || undefined
   modalVisible.value = true
   loadPapersForSelect()
 }
@@ -509,8 +513,8 @@ async function handleModalOk() {
         examName: formData.examName,
         paperId: formData.paperId,
         durationMin: formData.durationMin,
-        startTime: formData.startTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
-        endTime: formData.endTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
+        startTime: formData.startTimeValue,
+        endTime: formData.endTimeValue,
       }
       const success = await examStore.updateExam(request)
       if (success) {
@@ -524,8 +528,8 @@ async function handleModalOk() {
         examName: formData.examName,
         paperId: formData.paperId,
         durationMin: formData.durationMin,
-        startTime: formData.startTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
-        endTime: formData.endTimeValue?.format('YYYY-MM-DD HH:mm:ss'),
+        startTime: formData.startTimeValue,
+        endTime: formData.endTimeValue,
       }
       const id = await examStore.addExam(request)
       if (id) {

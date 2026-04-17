@@ -9,7 +9,6 @@ import type {
   ExamRecordItem,
   ExamUpdateRequest,
   GradeAnswerRequest,
-  PageResult,
   Paper,
   PaperAddRequest,
   PaperDetail,

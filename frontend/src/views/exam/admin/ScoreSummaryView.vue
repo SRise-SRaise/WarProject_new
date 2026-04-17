@@ -529,7 +529,7 @@ async function submitAllGrades() {
 }
 
 async function submitAndNext() {
-  if (currentRecord.value?.status !== 'graded') {
+  if (currentRecord.value?.record.status !== 'graded') {
     await submitAllGrades()
   }
   await goToNextStudent()

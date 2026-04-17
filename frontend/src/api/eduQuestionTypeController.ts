@@ -50,6 +50,19 @@ export async function getEduQuestionTypeVoById(
   );
 }
 
+/** 此处后端没有提供注释 GET /exam/eduQuestionType/list/all */
+export async function listAllEduQuestionTypes(options?: {
+  [key: string]: any;
+}) {
+  return request<API.BaseResponseListMapStringObject>(
+    "/exam/eduQuestionType/list/all",
+    {
+      method: "GET",
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /exam/eduQuestionType/list/page */
 export async function listEduQuestionTypeByPage(
   body: API.EduQuestionTypeQueryRequest,

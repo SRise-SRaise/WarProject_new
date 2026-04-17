@@ -50,6 +50,24 @@ export async function getRelPaperQuestionVoById(
   );
 }
 
+/** 此处后端没有提供注释 GET /exam/relPaperQuestion/list/byPaper */
+export async function listByPaper(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listByPaperParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseListRelPaperQuestion>(
+    "/exam/relPaperQuestion/list/byPaper",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /exam/relPaperQuestion/list/page */
 export async function listRelPaperQuestionByPage(
   body: API.RelPaperQuestionQueryRequest,
@@ -75,6 +93,75 @@ export async function listRelPaperQuestionVoByPage(
 ) {
   return request<API.BaseResponsePageRelPaperQuestionVO>(
     "/exam/relPaperQuestion/list/page/vo",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 POST /exam/relPaperQuestion/paper/add */
+export async function addQuestionToPaper(
+  body: Record<string, any>,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/exam/relPaperQuestion/paper/add", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 此处后端没有提供注释 POST /exam/relPaperQuestion/paper/remove */
+export async function removeQuestionFromPaper(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.removeQuestionFromPaperParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>(
+    "/exam/relPaperQuestion/paper/remove",
+    {
+      method: "POST",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 POST /exam/relPaperQuestion/paper/reorder */
+export async function reorderPaperQuestions(
+  body: Record<string, any>,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>(
+    "/exam/relPaperQuestion/paper/reorder",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 POST /exam/relPaperQuestion/paper/update */
+export async function updatePaperQuestion(
+  body: Record<string, any>,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>(
+    "/exam/relPaperQuestion/paper/update",
     {
       method: "POST",
       headers: {

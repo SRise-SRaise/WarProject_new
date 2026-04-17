@@ -50,6 +50,93 @@ export async function getResExamRecordVoById(
   );
 }
 
+/** 此处后端没有提供注释 GET /exam/resExamRecord/grading/cards */
+export async function listExamRecordCards(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listExamRecordCardsParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseListMapStringObject>(
+    "/exam/resExamRecord/grading/cards",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 GET /exam/resExamRecord/grading/detail */
+export async function getStudentAnswerRecordDetail(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getStudentAnswerRecordDetailParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseMapStringObject>(
+    "/exam/resExamRecord/grading/detail",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 POST /exam/resExamRecord/grading/grade */
+export async function gradeAnswer(
+  body: Record<string, any>,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/exam/resExamRecord/grading/grade", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 此处后端没有提供注释 GET /exam/resExamRecord/grading/records */
+export async function listStudentAnswerRecords(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listStudentAnswerRecordsParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseListMapStringObject>(
+    "/exam/resExamRecord/grading/records",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 GET /exam/resExamRecord/grading/stats */
+export async function getScoreStatistics(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getScoreStatisticsParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseMapStringObject>(
+    "/exam/resExamRecord/grading/stats",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
 /** 此处后端没有提供注释 POST /exam/resExamRecord/list/page */
 export async function listResExamRecordByPage(
   body: API.ResExamRecordQueryRequest,
@@ -75,6 +162,24 @@ export async function listResExamRecordVoByPage(
 ) {
   return request<API.BaseResponsePageResExamRecordVO>(
     "/exam/resExamRecord/list/page/vo",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** 此处后端没有提供注释 POST /exam/resExamRecord/student/submit */
+export async function submitExam(
+  body: Record<string, any>,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseMapStringObject>(
+    "/exam/resExamRecord/student/submit",
     {
       method: "POST",
       headers: {

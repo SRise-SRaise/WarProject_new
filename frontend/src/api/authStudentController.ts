@@ -65,16 +65,17 @@ export async function getAuthStudentVoById(
   });
 }
 
-/** 此处后端没有提供注释 POST /user/authStudent/reset/password */
-export async function resetAuthStudentPassword(
-  params: { id: number },
+/** 此处后端没有提供注释 POST /user/authStudent/import */
+export async function importAuthStudents(
+  body: API.AuthStudentImportRequest[],
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseBoolean>("/user/authStudent/reset/password", {
+  return request<API.BaseResponseBoolean>("/user/authStudent/import", {
     method: "POST",
-    params: {
-      ...params,
+    headers: {
+      "Content-Type": "application/json",
     },
+    data: body,
     ...(options || {}),
   });
 }
@@ -115,6 +116,21 @@ export async function listAuthStudentVoByPage(
   );
 }
 
+/** 此处后端没有提供注释 POST /user/authStudent/reset/password */
+export async function resetAuthStudentPassword(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.resetAuthStudentPasswordParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/user/authStudent/reset/password", {
+    method: "POST",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 此处后端没有提供注释 POST /user/authStudent/update */
 export async function updateAuthStudent(
   body: API.AuthStudentUpdateRequest,
@@ -128,25 +144,4 @@ export async function updateAuthStudent(
     data: body,
     ...(options || {}),
   });
-}
-
-/** 此处后端没有提供注释 POST /user/authStudent/import */
-export async function importAuthStudents(
-  body: Array<{
-    studentCode: string
-    studentName: string
-    password: string
-    classCode?: string
-    remark?: string
-  }>,
-  options?: { [key: string]: any }
-) {
-  return request<API.BaseResponseBoolean>("/user/authStudent/import", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    data: body,
-    ...(options || {}),
-  })
 }

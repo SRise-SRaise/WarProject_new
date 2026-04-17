@@ -144,6 +144,14 @@ declare namespace API {
     lastLoginIp?: string;
   };
 
+  type AuthStudentImportRequest = {
+    studentCode?: string;
+    studentName?: string;
+    password?: string;
+    classCode?: string;
+    remark?: string;
+  };
+
   type AuthStudentQueryRequest = {
     current?: number;
     pageSize?: number;
@@ -318,6 +326,24 @@ declare namespace API {
     message?: string;
   };
 
+  type BaseResponseListEduQuestionBank = {
+    code?: number;
+    data?: EduQuestionBank[];
+    message?: string;
+  };
+
+  type BaseResponseListMapStringObject = {
+    code?: number;
+    data?: Record<string, any>[];
+    message?: string;
+  };
+
+  type BaseResponseListRelPaperQuestion = {
+    code?: number;
+    data?: RelPaperQuestion[];
+    message?: string;
+  };
+
   type BaseResponseLoginPrincipal = {
     code?: number;
     data?: LoginPrincipal;
@@ -333,6 +359,12 @@ declare namespace API {
   type BaseResponseLong = {
     code?: number;
     data?: number;
+    message?: string;
+  };
+
+  type BaseResponseMapStringObject = {
+    code?: number;
+    data?: Record<string, any>;
     message?: string;
   };
 
@@ -815,6 +847,7 @@ declare namespace API {
     examName?: string;
     durationMin?: number;
     startTime?: string;
+    endTime?: string;
     isPublished?: boolean;
     createdAt?: string;
     updatedAt?: string;
@@ -824,6 +857,7 @@ declare namespace API {
     examName?: string;
     durationMin?: number;
     startTime?: string;
+    endTime?: string;
     isPublished?: boolean;
   };
 
@@ -836,6 +870,7 @@ declare namespace API {
     examName?: string;
     durationMin?: number;
     startTime?: string;
+    endTime?: string;
     isPublished?: boolean;
     createdAt?: string;
     updatedAt?: string;
@@ -846,6 +881,7 @@ declare namespace API {
     examName?: string;
     durationMin?: number;
     startTime?: string;
+    endTime?: string;
     isPublished?: boolean;
   };
 
@@ -854,6 +890,7 @@ declare namespace API {
     examName?: string;
     durationMin?: number;
     startTime?: string;
+    endTime?: string;
     isPublished?: boolean;
     createdAt?: string;
     updatedAt?: string;
@@ -1116,6 +1153,7 @@ declare namespace API {
     lectureName?: string;
     categoryId?: number;
     fileExtension?: string;
+    filePath?: string;
     createdAt?: string;
     updatedAt?: string;
   };
@@ -1124,6 +1162,7 @@ declare namespace API {
     lectureName?: string;
     categoryId?: number;
     fileExtension?: string;
+    filePath?: string;
   };
 
   type EduLectureQueryRequest = {
@@ -1135,6 +1174,7 @@ declare namespace API {
     lectureName?: string;
     categoryId?: number;
     fileExtension?: string;
+    filePath?: string;
     createdAt?: string;
     updatedAt?: string;
   };
@@ -1144,6 +1184,7 @@ declare namespace API {
     lectureName?: string;
     categoryId?: number;
     fileExtension?: string;
+    filePath?: string;
   };
 
   type EduLectureVO = {
@@ -1151,6 +1192,7 @@ declare namespace API {
     lectureName?: string;
     categoryId?: number;
     fileExtension?: string;
+    filePath?: string;
     createdAt?: string;
     updatedAt?: string;
   };
@@ -1290,6 +1332,10 @@ declare namespace API {
     createdAt?: string;
   };
 
+  type getAdminExamCardParams = {
+    id: number;
+  };
+
   type getAuthAssistantVOByIdParams = {
     id: string;
   };
@@ -1342,6 +1388,10 @@ declare namespace API {
     id: string;
   };
 
+  type getPaperDetailParams = {
+    id: number;
+  };
+
   type getRelPaperQuestionVOByIdParams = {
     id: string;
   };
@@ -1370,6 +1420,18 @@ declare namespace API {
     id: string;
   };
 
+  type getScoreStatisticsParams = {
+    examId: number;
+  };
+
+  type getStudentAnswerRecordDetailParams = {
+    recordId: number;
+  };
+
+  type getStudentExamDetailParams = {
+    id: number;
+  };
+
   type getSysAdminLogVOByIdParams = {
     id: string;
   };
@@ -1388,6 +1450,18 @@ declare namespace API {
 
   type getUserVOByIdParams = {
     id: number;
+  };
+
+  type listByPaperParams = {
+    paperId: number;
+  };
+
+  type listExamRecordCardsParams = {
+    examId: number;
+  };
+
+  type listStudentAnswerRecordsParams = {
+    examId: number;
   };
 
   type LoginPrincipal = {
@@ -2088,6 +2162,10 @@ declare namespace API {
     pages?: number;
   };
 
+  type publishExamParams = {
+    id: number;
+  };
+
   type RelPaperQuestion = {
     id?: number;
     paperId?: number;
@@ -2132,6 +2210,14 @@ declare namespace API {
     score?: number;
     createdAt?: string;
     updatedAt?: string;
+  };
+
+  type removeQuestionFromPaperParams = {
+    id: number;
+  };
+
+  type resetAuthStudentPasswordParams = {
+    id: number;
   };
 
   type ResExamRecord = {
@@ -2582,6 +2668,10 @@ declare namespace API {
     opTime?: string;
     clientIp?: string;
     createdAt?: string;
+  };
+
+  type unpublishExamParams = {
+    id: number;
   };
 
   type uploadFileParams = {

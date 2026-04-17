@@ -181,7 +181,7 @@ import { QUESTION_TYPE_MAP, type QuestionType } from '@/stores/exam/types'
 const route = useRoute()
 const router = useRouter()
 const examStore = useExamStudentStore()
-const { currentExam, currentPaper, answers, examResult, loading } = storeToRefs(examStore)
+const { currentExam, currentPaper, examResult, loading } = storeToRefs(examStore)
 
 const submitting = ref(false)
 const remainingTime = ref(0) // 剩余时间（秒）
