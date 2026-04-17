@@ -59,68 +59,6 @@
         </a-button>
       </section>
 
-      <section class="profile-section">
-        <h3 class="profile-section__title">教学概览</h3>
-        <div class="overview-list">
-          <div v-for="item in teacherDashboard.metrics.slice(0, 3)" :key="item.label" class="overview-item">
-            <div class="overview-item__head">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-            </div>
-            <p>{{ item.description }}</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">基本信息</h3>
-        <a-form layout="vertical">
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="邮箱">
-                <a-input v-model:value="formState.email" size="large" placeholder="请输入邮箱" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="手机号">
-                <a-input v-model:value="formState.phone" size="large" placeholder="请输入手机号" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="办公地点">
-                <a-input v-model:value="formState.location" size="large" placeholder="如：行政楼A302" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="当前关注（用 / 分隔）">
-                <a-input
-                  v-model:value="formState.focusAreasText"
-                  size="large"
-                  placeholder="例如：班级管理 / 资料建设 / 考试评阅"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="简介说明">
-            <a-textarea v-model:value="formState.signature" :rows="4" placeholder="介绍你的教学方向或课程建设计划" />
-          </a-form-item>
-        </a-form>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">通知偏好</h3>
-        <div class="profile-preferences">
-          <div v-for="item in preferences" :key="item.key" class="profile-preferences__item">
-            <div>
-              <h3>{{ item.label }}</h3>
-              <p>开启后将接收对应教学提醒。</p>
-            </div>
-            <a-switch v-model:checked="item.enabled" />
-          </div>
-        </div>
-      </section>
     </a-card>
 
     <a-modal
@@ -149,11 +87,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { changePassword } from '@/api/authController'
-import { useAppStore } from '@/stores/common/app'
 import { useAuthStore } from '@/stores/user/auth'
 import type { NotificationPreference } from '@/stores/user/types'
 
@@ -173,8 +109,6 @@ interface PasswordFormState {
 
 const router = useRouter()
 const authStore = useAuthStore()
-const appStore = useAppStore()
-const { teacherDashboard } = storeToRefs(appStore)
 const session = computed(() => authStore.session)
 
 const formState = reactive<ProfileFormState>({
@@ -280,7 +214,6 @@ async function submitPasswordChange(): Promise<void> {
 
 onMounted(async () => {
   await authStore.refreshSessionFromServer()
-  await appStore.ensureReady()
 })
 </script>
 

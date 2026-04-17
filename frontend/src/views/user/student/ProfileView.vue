@@ -57,56 +57,6 @@
           修改密码
         </a-button>
       </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">学习概览</h3>
-        <div class="overview-list">
-          <div v-for="item in studentOverview.metrics.slice(0, 3)" :key="item.label" class="overview-item">
-            <div class="overview-item__head">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-            </div>
-            <p>{{ item.description }}</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="profile-section">
-        <h3 class="profile-section__title">基本信息</h3>
-        <a-form layout="vertical">
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="邮箱">
-                <a-input v-model:value="formState.email" size="large" placeholder="请输入邮箱" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="手机号">
-                <a-input v-model:value="formState.phone" size="large" placeholder="请输入手机号" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :xs="24" :md="12">
-              <a-form-item label="常用学习地点">
-                <a-input v-model:value="formState.location" size="large" placeholder="如：图书馆3楼" />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item label="关注方向（用 / 分隔）">
-                <a-input
-                  v-model:value="formState.focusAreasText"
-                  size="large"
-                  placeholder="例如：资料 / 实验准备 / 阶段复盘"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="个性签名">
-            <a-textarea v-model:value="formState.signature" :rows="4" placeholder="介绍一下你的学习目标" />
-          </a-form-item>
-        </a-form>
-      </section>
     </a-card>
     <a-modal
       v-model:open="passwordModalVisible"

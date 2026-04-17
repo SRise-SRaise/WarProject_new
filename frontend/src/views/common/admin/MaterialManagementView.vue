@@ -40,13 +40,72 @@
           placeholder="资料类型（讲义/代码/软件/课件/参考资料 或自定义输入）"
           :filter-option="false"
         />
+        <a-select
+          v-model:value="filters.fileExtension"
+          allow-clear
+          size="large"
+          class="toolbar-select"
+          placeholder="文件后缀"
+          :options="fileExtensionOptions"
+        />
+        <a-input
+          v-model:value="filters.classCourseKeyword"
+          allow-clear
+          size="large"
+          placeholder="班级 / 课程关键词"
+          class="toolbar-input"
+        />
+        <a-range-picker
+          v-model:value="filters.uploadDateRange"
+          size="large"
+          class="toolbar-date"
+          :allow-clear="true"
+          format="YYYY-MM-DD"
+        />
+        <a-select
+          v-model:value="filters.publishStatus"
+          size="large"
+          class="toolbar-select"
+          :options="publishStatusOptions"
+        />
+        <a-select
+          v-model:value="filters.sizeLevel"
+          size="large"
+          class="toolbar-select"
+          :options="sizeLevelOptions"
+        />
         <a-button size="large" class="toolbar-btn" @click="resetFilters">重置筛选</a-button>
+        <a-button size="large" class="toolbar-btn" @click="saveFilterPreset">保存筛选预设</a-button>
         <a-button type="primary" size="large" class="toolbar-btn" @click="handleSearch">查询资料</a-button>
+      </div>
+      <div class="toolbar-hint">高级筛选（上传时间 / 大小 / 发布状态 / 班级课程）作用于当前页数据。</div>
+
+      <div class="quick-tags">
+        <span class="tag-title">快速标签：</span>
+        <a-checkable-tag :checked="activeQuickTag === 'today'" @change="() => applyQuickTag('today')">今日上传</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'ppt'" @change="() => applyQuickTag('ppt')">课件/PPT</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'doc'" @change="() => applyQuickTag('doc')">文档资料</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'code'" @change="() => applyQuickTag('code')">代码示例</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'published'" @change="() => applyQuickTag('published')">已发布</a-checkable-tag>
+        <a-checkable-tag :checked="activeQuickTag === 'large'" @change="() => applyQuickTag('large')">大文件</a-checkable-tag>
+      </div>
+
+      <div class="saved-filters" v-if="recentSearches.length > 0 || filterPresets.length > 0">
+        <a-space wrap>
+          <span v-if="recentSearches.length > 0" class="tag-title">最近搜索：</span>
+          <a-tag v-for="item in recentSearches" :key="item" class="clickable-tag" @click="applyRecentSearch(item)">
+            {{ item }}
+          </a-tag>
+          <span v-if="filterPresets.length > 0" class="tag-title">常用预设：</span>
+          <a-tag v-for="item in filterPresets" :key="item.name" color="blue" class="clickable-tag" @click="applyFilterPreset(item.name)">
+            {{ item.name }}
+          </a-tag>
+        </a-space>
       </div>
 
       <a-table
         :columns="columns"
-        :data-source="rows"
+        :data-source="displayRows"
         :loading="loading"
         row-key="id"
         :pagination="{
@@ -69,6 +128,9 @@
           </template>
           <template v-else-if="column.key === 'fileExtension'">
             <span>{{ record.fileExtension ? `.${record.fileExtension}` : '--' }}</span>
+          </template>
+          <template v-else-if="column.key === 'fileSize'">
+            <span>{{ formatFileSize(fileSizeMap[record.id]) }}</span>
           </template>
           <template v-else-if="column.key === 'createdAt'">
             <span>{{ record.createdAt ? CommonUtil.formatDate(record.createdAt) : '--' }}</span>
@@ -104,7 +166,7 @@
         </template>
       </a-table>
 
-      <EmptyState v-if="!loading && rows.length === 0" description="暂无资料，请先上传。" />
+      <EmptyState v-if="!loading && displayRows.length === 0" description="暂无资料，请先上传或调整筛选条件。" />
     </section>
 
     <a-modal
@@ -192,6 +254,7 @@
 </template>
 
 <script setup lang="ts">
+import dayjs, { type Dayjs } from 'dayjs'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
@@ -227,10 +290,21 @@ const current = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const rows = ref<LectureRow[]>([])
+const fileSizeMap = ref<Record<number, number>>({})
+const activeQuickTag = ref<string | null>(null)
+const recentSearches = ref<string[]>([])
+const filterPresets = ref<Array<{ name: string; filters: Record<string, string> }>>([])
+const RECENT_SEARCHES_KEY = 'material.management.recent.searches'
+const FILTER_PRESETS_KEY = 'material.management.filter.presets'
 
 const filters = reactive({
   lectureName: '',
-  categoryInput: '' as string
+  categoryInput: '' as string,
+  fileExtension: '' as string,
+  classCourseKeyword: '',
+  uploadDateRange: [] as [Dayjs, Dayjs] | [],
+  publishStatus: 'all' as 'all' | 'published' | 'draft',
+  sizeLevel: 'all' as 'all' | 'small' | 'medium' | 'large'
 })
 
 const uploadForm = reactive({
@@ -266,7 +340,27 @@ const uploadModalVisible = ref(false)
 const editModalVisible = ref(false)
 
 const categoryCount = computed(() => new Set(rows.value.map((item) => item.categoryId).filter((item) => item != null)).size)
-const downloadableCount = computed(() => rows.value.filter((item) => !!item.filePath).length)
+const downloadableCount = computed(() => displayRows.value.filter((item) => !!item.filePath).length)
+const fileExtensionOptions = computed(() => {
+  const dynamic = new Set(rows.value.map((item) => (item.fileExtension || '').toLowerCase()).filter(Boolean))
+  const base = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'rar']
+  for (const ext of base) {
+    dynamic.add(ext)
+  }
+  return [...dynamic].sort().map((item) => ({ label: `.${item}`, value: item }))
+})
+const publishStatusOptions = [
+  { label: '发布状态：全部', value: 'all' },
+  { label: '已发布（有文件）', value: 'published' },
+  { label: '草稿（无文件）', value: 'draft' }
+]
+const sizeLevelOptions = [
+  { label: '文件大小：全部', value: 'all' },
+  { label: '小文件（<= 5MB）', value: 'small' },
+  { label: '中文件（5MB ~ 20MB）', value: 'medium' },
+  { label: '大文件（> 20MB）', value: 'large' }
+]
+const displayRows = computed(() => rows.value.filter((row) => matchRowWithAdvancedFilters(row)))
 
 const CATEGORY_OPTIONS = [
   { label: '讲义', value: 1 },
@@ -282,10 +376,27 @@ const columns = [
   { title: '资料名称', dataIndex: 'lectureName', key: 'lectureName', width: 280 },
   { title: '资料类型', dataIndex: 'categoryId', key: 'categoryId', width: 120 },
   { title: '文件后缀', dataIndex: 'fileExtension', key: 'fileExtension', width: 120 },
+  { title: '文件大小', key: 'fileSize', width: 130 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 180 },
   { title: '操作', key: 'actions', width: 140, fixed: 'right' as const }
 ]
+
+function formatFileSize(sizeBytes?: number): string {
+  if (sizeBytes == null || sizeBytes < 0) {
+    return '--'
+  }
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`
+  }
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`
+  }
+  if (sizeBytes < 1024 * 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+  return `${(sizeBytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
 
 function parseCategoryId(input: string): number | null {
   const normalized = (input || '').trim()
@@ -387,6 +498,190 @@ async function uploadLectureFile(file: File): Promise<{ filePath: string; fileEx
   }
 }
 
+function getLocalStorageItem(key: string): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return window.localStorage.getItem(key)
+}
+
+function setLocalStorageItem(key: string, value: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.localStorage.setItem(key, value)
+}
+
+function loadSearchMeta(): void {
+  try {
+    const rawRecent = getLocalStorageItem(RECENT_SEARCHES_KEY)
+    recentSearches.value = rawRecent ? (JSON.parse(rawRecent) as string[]).slice(0, 8) : []
+  } catch {
+    recentSearches.value = []
+  }
+  try {
+    const rawPresets = getLocalStorageItem(FILTER_PRESETS_KEY)
+    filterPresets.value = rawPresets ? (JSON.parse(rawPresets) as Array<{ name: string; filters: Record<string, string> }>).slice(0, 12) : []
+  } catch {
+    filterPresets.value = []
+  }
+}
+
+function recordRecentSearch(): void {
+  const keyword = filters.lectureName.trim()
+  if (!keyword) {
+    return
+  }
+  const next = [keyword, ...recentSearches.value.filter((item) => item !== keyword)].slice(0, 8)
+  recentSearches.value = next
+  setLocalStorageItem(RECENT_SEARCHES_KEY, JSON.stringify(next))
+}
+
+function applyRecentSearch(keyword: string): void {
+  filters.lectureName = keyword
+  activeQuickTag.value = null
+  handleSearch()
+}
+
+function saveFilterPreset(): void {
+  const name = window.prompt('请输入预设名称（如：课件-本周-大文件）')?.trim()
+  if (!name) {
+    return
+  }
+  const serialized = {
+    lectureName: filters.lectureName.trim(),
+    categoryInput: filters.categoryInput,
+    fileExtension: filters.fileExtension,
+    classCourseKeyword: filters.classCourseKeyword.trim(),
+    publishStatus: filters.publishStatus,
+    sizeLevel: filters.sizeLevel
+  }
+  const deduped = filterPresets.value.filter((item) => item.name !== name)
+  const next = [{ name, filters: serialized }, ...deduped].slice(0, 12)
+  filterPresets.value = next
+  setLocalStorageItem(FILTER_PRESETS_KEY, JSON.stringify(next))
+  message.success(`已保存筛选预设：${name}`)
+}
+
+function applyFilterPreset(name: string): void {
+  const found = filterPresets.value.find((item) => item.name === name)
+  if (!found) {
+    return
+  }
+  filters.lectureName = found.filters.lectureName || ''
+  filters.categoryInput = found.filters.categoryInput || ''
+  filters.fileExtension = found.filters.fileExtension || ''
+  filters.classCourseKeyword = found.filters.classCourseKeyword || ''
+  filters.publishStatus = (found.filters.publishStatus as 'all' | 'published' | 'draft') || 'all'
+  filters.sizeLevel = (found.filters.sizeLevel as 'all' | 'small' | 'medium' | 'large') || 'all'
+  activeQuickTag.value = null
+  handleSearch()
+}
+
+function applyQuickTag(tag: string): void {
+  const isSame = activeQuickTag.value === tag
+  activeQuickTag.value = isSame ? null : tag
+  if (isSame) {
+    resetFilters()
+    return
+  }
+  if (tag === 'today') {
+    const start = dayjs().startOf('day')
+    const end = dayjs().endOf('day')
+    filters.uploadDateRange = [start, end]
+  } else if (tag === 'ppt') {
+    filters.fileExtension = 'pptx'
+    filters.categoryInput = '课件'
+  } else if (tag === 'doc') {
+    filters.fileExtension = 'docx'
+  } else if (tag === 'code') {
+    filters.categoryInput = '代码'
+  } else if (tag === 'published') {
+    filters.publishStatus = 'published'
+  } else if (tag === 'large') {
+    filters.sizeLevel = 'large'
+  }
+  current.value = 1
+}
+
+function matchSizeLevel(sizeBytes: number | undefined): boolean {
+  if (filters.sizeLevel === 'all') {
+    return true
+  }
+  if (sizeBytes == null || sizeBytes <= 0) {
+    return false
+  }
+  const mb = sizeBytes / (1024 * 1024)
+  if (filters.sizeLevel === 'small') {
+    return mb <= 5
+  }
+  if (filters.sizeLevel === 'medium') {
+    return mb > 5 && mb <= 20
+  }
+  return mb > 20
+}
+
+function matchRowWithAdvancedFilters(row: LectureRow): boolean {
+  if (filters.publishStatus === 'published' && !row.filePath) {
+    return false
+  }
+  if (filters.publishStatus === 'draft' && row.filePath) {
+    return false
+  }
+  const classCourse = filters.classCourseKeyword.trim().toLowerCase()
+  if (classCourse) {
+    const source = `${row.lectureName || ''} ${row.filePath || ''}`.toLowerCase()
+    if (!source.includes(classCourse)) {
+      return false
+    }
+  }
+  if (filters.uploadDateRange.length === 2) {
+    const createdAt = row.createdAt ? dayjs(row.createdAt) : null
+    if (!createdAt || !createdAt.isValid()) {
+      return false
+    }
+    const [start, end] = filters.uploadDateRange
+    if (createdAt.isBefore(start.startOf('day')) || createdAt.isAfter(end.endOf('day'))) {
+      return false
+    }
+  }
+  if (!matchSizeLevel(fileSizeMap.value[row.id])) {
+    return false
+  }
+  return true
+}
+
+async function fetchSizeForRow(row: LectureRow): Promise<void> {
+  if (!row.id || !row.filePath || fileSizeMap.value[row.id] != null) {
+    return
+  }
+  try {
+    const response = await fetch(row.filePath, {
+      method: 'HEAD',
+      credentials: 'include'
+    })
+    if (!response.ok) {
+      return
+    }
+    const sizeText = response.headers.get('content-length')
+    const size = sizeText ? Number(sizeText) : NaN
+    if (!Number.isNaN(size) && size >= 0) {
+      fileSizeMap.value = {
+        ...fileSizeMap.value,
+        [row.id]: size
+      }
+    }
+  } catch {
+    // ignore size probe errors
+  }
+}
+
+function hydrateRowFileSizes(list: LectureRow[]): void {
+  for (const row of list) {
+    void fetchSizeForRow(row)
+  }
+}
+
 async function refresh(): Promise<void> {
   if (!(await ensureTeacherSession())) {
     return
@@ -399,7 +694,8 @@ async function refresh(): Promise<void> {
       current: current.value,
       pageSize: pageSize.value,
       lectureName: filters.lectureName.trim() || undefined,
-      categoryId: categoryId ?? undefined
+      categoryId: categoryId ?? undefined,
+      fileExtension: filters.fileExtension || undefined
     })
 
     if (response.data?.code !== 0 || !response.data?.data) {
@@ -409,6 +705,7 @@ async function refresh(): Promise<void> {
     const pageData = response.data.data
     rows.value = (pageData.records || []) as LectureRow[]
     total.value = Number(pageData.total || 0)
+    hydrateRowFileSizes(rows.value)
   } catch (error) {
     const err = error as Error
     const msg = err.message || '查询资料失败'
@@ -433,6 +730,7 @@ function handleTableChange(pagination: PaginationConfig): void {
 }
 
 function handleSearch(): void {
+  recordRecentSearch()
   current.value = 1
   void refresh()
 }
@@ -440,6 +738,12 @@ function handleSearch(): void {
 function resetFilters(): void {
   filters.lectureName = ''
   filters.categoryInput = ''
+  filters.fileExtension = ''
+  filters.classCourseKeyword = ''
+  filters.uploadDateRange = []
+  filters.publishStatus = 'all'
+  filters.sizeLevel = 'all'
+  activeQuickTag.value = null
   current.value = 1
   void refresh()
 }
@@ -612,6 +916,7 @@ function handleDelete(row: LectureRow): void {
 }
 
 onMounted(async () => {
+  loadSearchMeta()
   await refresh()
 })
 </script>
@@ -622,6 +927,31 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+.toolbar-date {
+  min-width: 240px;
+}
+.toolbar-hint {
+  margin-top: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.quick-tags {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.saved-filters {
+  margin-top: 10px;
+}
+.tag-title {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.clickable-tag {
+  cursor: pointer;
 }
 
 .toolbar-input {
