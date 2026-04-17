@@ -13,6 +13,8 @@ import com.springboot.model.entity.exam.RelPaperQuestion;
 import com.springboot.model.vo.exam.RelPaperQuestionVO;
 import com.springboot.service.exam.RelPaperQuestionService;
 import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,46 @@ public class RelPaperQuestionController {
 
     @Resource
     private RelPaperQuestionService relPaperQuestionService;
+
+    @GetMapping("/list/byPaper")
+    public BaseResponse<List<RelPaperQuestion>> listByPaper(@RequestParam Long paperId) {
+        return ResultUtils.success(relPaperQuestionService.listByPaperId(paperId));
+    }
+
+    @PostMapping("/paper/add")
+    public BaseResponse<Boolean> addQuestionToPaper(@RequestBody Map<String, Object> request) {
+        return ResultUtils.success(relPaperQuestionService.addQuestionToPaper(
+                toLong(request.get("paperId")),
+                toLong(request.get("questionId")),
+                toInteger(request.get("score")),
+                toInteger(request.get("questionOrder")),
+                request.get("sectionName") == null ? null : String.valueOf(request.get("sectionName"))));
+    }
+
+    @PostMapping("/paper/update")
+    public BaseResponse<Boolean> updatePaperQuestion(@RequestBody Map<String, Object> request) {
+        return ResultUtils.success(relPaperQuestionService.updatePaperQuestion(
+                toLong(request.get("id")),
+                toInteger(request.get("score")),
+                request.get("sectionName") == null ? null : String.valueOf(request.get("sectionName"))));
+    }
+
+    @PostMapping("/paper/remove")
+    public BaseResponse<Boolean> removeQuestionFromPaper(@RequestParam Long id) {
+        return ResultUtils.success(relPaperQuestionService.removeQuestionFromPaper(id));
+    }
+
+    @PostMapping("/paper/reorder")
+    public BaseResponse<Boolean> reorderPaperQuestions(@RequestBody Map<String, Object> request) {
+        Object raw = request.get("questionIds");
+        List<Long> ids = new java.util.ArrayList<>();
+        if (raw instanceof List<?> list) {
+            for (Object item : list) {
+                ids.add(toLong(item));
+            }
+        }
+        return ResultUtils.success(relPaperQuestionService.reorderPaperQuestions(toLong(request.get("paperId")), ids));
+    }
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addRelPaperQuestion(@RequestBody RelPaperQuestionAddRequest addRequest) {
@@ -94,5 +136,25 @@ public class RelPaperQuestionController {
         ThrowUtils.throwIf(size > 50, ErrorCode.PARAMS_ERROR);
         Page<RelPaperQuestion> page = relPaperQuestionService.page(new Page<>(current, size), relPaperQuestionService.getQueryWrapper(queryRequest));
         return ResultUtils.success(relPaperQuestionService.getRelPaperQuestionVOPage(page, null));
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(String.valueOf(value));
+    }
+
+    private Integer toInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return Integer.parseInt(String.valueOf(value));
     }
 }

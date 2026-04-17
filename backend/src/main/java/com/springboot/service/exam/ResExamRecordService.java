@@ -7,6 +7,8 @@ import com.springboot.model.dto.exam.ResExamRecordQueryRequest;
 import com.springboot.model.entity.exam.ResExamRecord;
 import com.springboot.model.vo.exam.ResExamRecordVO;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 public interface ResExamRecordService extends IService<ResExamRecord> {
 
@@ -17,4 +19,16 @@ public interface ResExamRecordService extends IService<ResExamRecord> {
     ResExamRecordVO getResExamRecordVO(ResExamRecord resExamRecord, HttpServletRequest request);
 
     Page<ResExamRecordVO> getResExamRecordVOPage(Page<ResExamRecord> entityPage, HttpServletRequest request);
+
+    Map<String, Object> submitExam(Long examId, Long studentId, Map<String, Object> answers);
+
+    List<Map<String, Object>> listExamRecordCards(Long examId);
+
+    List<Map<String, Object>> listStudentAnswerRecords(Long examId);
+
+    Map<String, Object> getStudentAnswerRecordDetail(Long recordId);
+
+    boolean gradeAnswer(Long recordId, Long questionId, Integer score, String comment);
+
+    Map<String, Object> getScoreStatistics(Long examId);
 }

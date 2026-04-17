@@ -7,6 +7,8 @@ import com.springboot.model.dto.exam.EduQuestionTypeQueryRequest;
 import com.springboot.model.entity.exam.EduQuestionType;
 import com.springboot.model.vo.exam.EduQuestionTypeVO;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 public interface EduQuestionTypeService extends IService<EduQuestionType> {
 
@@ -17,4 +19,6 @@ public interface EduQuestionTypeService extends IService<EduQuestionType> {
     EduQuestionTypeVO getEduQuestionTypeVO(EduQuestionType eduQuestionType, HttpServletRequest request);
 
     Page<EduQuestionTypeVO> getEduQuestionTypeVOPage(Page<EduQuestionType> entityPage, HttpServletRequest request);
+
+    List<Map<String, Object>> listAllTypes();
 }

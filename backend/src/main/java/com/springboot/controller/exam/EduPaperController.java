@@ -13,6 +13,8 @@ import com.springboot.model.entity.exam.EduPaper;
 import com.springboot.model.vo.exam.EduPaperVO;
 import com.springboot.service.exam.EduPaperService;
 import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,21 @@ public class EduPaperController {
 
     @Resource
     private EduPaperService eduPaperService;
+
+    @GetMapping("/detail")
+    public BaseResponse<Map<String, Object>> getPaperDetail(@RequestParam Long id) {
+        return ResultUtils.success(eduPaperService.getPaperDetail(id));
+    }
+
+    @GetMapping("/list/all")
+    public BaseResponse<List<Map<String, Object>>> listAllPapers() {
+        return ResultUtils.success(eduPaperService.listAllPaperOptions());
+    }
+
+    @PostMapping("/list/page/full")
+    public BaseResponse<Map<String, Object>> listPaperPageFull(@RequestBody EduPaperQueryRequest queryRequest) {
+        return ResultUtils.success(eduPaperService.listPaperPage(queryRequest));
+    }
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduPaper(@RequestBody EduPaperAddRequest addRequest) {

@@ -7,6 +7,8 @@ import com.springboot.model.dto.exam.EduPaperQueryRequest;
 import com.springboot.model.entity.exam.EduPaper;
 import com.springboot.model.vo.exam.EduPaperVO;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 public interface EduPaperService extends IService<EduPaper> {
 
@@ -17,4 +19,10 @@ public interface EduPaperService extends IService<EduPaper> {
     EduPaperVO getEduPaperVO(EduPaper eduPaper, HttpServletRequest request);
 
     Page<EduPaperVO> getEduPaperVOPage(Page<EduPaper> entityPage, HttpServletRequest request);
+
+    Map<String, Object> listPaperPage(EduPaperQueryRequest queryRequest);
+
+    Map<String, Object> getPaperDetail(Long paperId);
+
+    List<Map<String, Object>> listAllPaperOptions();
 }

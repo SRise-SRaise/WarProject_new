@@ -2,7 +2,7 @@ USE edu_hub;
 
 DROP TRIGGER IF EXISTS `trg_res_exam_record_auto_grade_before_insert`;
 
-DELIMITER ;;
+DELIMITER ;
 
 CREATE TRIGGER `trg_res_exam_record_auto_grade_before_insert`
 BEFORE INSERT ON `res_exam_record`
