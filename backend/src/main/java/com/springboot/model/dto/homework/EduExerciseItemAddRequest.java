@@ -16,5 +16,13 @@ public class EduExerciseItemAddRequest implements Serializable {
 
     private Integer questionType;
 
+    private Integer maxScore;
+
+    private Long questionBankId;
+
+    private String analysis;
+
+    private Integer difficulty;
+
     private static final long serialVersionUID = 1L;
 }

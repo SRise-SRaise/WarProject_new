@@ -22,11 +22,13 @@ myAxios.interceptors.request.use(
 // 全局响应拦截器
 myAxios.interceptors.response.use(
   async function (response) {
+    const res = response.data
+    if (res && res.code !== undefined && res.code !== 0) {
+      return Promise.reject(new Error(res.message || '请求失败'))
+    }
     return response
   },
   function (error) {
-    // Any status codes that falls outside the range of 2xx cause this function to trigger
-    // Do something with response error
     return Promise.reject(error)
   },
 )

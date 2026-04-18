@@ -16,50 +16,54 @@
     </section>
 
     <section class="app-surface-card app-section-card app-panel-grid">
-      <a-table :columns="columns" :data-source="homeworks" row-key="id" :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'title'">
-            <div class="row-title-cell">
-              <h3 class="row-title">{{ record.title }}</h3>
-              <p class="row-subtitle">{{ record.summary }}</p>
-            </div>
-          </template>
+      <a-spin :spinning="loading">
+        <a-table :columns="columns" :data-source="homeworks" row-key="id" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'title'">
+              <div class="row-title-cell">
+                <h3 class="row-title">{{ record.title }}</h3>
+                <p class="row-subtitle">{{ record.summary }}</p>
+              </div>
+            </template>
 
-          <template v-else-if="column.key === 'status'">
-            <StatusTag :type="statusTone(record.status)" :label="statusLabel(record.status)" />
-          </template>
+            <template v-else-if="column.key === 'status'">
+              <StatusTag :type="statusTone(record.status)" :label="statusLabel(record.status)" />
+            </template>
 
-          <template v-else-if="column.key === 'progress'">
-            <span class="app-inline-stat">{{ record.reviewedCount }} / {{ record.submissionCount }}</span>
-          </template>
+            <template v-else-if="column.key === 'progress'">
+              <span class="app-inline-stat">{{ record.reviewedCount }} / {{ record.submissionCount }}</span>
+            </template>
 
-          <template v-else-if="column.key === 'action'">
-            <a-space :size="8" wrap>
-              <a-button size="small" @click="router.push(`/admin/homework/edit/${record.id}`)">编辑</a-button>
-              <a-button type="primary" size="small" @click="router.push(`/admin/homework/assign/${record.id}`)">布置</a-button>
-              <a-popconfirm title="确认删除该作业？" ok-text="删除" cancel-text="取消" @confirm="deleteHomework(record.id)">
-                <a-button size="small" danger>删除</a-button>
-              </a-popconfirm>
-              <a-button size="small" @click="router.push(`/admin/homework/submissions/${record.id}`)">提交记录</a-button>
-            </a-space>
+            <template v-else-if="column.key === 'action'">
+              <a-space :size="8" wrap>
+                <a-button size="small" @click="router.push(`/admin/homework/edit/${record.id}`)">编辑</a-button>
+                <a-button type="primary" size="small" @click="router.push(`/admin/homework/assign/${record.id}`)">布置</a-button>
+                <a-popconfirm title="确认删除该作业？" ok-text="删除" cancel-text="取消" @confirm="deleteHomework(record.id)">
+                  <a-button size="small" danger>删除</a-button>
+                </a-popconfirm>
+                <a-button size="small" @click="router.push(`/admin/homework/submissions/${record.id}`)">提交记录</a-button>
+              </a-space>
+            </template>
           </template>
-        </template>
-      </a-table>
+        </a-table>
+      </a-spin>
       <p class="weak-tip">提交记录与作业批改为次级入口，默认不占用主导航层级。</p>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import MetricCard from '@/components/common/MetricCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
+import { listEduExerciseVoByPage, deleteEduExercise } from '@/api/eduExerciseController'
 
 type HomeworkAdminStatus = 'draft' | 'published' | 'reviewing' | 'closed'
 
-interface HomeworkAdminMock {
+interface HomeworkAdminItem {
   id: string
   title: string
   topicLabel: string
@@ -72,47 +76,10 @@ interface HomeworkAdminMock {
   reviewedCount: number
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /t_excercise_list.do
-const homeworks = ref<HomeworkAdminMock[]>([
-  {
-    id: 'hw-101',
-    title: '需求分析作业一：角色旅程拆解',
-    topicLabel: '需求分析专题',
-    status: 'published',
-    summary: '组织学生输出角色旅程与验收边界分析。',
-    publishScope: '软工 2401 / 2402',
-    deadline: '2026-04-20 20:00',
-    updatedAt: '今天 10:25',
-    submissionCount: 31,
-    reviewedCount: 18
-  },
-  {
-    id: 'hw-102',
-    title: '界面结构复盘报告',
-    topicLabel: '界面实现专题',
-    status: 'reviewing',
-    summary: '要求学生复盘页面结构拆分与状态归属。',
-    publishScope: '前端 2401',
-    deadline: '2026-04-18 18:00',
-    updatedAt: '昨天 19:12',
-    submissionCount: 26,
-    reviewedCount: 9
-  },
-  {
-    id: 'hw-103',
-    title: '课堂展示结构草案',
-    topicLabel: '公共资料区',
-    status: 'draft',
-    summary: '用于下周课堂展示的结构草案，尚未布置。',
-    publishScope: '待布置',
-    deadline: '2026-04-24 17:30',
-    updatedAt: '今天 09:03',
-    submissionCount: 0,
-    reviewedCount: 0
-  }
-])
-
 const router = useRouter()
+const loading = ref(false)
+const homeworks = ref<HomeworkAdminItem[]>([])
+const EMPTY_TEXT = '--'
 
 const publishedCount = computed(() => homeworks.value.filter((item) => item.status === 'published').length)
 const reviewingCount = computed(() => homeworks.value.filter((item) => item.status === 'reviewing').length)
@@ -142,11 +109,87 @@ function statusLabel(status: HomeworkAdminStatus): string {
   return '草稿'
 }
 
-function deleteHomework(homeworkId: string): void {
-  // 作业模块Mock数据占位符，后续需替换到真实后端接口：POST /t_excercise_delete.do
-  homeworks.value = homeworks.value.filter((item) => item.id !== homeworkId)
-  message.success('作业已删除（Mock）。')
+function toDisplayText(value: unknown, fallback = EMPTY_TEXT): string {
+  if (value === null || value === undefined) return fallback
+  const text = String(value).trim()
+  return text.length > 0 ? text : fallback
 }
+
+function formatDeadline(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim().length === 0) return EMPTY_TEXT
+  const text = String(value)
+  const parsed = dayjs(text)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : toDisplayText(text)
+}
+
+function formatPublishScope(item: any): string {
+  const rawScope = item.publishScope ?? item.classNames ?? item.className ?? item.classCodes ?? item.classCode
+  if (Array.isArray(rawScope)) {
+    return rawScope.length > 0 ? rawScope.join(' / ') : EMPTY_TEXT
+  }
+  return toDisplayText(rawScope)
+}
+
+function formatTopicLabel(item: any): string {
+  return toDisplayText(item.topicLabel ?? item.topicName ?? item.relateExpName)
+}
+
+function mapStatus(rawStatus: unknown): HomeworkAdminStatus {
+  const status = Number(rawStatus)
+  if (status === 1) return 'published'
+  if (status === 2) return 'closed'
+  return 'draft'
+}
+
+function toCount(value: unknown): number {
+  const count = Number(value)
+  return Number.isFinite(count) && count > 0 ? count : 0
+}
+
+async function loadHomeworks() {
+  loading.value = true
+  try {
+    const response = await listEduExerciseVoByPage({ current: 1, pageSize: 50 })
+
+    const records = (response as any)?.data?.data?.records ?? (response as any)?.data?.records ?? []
+    if (Array.isArray(records)) {
+      homeworks.value = records.map((item: any) => ({
+        id: String(item.id),
+        title: toDisplayText(item.taskName),
+        topicLabel: formatTopicLabel(item),
+        status: mapStatus(item.publishStatus),
+        summary: toDisplayText(item.description),
+        publishScope: formatPublishScope(item),
+        deadline: formatDeadline(item.endTime ?? item.deadline),
+        updatedAt: toDisplayText(item.updatedAt),
+        submissionCount: toCount(item.submissionCount ?? item.submitCount),
+        reviewedCount: toCount(item.reviewedCount ?? item.reviewCount)
+      }))
+    } else {
+      homeworks.value = []
+    }
+  } catch (error) {
+    console.error('加载作业列表失败:', error)
+    message.error('加载作业列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function deleteHomework(homeworkId: string) {
+  try {
+    await deleteEduExercise({ id: homeworkId })
+    message.success('作业已删除')
+    await loadHomeworks()
+  } catch (error) {
+    console.error('删除失败:', error)
+    message.error('删除失败')
+  }
+}
+
+onMounted(() => {
+  loadHomeworks()
+})
 </script>
 
 <style scoped>

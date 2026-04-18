@@ -17,4 +17,9 @@ public interface EduExerciseItemService extends IService<EduExerciseItem> {
     EduExerciseItemVO getEduExerciseItemVO(EduExerciseItem eduExerciseItem, HttpServletRequest request);
 
     Page<EduExerciseItemVO> getEduExerciseItemVOPage(Page<EduExerciseItem> entityPage, HttpServletRequest request);
+
+    /**
+     * 删除作业题目（已有作答记录时禁止删除）
+     */
+    Boolean removeExerciseItemById(Long id);
 }

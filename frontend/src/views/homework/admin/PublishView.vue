@@ -1,81 +1,202 @@
 <template>
   <div class="app-panel-grid" v-if="homework">
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="布置作业" :title="homework.title" description="配置发布班级、截止时间和补交策略，完成教师端布置动作。">
-        <template #actions>
-          <a-button @click="router.push(`/admin/homework/edit/${homework.id}`)">返回编辑</a-button>
-        </template>
-      </SectionHeader>
-    </section>
+    <div class="hw-page-header">
+      <div class="hw-page-header__left">
+        <h1 class="hw-page-header__title">布置作业：{{ homework.title }}</h1>
+        <p class="hw-page-header__desc">配置发布班级和补交策略，完成布置后作业对学生可见。</p>
+      </div>
+      <div class="hw-page-header__actions">
+        <a-button @click="router.push(`/admin/homework/edit/${homework.id}`)">返回编辑</a-button>
+      </div>
+    </div>
 
     <section class="app-split-grid">
       <section class="app-surface-card app-section-card app-panel-grid">
         <a-form layout="vertical">
-          <a-form-item label="发布范围">
-            <a-input v-model:value="assignForm.publishScope" size="large" placeholder="例如：软工 2401 / 2402" />
+          <a-form-item label="发布班级" required>
+            <a-select v-model:value="assignForm.classCodes" mode="multiple" size="large" placeholder="选择发布班级" :options="classOptions" />
           </a-form-item>
-          <a-form-item label="截止时间">
-            <a-input v-model:value="assignForm.deadline" size="large" />
+          <a-form-item label="截止时间" required>
+            <a-date-picker
+              v-model:value="assignForm.deadline"
+              size="large"
+              show-time
+              format="YYYY-MM-DD HH:mm"
+              placeholder="选择截止时间"
+              style="width: 100%"
+            />
           </a-form-item>
           <a-form-item label="允许补交">
             <a-switch v-model:checked="assignForm.allowLate" />
           </a-form-item>
-          <a-button type="primary" size="large" @click="assignHomework">确认布置</a-button>
+          <p class="hw-tip-card__text" style="margin-bottom: 12px">当前题目：{{ questionStat.count }} 题，总分 {{ questionStat.totalScore }} 分。</p>
+          <a-space :size="10" wrap>
+            <a-button size="large" :loading="draftSaving" @click="saveDraft">保存并退出</a-button>
+            <a-button type="primary" size="large" :loading="publishing" @click="assignHomework">确认布置</a-button>
+          </a-space>
         </a-form>
       </section>
 
-      <section class="app-surface-card app-section-card app-panel-grid">
-        <SectionHeader eyebrow="作业摘要" title="当前作业说明" :description="homework.summary" tight />
-        <div class="app-list">
-          <article v-for="item in homework.instructions" :key="item" class="app-list-card">
-            <p class="app-list-card__meta">{{ item }}</p>
-          </article>
+      <div class="hw-side-column">
+        <a-alert type="info" message="提示" description="确认布置后作业将对所选班级学生可见，截止前可修改布置范围。" show-icon />
+        <div v-if="homework.instructions.length > 0" class="hw-tip-card">
+          <p class="hw-tip-card__title">作业要求</p>
+          <ul class="hw-tip-list">
+            <li v-for="item in homework.instructions" :key="item">{{ item }}</li>
+          </ul>
         </div>
-      </section>
+        <div v-else class="hw-tip-card">
+          <p class="hw-tip-card__text">暂无作业要求说明。</p>
+        </div>
+      </div>
     </section>
+
+    <QuestionPickerPanel :exercise-id="resolvedExerciseId" @change="onQuestionStatChange" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import { useRoute, useRouter } from 'vue-router'
-import SectionHeader from '@/components/common/SectionHeader.vue'
+import { useAuthStore } from '@/stores/user/auth'
+import { getEduExerciseVoById, publishExercise } from '@/api/eduExerciseController'
+import { saveHomeworkAssignDraft } from '@/api/homeworkAssignmentController'
+import { listAuthClassVoByPage } from '@/api/authClassController'
+import type { HomeworkQuestionStat } from '@/types/homework/assignment'
+import QuestionPickerPanel from '@/components/homework/QuestionPickerPanel.vue'
 
-interface HomeworkAssignMock {
+interface HomeworkAssignData {
   id: string
   title: string
   summary: string
   instructions: string[]
-  publishScope: string
   deadline: string
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /t_excercise_edit.do
-const assignMock: HomeworkAssignMock[] = [
-  {
-    id: 'hw-101',
-    title: '需求分析作业一：角色旅程拆解',
-    summary: '围绕教学平台案例输出角色旅程和验收边界。',
-    instructions: ['说明三类角色任务链路。', '补充至少两条异常流。', '给出验收通过/失败口径。'],
-    publishScope: '软工 2401 / 2402',
-    deadline: '2026-04-20 20:00'
-  }
-]
-
 const route = useRoute()
 const router = useRouter()
-const homework = computed(() => assignMock.find((item) => item.id === String(route.params.id)) ?? assignMock[0])
+const authStore = useAuthStore()
+
+const homework = ref<HomeworkAssignData | null>(null)
+const publishing = ref(false)
+const draftSaving = ref(false)
+const classOptions = ref<{ label: string; value: string }[]>([])
+const questionStat = ref<HomeworkQuestionStat>({ count: 0, totalScore: 0 })
+const resolvedExerciseId = computed(() => {
+  const id = String(route.params.id || '').trim()
+  return id.length > 0 ? id : undefined
+})
 
 const assignForm = reactive({
-  publishScope: homework.value.publishScope,
-  deadline: homework.value.deadline,
+  classCodes: [] as string[],
+  deadline: null as dayjs.Dayjs | null,
   allowLate: true
 })
 
-function assignHomework(): void {
-  // 作业模块Mock数据占位符，后续需替换到真实后端接口：POST /t_excercise_assign.do
-  message.success('作业布置成功（Mock）。')
-  router.push('/admin/homework')
+async function loadData() {
+  const homeworkId = route.params.id as string
+
+  if (!homeworkId) return
+
+  try {
+    // 加载作业信息
+    const response = await getEduExerciseVoById({ id: homeworkId })
+    const exercise = response.data?.data
+
+    if (exercise) {
+      homework.value = {
+        id: homeworkId,
+        title: exercise.taskName || '',
+        summary: exercise.description || '',
+        instructions: [],
+        deadline: exercise.endTime || ''
+      }
+      if (exercise.endTime) {
+        assignForm.deadline = dayjs(exercise.endTime)
+      }
+    }
+
+    // 加载班级列表
+    const classResponse = await listAuthClassVoByPage({ current: 1, pageSize: 50 })
+    if (classResponse.data?.data?.records) {
+      classOptions.value = classResponse.data.data.records.map((cls) => ({
+        label: cls.classCode || '',
+        value: cls.classCode || ''
+      }))
+    }
+  } catch (error) {
+    console.error('加载数据失败:', error)
+  }
 }
+
+async function assignHomework() {
+  if (assignForm.classCodes.length === 0) {
+    message.error('请至少选择一个班级')
+    return
+  }
+
+if (!assignForm.deadline) {
+    message.error('请选择截止时间')
+    return
+  }
+
+  if (questionStat.value.count <= 0) {
+    message.error('请至少添加 1 道题目')
+    return
+  }
+
+  const homeworkId = route.params.id as string
+  if (!homeworkId) return
+
+publishing.value = true
+  try {
+    const endTimeValue = assignForm.deadline.format('YYYY-MM-DDTHH:mm:ss')
+    await publishExercise({
+      exerciseId: Number(homeworkId),
+      classCodes: assignForm.classCodes,
+      endTime: endTimeValue,
+      allowLate: assignForm.allowLate
+    })
+    message.success('作业布置成功')
+    router.push('/admin/homework')
+  } catch (error) {
+    console.error('布置失败:', error)
+    message.error('布置失败')
+  } finally {
+    publishing.value = false
+  }
+}
+
+function onQuestionStatChange(payload: HomeworkQuestionStat): void {
+  questionStat.value = payload
+}
+
+async function saveDraft() {
+  const homeworkId = route.params.id as string
+  if (!homeworkId) return
+
+draftSaving.value = true
+  try {
+    const endTimeValue = assignForm.deadline.format('YYYY-MM-DDTHH:mm:ss')
+    await saveHomeworkAssignDraft({
+      exerciseId: Number(homeworkId),
+      classCodes: assignForm.classCodes,
+      endTime: endTimeValue,
+      allowLate: assignForm.allowLate
+    })
+    message.success('布置草稿已保存')
+    router.push('/admin/homework')
+  } catch (error) {
+    console.error('保存草稿失败:', error)
+    message.error('保存草稿失败')
+  } finally {
+    draftSaving.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 </script>

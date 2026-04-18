@@ -23,6 +23,10 @@ public class EduExerciseVO implements Serializable {
 
     private String description;
 
+    private Integer publishStatus;
+
+    private Long teacherId;
+
     private Date startTime;
 
     private Date endTime;

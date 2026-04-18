@@ -8,7 +8,7 @@
     </section>
 
     <section class="app-kpi-grid">
-      <MetricCard title="作业总数" :value="String(homeworkListMock.length)" description="当前学期所有已发布作业。" tone="primary" />
+      <MetricCard title="作业总数" :value="String(homeworks.length)" description="当前学期所有已发布作业。" tone="primary" />
       <MetricCard title="待完成" :value="String(pendingCount)" description="建议优先处理临近截止任务。" tone="warning" />
       <MetricCard title="已提交" :value="String(submittedCount)" description="等待教师批阅的作业数量。" tone="success" />
       <MetricCard title="已批阅" :value="String(reviewedCount)" description="已可查看得分和反馈。" tone="accent" />
@@ -21,32 +21,35 @@
         <a-button size="large" @click="resetFilters">重置筛选</a-button>
       </div>
 
-      <a-table :columns="columns" :data-source="filteredHomeworks" row-key="id" :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <StatusTag :type="statusTone(record.status)" :label="statusLabel(record.status)" />
+      <a-spin :spinning="loading">
+        <a-table :columns="columns" :data-source="filteredHomeworks" row-key="id" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'">
+              <StatusTag :type="statusTone(record.status)" :label="statusLabel(record.status)" />
+            </template>
+            <template v-else-if="column.key === 'title'">
+              <div class="row-title-cell">
+                <h3 class="row-title">{{ record.title }}</h3>
+                <p class="row-subtitle">{{ record.summary }}</p>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a-space :size="8" wrap>
+                <a-button type="primary" size="small" @click="router.push(`/homework/${record.id}/do`)">做作业</a-button>
+                <a-button size="small" @click="router.push(`/homework/${record.id}/score`)">查看成绩</a-button>
+              </a-space>
+            </template>
           </template>
-          <template v-else-if="column.key === 'title'">
-            <div class="row-title-cell">
-              <h3 class="row-title">{{ record.title }}</h3>
-              <p class="row-subtitle">{{ record.summary }}</p>
-            </div>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space :size="8" wrap>
-              <a-button type="primary" size="small" @click="router.push(`/homework/${record.id}/do`)">做作业</a-button>
-              <a-button size="small" @click="router.push(`/homework/${record.id}/score`)">查看成绩</a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+        </a-table>
+      </a-spin>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useHomeworkStudentStore } from '@/stores/homework/student'
 import MetricCard from '@/components/common/MetricCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 
@@ -64,45 +67,10 @@ interface HomeworkListItem {
   tags: string[]
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /s_excercise_list.do
-const homeworkListMock: HomeworkListItem[] = [
-  {
-    id: 'hw-101',
-    title: '需求分析作业一：角色旅程拆解',
-    topicLabel: '需求分析专题',
-    teacher: '周老师',
-    deadline: '2026-04-20 20:00',
-    openTime: '2026-04-14 08:00',
-    summary: '输出学生、教师两类角色旅程并标注关键异常流。',
-    status: 'pending',
-    tags: ['角色旅程', '场景拆解']
-  },
-  {
-    id: 'hw-102',
-    title: '界面结构复盘报告',
-    topicLabel: '界面实现专题',
-    teacher: '林老师',
-    deadline: '2026-04-18 18:00',
-    openTime: '2026-04-10 09:00',
-    summary: '复盘壳层、页面层、共享组件层的边界划分。',
-    status: 'submitted',
-    tags: ['Vue3', '组件拆分']
-  },
-  {
-    id: 'hw-103',
-    title: '阶段测验错题复盘',
-    topicLabel: '结构训练专题',
-    teacher: '陈老师',
-    deadline: '2026-04-12 17:00',
-    openTime: '2026-04-06 10:00',
-    summary: '总结三道高频错题并输出后续改进计划。',
-    status: 'reviewed',
-    tags: ['错题复盘', '结构训练']
-  }
-]
-
 const router = useRouter()
 const route = useRoute()
+const homeworkStore = useHomeworkStudentStore()
+
 const keyword = ref('')
 const statusFilter = ref<'all' | HomeworkStatus>('all')
 
@@ -114,9 +82,13 @@ const statusOptions = [
   { label: '已逾期', value: 'overdue' }
 ]
 
+// 从Store获取数据
+const homeworks = computed<HomeworkListItem[]>(() => homeworkStore.homeworks)
+const loading = computed(() => homeworkStore.loading)
+
 const filteredHomeworks = computed(() => {
   const lowerKeyword = keyword.value.trim().toLowerCase()
-  return homeworkListMock.filter((item) => {
+  return homeworks.value.filter((item) => {
     const byKeyword = lowerKeyword.length === 0
       || item.title.toLowerCase().includes(lowerKeyword)
       || item.topicLabel.toLowerCase().includes(lowerKeyword)
@@ -125,9 +97,9 @@ const filteredHomeworks = computed(() => {
   })
 })
 
-const pendingCount = computed(() => homeworkListMock.filter((item) => item.status === 'pending').length)
-const submittedCount = computed(() => homeworkListMock.filter((item) => item.status === 'submitted').length)
-const reviewedCount = computed(() => homeworkListMock.filter((item) => item.status === 'reviewed').length)
+const pendingCount = computed(() => homeworks.value.filter((item) => item.status === 'pending').length)
+const submittedCount = computed(() => homeworks.value.filter((item) => item.status === 'submitted').length)
+const reviewedCount = computed(() => homeworks.value.filter((item) => item.status === 'reviewed').length)
 
 const columns = [
   { title: '作业', dataIndex: 'title', key: 'title' },
@@ -157,6 +129,11 @@ function statusLabel(status: HomeworkStatus): string {
   if (status === 'reviewed') return '已批阅'
   return '已逾期'
 }
+
+// 初始化时加载数据
+onMounted(async () => {
+  await homeworkStore.refresh()
+})
 
 watch(
   () => route.query.status,

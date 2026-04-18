@@ -1,68 +1,116 @@
 <template>
   <div class="app-panel-grid">
-    <section class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="题目管理" title="作业题目列表" description="独立管理题库题目，供教师在新增/编辑作业时选择组卷。">
-        <template #actions>
-          <a-button type="primary" @click="router.push('/admin/questions/add')">新增题目</a-button>
-        </template>
-      </SectionHeader>
-    </section>
+    <div class="hw-page-header">
+      <div class="hw-page-header__left">
+        <h1 class="hw-page-header__title">题目列表</h1>
+        <p class="hw-page-header__desc">独立管理题库题目，供教师在新增/编辑作业时选择组卷。</p>
+      </div>
+      <div class="hw-page-header__actions">
+        <a-button type="primary" @click="router.push('/admin/questions/add')">新增题目</a-button>
+      </div>
+    </div>
 
-    <section class="app-surface-card app-section-card app-panel-grid">
+    <section class="app-surface-card app-section-card">
       <div class="question-toolbar">
         <a-input v-model:value="keyword" allow-clear size="large" placeholder="搜索题干或标签" />
         <a-select v-model:value="typeFilter" size="large" :options="typeOptions" />
       </div>
-      <a-table :columns="columns" :data-source="filteredQuestions" row-key="id" :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'type'">
-            <a-tag>{{ record.type }}</a-tag>
+      <a-spin :spinning="loading">
+        <a-table :columns="columns" :data-source="filteredQuestions" row-key="id" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'type'">
+              <a-tag>{{ record.type }}</a-tag>
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a-space :size="8">
+                <a-button type="link" @click="router.push(`/admin/questions/edit/${record.id}`)">编辑</a-button>
+                <a-popconfirm title="确认删除该题目？" ok-text="删除" cancel-text="取消" @confirm="deleteQuestion(record.id)">
+                  <a-button type="link" danger>删除</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
           </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space :size="8">
-              <a-button type="link" @click="router.push(`/admin/questions/edit/${record.id}`)">编辑</a-button>
-              <a-popconfirm title="确认删除该题目？" ok-text="删除" cancel-text="取消" @confirm="deleteQuestion(record.id)">
-                <a-button type="link" danger>删除</a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+        </a-table>
+      </a-spin>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
-import SectionHeader from '@/components/common/SectionHeader.vue'
+import { deleteEduExerciseItem, listEduExerciseItemVoByPage } from '@/api/eduExerciseItemController'
 
 interface QuestionItem {
   id: string
   stem: string
-  type: '单选' | '多选' | '填空' | '简答'
+  type: '填空' | '单选' | '多选' | '判断' | '简答'
   tags: string
   updatedAt: string
 }
 
-// 作业模块Mock数据占位符，后续需替换到真实后端接口：GET /t_question_list.do
-const questionMock = ref<QuestionItem[]>([
-  { id: 'q-101', stem: '角色旅程首层分段最优方式是什么？', type: '单选', tags: '需求分析 / 角色旅程', updatedAt: '2026-04-15 09:20' },
-  { id: 'q-102', stem: '哪些内容必须出现在验收边界中？', type: '多选', tags: '验收口径 / 需求边界', updatedAt: '2026-04-14 18:30' },
-  { id: 'q-103', stem: '请填写“异常流”的定义。', type: '填空', tags: '基础概念', updatedAt: '2026-04-13 11:05' },
-  { id: 'q-104', stem: '简述角色旅程图的核心价值。', type: '简答', tags: '分析表达', updatedAt: '2026-04-12 16:40' }
-])
-
 const router = useRouter()
+const loading = ref(false)
+const questions = ref<QuestionItem[]>([])
 const keyword = ref('')
 const typeFilter = ref<'all' | QuestionItem['type']>('all')
 
+const typeMap: Record<number, QuestionItem['type']> = {
+  1: '填空',
+  2: '单选',
+  3: '多选',
+  4: '判断',
+  5: '简答'
+}
+
+function formatDateText(value?: string): string {
+  if (!value) return '--'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  const hour = String(parsed.getHours()).padStart(2, '0')
+  const minute = String(parsed.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
+function buildTags(item: API.EduExerciseItemVO): string {
+  const labels: string[] = []
+  if (item.exerciseId) labels.push(`作业 ${item.exerciseId}`)
+  if (item.questionType) labels.push(typeMap[item.questionType] || '未知题型')
+  return labels.length > 0 ? labels.join(' / ') : '--'
+}
+
+async function loadQuestions(): Promise<void> {
+  loading.value = true
+  try {
+    const response = await listEduExerciseItemVoByPage({ current: 1, pageSize: 50 })
+    const records = (response as any)?.data?.data?.records ?? (response as any)?.data?.records ?? []
+    questions.value = Array.isArray(records)
+      ? records.map((item: API.EduExerciseItemVO) => ({
+          id: String(item.id || ''),
+          stem: item.question || '',
+          type: typeMap[item.questionType || 1] || '填空',
+          tags: buildTags(item),
+          updatedAt: formatDateText(item.updatedAt)
+        }))
+      : []
+  } catch (error) {
+    console.error('加载题目列表失败:', error)
+    message.error('加载题目列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 const typeOptions = [
   { label: '全部题型', value: 'all' },
+  { label: '填空', value: '填空' },
   { label: '单选', value: '单选' },
   { label: '多选', value: '多选' },
-  { label: '填空', value: '填空' },
+  { label: '判断', value: '判断' },
   { label: '简答', value: '简答' }
 ]
 
@@ -76,18 +124,27 @@ const columns = [
 
 const filteredQuestions = computed(() => {
   const lowerKeyword = keyword.value.trim().toLowerCase()
-  return questionMock.value.filter((item) => {
+  return questions.value.filter((item) => {
     const byKeyword = lowerKeyword.length === 0 || item.stem.toLowerCase().includes(lowerKeyword) || item.tags.toLowerCase().includes(lowerKeyword)
     const byType = typeFilter.value === 'all' || item.type === typeFilter.value
     return byKeyword && byType
   })
 })
 
-function deleteQuestion(questionId: string): void {
-  // 作业模块Mock数据占位符，后续需替换到真实后端接口：POST /t_question_delete.do
-  questionMock.value = questionMock.value.filter((item) => item.id !== questionId)
-  message.success('题目已删除（Mock）。')
+async function deleteQuestion(questionId: string): Promise<void> {
+  try {
+    await deleteEduExerciseItem({ id: questionId })
+    message.success('题目已删除')
+    await loadQuestions()
+  } catch (error) {
+    console.error('删除题目失败:', error)
+    message.error('删除题目失败')
+  }
 }
+
+onMounted(() => {
+  loadQuestions()
+})
 </script>
 
 <style scoped>
@@ -95,6 +152,7 @@ function deleteQuestion(questionId: string): void {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) 220px;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 @media (max-width: 960px) {
