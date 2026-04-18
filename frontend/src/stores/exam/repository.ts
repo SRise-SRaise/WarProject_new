@@ -294,7 +294,7 @@ function mapStudentAnswerRecord(raw: UnknownMap): StudentAnswerRecord {
     studentName: toStringValue(raw.studentName),
     studentNo: toStringValue(raw.studentNo),
     className: toStringValue(raw.className),
-    submittedAt: toStringValue(raw.submittedAt),
+    submittedAt: toOptionalString(raw.submittedAt) ?? '--',
     totalScore: toNumber(raw.totalScore),
     earnedScore: toNumber(raw.earnedScore),
     status: status === 'graded' ? 'graded' : status === 'grading' ? 'grading' : 'submitted',
