@@ -15,7 +15,7 @@ public class ResExperimentResultAddRequest implements Serializable {
 
     private Integer score;
 
-    private Date submittedAt;
+    private Date fillTime;
 
     private Integer gradingStatus;
 

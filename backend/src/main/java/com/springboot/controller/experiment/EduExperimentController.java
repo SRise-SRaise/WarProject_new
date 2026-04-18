@@ -6,16 +6,25 @@ import com.springboot.common.ErrorCode;
 import com.springboot.common.ResultUtils;
 import com.springboot.exception.BusinessException;
 import com.springboot.exception.ThrowUtils;
+import com.springboot.mapper.experiment.EduExperimentItemMapper;
+import com.springboot.mapper.experiment.ResExperimentResultMapper;
+import com.springboot.mapper.user.AuthStudentMapper;
+import com.springboot.mapper.user.AuthClassMapper;
 import com.springboot.model.dto.experiment.DocxImportRequest;
 import com.springboot.model.dto.experiment.EduExperimentAddRequest;
 import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
 import com.springboot.model.dto.experiment.EduExperimentUpdateRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
+import com.springboot.model.entity.experiment.EduExperimentItem;
+import com.springboot.model.entity.experiment.ResExperimentResult;
+import com.springboot.model.entity.user.AuthClass;
+import com.springboot.model.entity.user.AuthStudent;
 import com.springboot.model.vo.experiment.DocxImportResult;
 import com.springboot.model.vo.experiment.EduExperimentVO;
 import com.springboot.service.experiment.EduExperimentQuestionService;
 import com.springboot.service.experiment.EduExperimentService;
 import com.springboot.utils.DocxTemplateGenerator;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -31,6 +40,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/experiment/eduExperiment")
 public class EduExperimentController {
@@ -40,6 +52,18 @@ public class EduExperimentController {
 
     @Resource
     private EduExperimentQuestionService eduExperimentQuestionService;
+
+    @Resource
+    private EduExperimentItemMapper eduExperimentItemMapper;
+
+    @Resource
+    private ResExperimentResultMapper resExperimentResultMapper;
+
+    @Resource
+    private AuthStudentMapper authStudentMapper;
+
+    @Resource
+    private AuthClassMapper authClassMapper;
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduExperiment(@RequestBody EduExperimentAddRequest addRequest) {
@@ -85,6 +109,63 @@ public class EduExperimentController {
         return ResultUtils.success(eduExperimentService.getEduExperimentVO(entity, null));
     }
 
+    /**
+     * 获取实验相关的班级列表
+     */
+    @GetMapping("/classes")
+    public BaseResponse<List<String>> getExperimentClasses(@RequestParam Long experimentId) {
+        if (experimentId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+
+        // 查询实验下的所有题目
+        QueryWrapper<EduExperimentItem> itemQuery = new QueryWrapper<>();
+        itemQuery.eq("experiment_id", experimentId);
+        List<EduExperimentItem> items = eduExperimentItemMapper.selectList(itemQuery);
+
+        if (items == null || items.isEmpty()) {
+            return ResultUtils.success(Collections.emptyList());
+        }
+
+        Set<Long> itemIds = items.stream().map(EduExperimentItem::getId).collect(Collectors.toSet());
+
+        // 查询所有提交了答案的学生ID
+        QueryWrapper<ResExperimentResult> resultQuery = new QueryWrapper<>();
+        resultQuery.in("item_id", itemIds);
+        resultQuery.select("student_id");
+        List<ResExperimentResult> results = resExperimentResultMapper.selectList(resultQuery);
+
+        Set<Long> studentIds = results.stream()
+                .map(ResExperimentResult::getStudentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (studentIds.isEmpty()) {
+            return ResultUtils.success(Collections.emptyList());
+        }
+
+        // 查询学生及其班级信息
+        List<AuthStudent> students = authStudentMapper.selectBatchIds(studentIds);
+        Set<String> classCodes = students.stream()
+                .map(AuthStudent::getClassCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (classCodes.isEmpty()) {
+            return ResultUtils.success(Collections.emptyList());
+        }
+
+        // 查询班级信息
+        List<AuthClass> classes = authClassMapper.selectBatchIds(classCodes);
+        List<String> classList = classes.stream()
+                .map(AuthClass::getClassCode)
+                .filter(Objects::nonNull)
+                .sorted()
+                .collect(Collectors.toList());
+
+        return ResultUtils.success(classList);
+    }
+
     @PostMapping("/list/page")
     public BaseResponse<Page<EduExperiment>> listEduExperimentByPage(@RequestBody EduExperimentQueryRequest queryRequest) {
         if (queryRequest == null) {
@@ -103,7 +184,7 @@ public class EduExperimentController {
         }
         long current = queryRequest.getCurrent();
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > 50, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR, "每页数量不能超过200");
         Page<EduExperiment> page = eduExperimentService.page(new Page<>(current, size), eduExperimentService.getQueryWrapper(queryRequest));
         return ResultUtils.success(eduExperimentService.getEduExperimentVOPage(page, null));
     }

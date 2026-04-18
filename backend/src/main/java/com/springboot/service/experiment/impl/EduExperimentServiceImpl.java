@@ -23,10 +23,17 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
     @Override
     public QueryWrapper<EduExperiment> getQueryWrapper(EduExperimentQueryRequest queryRequest) {
         if (queryRequest == null) {
-            return ServiceMethodSupport.buildQueryWrapper(null);
+            return new QueryWrapper<>();
         }
         queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
-        return ServiceMethodSupport.buildQueryWrapper(queryRequest);
+        QueryWrapper<EduExperiment> queryWrapper = new QueryWrapper<>();
+        String sortField = queryRequest.getSortField();
+        String sortOrder = queryRequest.getSortOrder();
+        if (sortField != null && !sortField.isEmpty()) {
+            boolean isAsc = "ascend".equals(sortOrder);
+            queryWrapper.orderBy(true, isAsc, sortField);
+        }
+        return queryWrapper;
     }
 
     @Override

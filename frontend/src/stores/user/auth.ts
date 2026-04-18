@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { login as loginApi, register as registerApi } from '@/api/authController'
+import { login as loginApi, register as registerApi, getLoginUser1 } from '@/api/authController'
 import { CommonUtil } from '@/utils'
 import {
   buildDisplayName,
@@ -235,19 +235,40 @@ async function tryApiLogin(credentials: AuthCredentials): Promise<UserSession | 
       loginAccount: credentials.account,
       loginPassword: credentials.password
     })
-    const payload = response.data?.data?.loginPrincipal as Record<string, unknown> | undefined
-    if (!payload) {
-      return null
+    
+    // 尝试从不同位置获取用户数据
+    let userId: string | number | undefined
+    let loginAccount: string | undefined
+    let displayName: string | undefined
+    
+    // 优先从 loginPrincipal 获取
+    const loginPrincipal = response.data?.data?.loginPrincipal
+    if (loginPrincipal) {
+      userId = loginPrincipal.userId
+      loginAccount = loginPrincipal.loginAccount
+      displayName = loginPrincipal.displayName
     }
-    const matchedAccount = mergeAccounts().find((item) => item.account === credentials.account)
-    const account = matchedAccount ?? {
-      id: typeof payload.userId === 'number' ? String(payload.userId) : CommonUtil.generateId(role),
-      account: (typeof payload.loginAccount === 'string' ? payload.loginAccount : credentials.account),
-      password: credentials.password,
-      role,
-      name: inferNameFromPayload(payload, credentials.account, role)
+    
+    // 如果 loginPrincipal 为空，尝试直接从 data 获取
+    if (!userId && response.data?.data) {
+      const data = response.data.data
+      userId = data.userId
+      loginAccount = data.loginAccount
+      displayName = data.displayName || data.name
     }
-    return buildSessionFromAccount(account)
+    
+    // 如果找到 userId，使用它构建 session
+    if (userId) {
+      return buildSessionFromAccount({
+        id: String(userId),
+        account: loginAccount || credentials.account,
+        password: credentials.password,
+        role,
+        name: displayName || buildDisplayName(credentials.account, role)
+      })
+    }
+    
+    return null
   } catch {
     return null
   }
@@ -331,6 +352,26 @@ export const useAuthStore = defineStore('user-auth', () => {
     }
   }
 
+  async function refreshSessionFromServer(): Promise<void> {
+    try {
+      const response = await getLoginUser1()
+      const data = response.data?.data
+      if (data && session.value) {
+        session.value = {
+          ...session.value,
+          id: String(data.userId ?? session.value.id),
+          name: data.displayName ?? data.name ?? session.value.name,
+          account: data.loginAccount ?? session.value.account,
+          classCode: data.classCode ?? session.value.classCode,
+          major: data.major ?? session.value.major
+        }
+        writeStoredSession(session.value)
+      }
+    } catch (err) {
+      console.warn('[Auth] 刷新 session 失败:', err)
+    }
+  }
+
   function logout(): void {
     session.value = null
     writeStoredSession(null)
@@ -362,6 +403,7 @@ export const useAuthStore = defineStore('user-auth', () => {
     login,
     register,
     logout,
-    updateProfile
+    updateProfile,
+    refreshSessionFromServer
   }
 })
