@@ -1,4 +1,5 @@
 import type { AxiosResponse } from 'axios'
+import request from '@/request'
 import {
   addExamCustom,
   deleteEduExam,
@@ -661,6 +662,15 @@ export const examRepository = {
       earnedScore: toNumber(raw.earnedScore),
       questionScores,
     }
+  },
+
+  async getStudentExamResult(examId: number): Promise<{ record: StudentAnswerRecord; exam: Exam } | null> {
+    const response = await request.get('/exam/resExamRecord/student/result', { params: { examId } })
+    const raw = unwrapMap(response, '获取学生考试结果')
+    const record = isRecord(raw.record) ? mapStudentAnswerRecord(raw.record) : null
+    const exam = isRecord(raw.exam) ? mapExam(raw.exam) : null
+    if (!record || !exam) return null
+    return { record, exam }
   },
 
   async getStudentAnswerRecords(examId: number): Promise<StudentAnswerRecord[]> {

@@ -7,6 +7,7 @@ const EXAM_SUBMISSION_STORAGE_KEY = 'eduhub.exam.student.submissions'
 const AUTH_SESSION_STORAGE_KEY = 'eduhub.auth.session'
 
 type ReleaseMode = 'immediate' | 'pending_teacher'
+type ReleaseSource = 'auto' | 'teacher'
 
 interface SubmissionQuestionSnapshot {
   id: number
@@ -24,6 +25,7 @@ interface StoredExamSubmission {
   objectiveScore: number
   finalScore: number | null
   releaseMode: ReleaseMode
+  releaseSource: ReleaseSource
   answers: Record<number, string | string[]>
   questionScores: Record<number, { earned: number; max: number }>
   paper: {
@@ -139,9 +141,47 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     return true
   }
 
-  function loadSubmissionResult(examId: number): StoredExamSubmission | null {
-    currentSubmission.value = getSubmission(examId)
-    return currentSubmission.value
+  function buildQuestionScoresFromRecord(record: { answers: Record<number, { autoScore: number | null; manualScore: number | null; maxScore: number }> }): Record<number, { earned: number; max: number }> {
+    return Object.fromEntries(
+      Object.entries(record.answers).map(([questionId, item]) => {
+        const earned = (item.autoScore ?? 0) + (item.manualScore ?? 0)
+        return [Number(questionId), { earned, max: item.maxScore }]
+      }),
+    )
+  }
+
+  async function syncSubmissionResult(examId: number): Promise<StoredExamSubmission | null> {
+    const existing = getSubmission(examId)
+    if (!existing) return null
+    try {
+      const backend = await examRepository.getStudentExamResult(examId)
+      if (!backend) {
+        currentSubmission.value = existing
+        return existing
+      }
+      const releaseMode: ReleaseMode = backend.record.status === 'graded' ? 'immediate' : 'pending_teacher'
+      const updated: StoredExamSubmission = {
+        ...existing,
+        examName: backend.exam.examName || existing.examName,
+        totalScore: backend.record.totalScore || existing.totalScore,
+        objectiveScore: Object.values(backend.record.answers).reduce((sum, item) => sum + (item.autoScore ?? 0), 0),
+        finalScore: releaseMode === 'immediate' ? backend.record.earnedScore : null,
+        releaseMode,
+        releaseSource: releaseMode === 'immediate' ? 'teacher' : existing.releaseSource,
+        questionScores: buildQuestionScoresFromRecord(backend.record),
+        answers: Object.fromEntries(Object.entries(backend.record.answers).map(([questionId, item]) => [Number(questionId), item.answer])),
+      }
+      persistSubmission(updated)
+      currentSubmission.value = updated
+      return updated
+    } catch {
+      currentSubmission.value = existing
+      return existing
+    }
+  }
+
+  async function loadSubmissionResult(examId: number): Promise<StoredExamSubmission | null> {
+    return syncSubmissionResult(examId)
   }
 
   async function ensureLoaded(): Promise<void> {
@@ -154,6 +194,12 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     try {
       publishedExams.value = await examRepository.getPublishedExamsForStudent()
       hydrated.value = true
+      const pendingIds = publishedExams.value
+        .filter((exam) => getSubmissionState(exam.id) === 'pending_teacher')
+        .map((exam) => exam.id)
+      for (const examId of pendingIds) {
+        await syncSubmissionResult(examId)
+      }
     } finally {
       loading.value = false
     }
@@ -235,6 +281,7 @@ export const useExamStudentStore = defineStore('exam-student', () => {
         objectiveScore: result.earnedScore,
         finalScore: hasManualQuestions ? null : result.earnedScore,
         releaseMode: hasManualQuestions ? 'pending_teacher' : 'immediate',
+        releaseSource: hasManualQuestions ? 'teacher' : 'auto',
         answers: cloneAnswers(answers.value),
         questionScores: result.questionScores,
         paper: {

@@ -24,8 +24,8 @@
             <span class="score-total">/ {{ submission.totalScore }} 分</span>
           </div>
           <div class="result-copy">
-            <h2>自动判分已完成</h2>
-            <p>这场试卷全部为无需人工批改的题型，提交后已立即生成成绩明细。</p>
+            <h2>{{ submission.releaseSource === 'auto' ? '自动判分已完成' : '教师批改已完成' }}</h2>
+            <p>{{ submission.releaseSource === 'auto' ? '这场试卷全部为无需人工批改的题型，提交后已立即生成成绩明细。' : '教师已经完成主观题批改，现在可以查看最终成绩和题目得分明细。' }}</p>
           </div>
         </div>
       </section>
@@ -96,6 +96,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useExamStudentStore } from '@/stores/exam/student'
 
@@ -117,8 +118,12 @@ function formatAnswer(answer: string | string[] | undefined): string {
   return answer
 }
 
-onMounted(() => {
-  examStore.loadSubmissionResult(examId.value)
+onMounted(async () => {
+  try {
+    await examStore.loadSubmissionResult(examId.value)
+  } catch {
+    message.error('刷新考试结果失败')
+  }
 })
 </script>
 
