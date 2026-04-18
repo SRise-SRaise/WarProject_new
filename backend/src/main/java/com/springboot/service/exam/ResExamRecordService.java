@@ -22,6 +22,8 @@ public interface ResExamRecordService extends IService<ResExamRecord> {
 
     Map<String, Object> submitExam(Long examId, Long studentId, Map<String, Object> answers);
 
+    Map<String, Object> getStudentExamResult(Long examId, Long studentId);
+
     List<Map<String, Object>> listExamRecordCards(Long examId);
 
     List<Map<String, Object>> listStudentAnswerRecords(Long examId);

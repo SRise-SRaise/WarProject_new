@@ -1,14 +1,21 @@
 <template>
   <div class="app-panel-grid">
     <section v-if="currentExperiment" class="app-surface-card app-section-card">
-      <SectionHeader eyebrow="实验项管理" :title="`${currentExperiment.title} · 实验项`" description="实验项页聚焦步骤、交付物和执行提示，不再把基础信息堆在同一页。">
+      <SectionHeader eyebrow="实验项管理" :title="`${currentExperiment.title} · 实验项`" description="编辑实验步骤题目，类似 Word 页面风格，可自由添加和管理题目。">
         <template #actions>
-          <a-button @click="router.push(`/admin/experiments/edit/${currentExperiment.id}`)">返回编辑</a-button>
+          <a-space :size="12">
+            <a-button @click="router.push(`/admin/experiments/edit/${currentExperiment.id}`)">返回编辑</a-button>
+            <a-button type="primary" @click="router.push(`/admin/experiments/steps/${currentExperiment.id}`)">
+              <template #icon><EditOutlined /></template>
+              编辑步骤题目
+            </a-button>
+          </a-space>
         </template>
       </SectionHeader>
     </section>
 
     <section v-if="studentExperiment" class="app-surface-card app-section-card app-panel-grid">
+      <SectionHeader eyebrow="实验步骤" title="学生端预览" description="学生答题时将看到以下步骤列表。" tight />
       <ExperimentStepList :steps="studentExperiment.steps" />
     </section>
   </div>
@@ -16,6 +23,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { EditOutlined } from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import SectionHeader from '@/components/common/SectionHeader.vue'

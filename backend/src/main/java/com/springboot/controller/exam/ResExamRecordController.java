@@ -47,6 +47,12 @@ public class ResExamRecordController {
                 castMap(requestBody.get("answers"))));
     }
 
+    @GetMapping("/student/result")
+    public BaseResponse<Map<String, Object>> getStudentExamResult(@RequestParam Long examId, HttpServletRequest request) {
+        LoginPrincipal principal = assertStudent(request);
+        return ResultUtils.success(resExamRecordService.getStudentExamResult(examId, principal.getUserId()));
+    }
+
     @GetMapping("/grading/cards")
     public BaseResponse<List<Map<String, Object>>> listExamRecordCards(@RequestParam Long examId, HttpServletRequest request) {
         assertTeacher(request);

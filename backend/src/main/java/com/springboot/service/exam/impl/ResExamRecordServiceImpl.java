@@ -17,7 +17,10 @@ import com.springboot.service.exam.ResExamRecordService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -156,6 +159,27 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
     }
 
     @Override
+    public Map<String, Object> getStudentExamResult(Long examId, Long studentId) {
+        if (examId == null || studentId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "考试和学生不能为空");
+        }
+        Map<String, Object> studentRecord = null;
+        for (Map<String, Object> record : listStudentAnswerRecords(examId)) {
+            if (studentId.equals(toLong(record.get("studentId")))) {
+                studentRecord = record;
+                break;
+            }
+        }
+        if (studentRecord == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到学生考试结果");
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("record", studentRecord);
+        result.put("exam", eduExamService.getAdminExamCard(examId));
+        return result;
+    }
+
+    @Override
     public List<Map<String, Object>> listExamRecordCards(Long examId) {
         List<Map<String, Object>> grouped = listStudentAnswerRecords(examId);
         List<Map<String, Object>> cards = new ArrayList<>();
@@ -222,7 +246,7 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
             }
             answers.put(questionId, answerItem);
 
-            current.put("submittedAt", maxDateString(String.valueOf(current.get("submittedAt")), formatDate(toDate(row.get("updated_at")))));
+            current.put("submittedAt", maxDateString(asNullableString(current.get("submittedAt")), resolveSubmittedAt(row)));
             if (isSubjective(questionType)) {
                 manualAnsweredCount.put(studentId, manualAnsweredCount.getOrDefault(studentId, 0) + 1);
                 if (gradingStatus == null || gradingStatus != 2) {
@@ -351,7 +375,7 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
         record.put("studentName", row.get("student_name"));
         record.put("studentNo", row.get("student_code"));
         record.put("className", row.get("class_code"));
-        record.put("submittedAt", formatDate(toDate(row.get("updated_at"))));
+        record.put("submittedAt", resolveSubmittedAt(row));
         record.put("totalScore", computeFullScoreBySummary(summaryRow, row.get("paper_id")));
         record.put("earnedScore", summaryRow == null ? 0 : (toInteger(summaryRow.get("total_score")) == null ? 0 : toInteger(summaryRow.get("total_score"))));
         record.put("status", "submitted");
@@ -391,10 +415,18 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
             }
         }
         int totalScore = objectiveScore + subjectiveScore;
-        jdbcTemplate.update("DELETE FROM res_exam_summary WHERE exam_id = ? AND student_id = ?", examId, studentId);
+        List<Map<String, Object>> summaries = jdbcTemplate.queryForList(
+                "SELECT id FROM res_exam_summary WHERE exam_id = ? AND student_id = ? LIMIT 1",
+                examId, studentId);
+        if (summaries.isEmpty()) {
+            jdbcTemplate.update(
+                    "INSERT INTO res_exam_summary (exam_id, student_id, paper_id, total_score, objective_score, subjective_score, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                    examId, studentId, paperId, totalScore, objectiveScore, subjectiveScore);
+            return;
+        }
         jdbcTemplate.update(
-                "INSERT INTO res_exam_summary (exam_id, student_id, paper_id, total_score, objective_score, subjective_score, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                examId, studentId, paperId, totalScore, objectiveScore, subjectiveScore);
+                "UPDATE res_exam_summary SET paper_id = ?, total_score = ?, objective_score = ?, subjective_score = ?, updated_at = CURRENT_TIMESTAMP WHERE exam_id = ? AND student_id = ?",
+                paperId, totalScore, objectiveScore, subjectiveScore, examId, studentId);
     }
 
     private Map<String, Object> getExamRow(Long examId) {
@@ -471,13 +503,29 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
     }
 
     private String maxDateString(String current, String next) {
-        if (current == null) {
+        if (current == null || current.isBlank()) {
             return next;
         }
-        if (next == null) {
+        if (next == null || next.isBlank()) {
             return current;
         }
         return current.compareTo(next) >= 0 ? current : next;
+    }
+
+    private String resolveSubmittedAt(Map<String, Object> row) {
+        String createdAt = formatDate(toDate(row.get("created_at")));
+        if (createdAt != null && !createdAt.isBlank()) {
+            return createdAt;
+        }
+        return formatDate(toDate(row.get("updated_at")));
+    }
+
+    private String asNullableString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value);
+        return text.isBlank() || "null".equalsIgnoreCase(text) ? null : text;
     }
 
     private Long toLong(Object value) {
@@ -516,6 +564,28 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
     private Date toDate(Object value) {
         if (value instanceof Date date) {
             return date;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return Timestamp.valueOf(localDateTime);
+        }
+        if (value instanceof CharSequence sequence) {
+            String text = sequence.toString().trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            try {
+                return Timestamp.valueOf(text.replace("T", " "));
+            } catch (IllegalArgumentException ignored) {
+                try {
+                    return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(text);
+                } catch (ParseException ignoredToo) {
+                    try {
+                        return Timestamp.valueOf(LocalDateTime.parse(text, DateTimeFormatter.ISO_DATE_TIME));
+                    } catch (Exception ignoredThree) {
+                        return null;
+                    }
+                }
+            }
         }
         return null;
     }

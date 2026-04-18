@@ -443,3 +443,29 @@ CREATE TABLE `sys_admin_log`
   DEFAULT CHARSET = utf8mb4 COMMENT ='系统后台日志表';
 
 SET FOREIGN_KEY_CHECKS = 1; -- 恢复外键检查
+
+-- ==========================================
+-- 7. 实验附件上传模块 (Experiment Attachment Module)
+-- ==========================================
+
+DROP TABLE IF EXISTS `edu_experiment_attachment`;
+CREATE TABLE `edu_experiment_attachment`
+(
+    `id`            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '附件主键ID',
+    `result_id`     BIGINT               DEFAULT NULL COMMENT '关联的实验提交记录ID',
+    `student_id`    BIGINT               DEFAULT NULL COMMENT '学生ID',
+    `file_name`     VARCHAR(255)          DEFAULT NULL COMMENT '原始文件名',
+    `file_size`     BIGINT               DEFAULT NULL COMMENT '文件大小（字节）',
+    `file_type`     VARCHAR(100)          DEFAULT NULL COMMENT '文件类型（MIME类型）',
+    `file_suffix`   VARCHAR(20)           DEFAULT NULL COMMENT '文件后缀',
+    `obs_url`       VARCHAR(500)          DEFAULT NULL COMMENT 'OBS存储路径/URL',
+    `obs_bucket`    VARCHAR(100)          DEFAULT NULL COMMENT 'OBS桶名称',
+    `upload_status` INT                   DEFAULT NULL COMMENT '上传状态：0失败，1成功',
+    `is_deleted`    TINYINT               DEFAULT 0 COMMENT '逻辑删除：0未删除，1已删除',
+    `created_at`    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_result_id` (`result_id`),
+    KEY `idx_student_id` (`student_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='实验附件表';

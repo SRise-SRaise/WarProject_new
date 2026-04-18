@@ -49,7 +49,7 @@ public class ResExperimentResult implements Serializable {
      * 提交时间
      */
     @TableField(value = "fill_time")
-    private Date submittedAt;
+    private Date fillTime;
 
     /**
      * 评分标记
@@ -89,7 +89,7 @@ public class ResExperimentResult implements Serializable {
             && (this.getItemId() == null ? other.getItemId() == null : this.getItemId().equals(other.getItemId()))
             && (this.getSubContent() == null ? other.getSubContent() == null : this.getSubContent().equals(other.getSubContent()))
             && (this.getScore() == null ? other.getScore() == null : this.getScore().equals(other.getScore()))
-            && (this.getSubmittedAt() == null ? other.getSubmittedAt() == null : this.getSubmittedAt().equals(other.getSubmittedAt()))
+            && (this.getFillTime() == null ? other.getFillTime() == null : this.getFillTime().equals(other.getFillTime()))
             && (this.getGradingStatus() == null ? other.getGradingStatus() == null : this.getGradingStatus().equals(other.getGradingStatus()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
@@ -104,7 +104,7 @@ public class ResExperimentResult implements Serializable {
         result = prime * result + ((getItemId() == null) ? 0 : getItemId().hashCode());
         result = prime * result + ((getSubContent() == null) ? 0 : getSubContent().hashCode());
         result = prime * result + ((getScore() == null) ? 0 : getScore().hashCode());
-        result = prime * result + ((getSubmittedAt() == null) ? 0 : getSubmittedAt().hashCode());
+        result = prime * result + ((getFillTime() == null) ? 0 : getFillTime().hashCode());
         result = prime * result + ((getGradingStatus() == null) ? 0 : getGradingStatus().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
@@ -122,7 +122,7 @@ public class ResExperimentResult implements Serializable {
         sb.append(", itemId=").append(itemId);
         sb.append(", subContent=").append(subContent);
         sb.append(", score=").append(score);
-        sb.append(", submittedAt=").append(submittedAt);
+        sb.append(", fillTime=").append(fillTime);
         sb.append(", gradingStatus=").append(gradingStatus);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);

@@ -187,6 +187,10 @@
             <span class="value">{{ currentRecord.record.className }}</span>
           </div>
           <div class="student-detail">
+            <span class="label">提交时间：</span>
+            <span class="value">{{ currentRecord.record.submittedAt || '--' }}</span>
+          </div>
+          <div class="student-detail">
             <span class="label">当前得分：</span>
             <span class="value score">{{ calculatedTotalScore }} / {{ currentRecord.record.totalScore }}</span>
           </div>

@@ -70,7 +70,7 @@ public class EduExperimentItem implements Serializable {
     private Integer itemStatus;
 
     /**
-     * 
+     *
      */
     @TableField(exist = false)
     private Date createdAt;

@@ -92,6 +92,15 @@ cos:
     secretKey: xxx
     region: xxx
     bucket: xxx
+# 华为云OBS对象存储配置
+obs:
+  enable: true
+  access-key: HPUAVOOTVXJ9HHSV1IVM
+  secret-key: wEGWdxQAwMbDiY5TXDAhrqUif48hGE4kpU5P8SEC
+  end-point: https://obs.cn-southwest-2.myhuaweicloud.com
+  bucket-name: edu-hub
+  domain: https://edu-hub.obs.cn-southwest-2.myhuaweicloud.com
+  max-file-size: 52428800
 # 接口文档配置
 knife4j:
   enable: true
