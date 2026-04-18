@@ -237,7 +237,8 @@ async function loadReports() {
     })
     const page = res.data?.data
     if (page?.records) {
-      reportList.value = page.records.map((report: any) => ({
+      const submittedReports = page.records.filter((report: any) => ['submitted', 'reviewed'].includes(report.status))
+      reportList.value = submittedReports.map((report: any) => ({
         id: report.id ?? `${report.experimentId}-${report.studentId}`,
         experimentId: String(report.experimentId ?? ''),
         studentId: String(report.studentId ?? ''),
@@ -247,7 +248,7 @@ async function loadReports() {
         status: report.status ?? '',
         score: report.totalScore ?? null
       }))
-      paginationConfig.total = Number(page.total || 0)
+      paginationConfig.total = submittedReports.length
     } else {
       reportList.value = []
       paginationConfig.total = 0

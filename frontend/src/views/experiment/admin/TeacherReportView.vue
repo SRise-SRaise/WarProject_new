@@ -243,7 +243,8 @@ async function loadReportList() {
     const res = await getTeacherReportListPage({ experimentId: Number(route.params.id), current: 1, pageSize: 100 })
     const page = res.data?.data
     if (page?.records) {
-      reportList.value = page.records.map((r: any) => ({
+      const submittedReports = page.records.filter((r: any) => ['submitted', 'reviewed'].includes(r.status))
+      reportList.value = submittedReports.map((r: any) => ({
         studentId: String(r.studentId),
         studentNo: r.studentNo,
         studentName: r.studentName,

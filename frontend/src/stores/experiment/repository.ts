@@ -72,8 +72,8 @@ export const experimentRepository = {
 
         console.log('[Repository] 解析后的数据:', backendData)
 
-        if (backendData?.code === 0 && backendData?.data?.records) {
-          const records = backendData.data.records
+        if (backendData?.code === 0) {
+          const records = Array.isArray(backendData?.data?.records) ? backendData.data.records : []
           console.log('[Repository] 成功获取数据，共', records.length, '条')
 
           // 过滤出已发布的实验
@@ -82,21 +82,17 @@ export const experimentRepository = {
           )
           console.log('[Repository] 已发布实验:', publishedExperiments.length, '条')
 
-          if (publishedExperiments.length > 0) {
-            return publishedExperiments.map((item: any) => transformToStudentItem(item))
-          }
-        } else if (backendData?.code !== 0) {
-          console.log('[Repository] 后端返回错误:', backendData?.message || '未知错误')
+          return publishedExperiments.map((item: any) => transformToStudentItem(item))
         }
+
+        console.log('[Repository] 后端返回错误:', backendData?.message || '未知错误')
+        return []
       }
 
-      console.log('[Repository] 使用 mock 数据')
-      await CommonUtil.sleep(90)
-      return CommonUtil.deepClone(studentExperiments)
+      return []
     } catch (error: any) {
       console.error('[Repository] 从后端获取失败:', error?.message || error)
-      await CommonUtil.sleep(90)
-      return CommonUtil.deepClone(studentExperiments)
+      return []
     }
   },
 
