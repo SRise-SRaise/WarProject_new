@@ -285,20 +285,18 @@ async function loadData() {
 
     // 转换为 StudentReportInfo 格式
     reports.value = reportList.map((report: any) => {
-      // 判断状态：已批改（有 teacherScore/summary）还是待批改
-      // 注意：transformToExperimentReport 将 teacherScore 映射到了 summary 字段
-      const teacherScore = report.teacherScore || report.summary
+      const teacherScore = report.summary
       const status = teacherScore !== undefined && teacherScore !== null && teacherScore !== ''
         ? 'reviewed'
         : (report.submittedAt ? 'submitted' : 'pending')
 
       return {
-        studentId: report.studentId || studentId,
-        studentNo: report.studentNo || currentUser.studentCode || '',
-        studentName: report.studentName || currentUser.studentName || '',
-        clazzNo: report.clazzNo || currentUser.classCode || '',
-        experimentId: String(report.experimentId || ''),
-        experimentName: report.experimentName || '',
+        studentId: report.student?.id || studentId,
+        studentNo: report.student?.no || currentUser.studentCode || '',
+        studentName: report.student?.name || currentUser.studentName || '',
+        clazzNo: report.student?.clazzNo || currentUser.classCode || '',
+        experimentId: String(report.experiment?.id || ''),
+        experimentName: report.experiment?.name || '',
         submittedAt: report.submittedAt || '',
         totalScore: 100,
         teacherScore: teacherScore ? parseInt(teacherScore) : undefined,
