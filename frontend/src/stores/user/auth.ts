@@ -3,6 +3,11 @@ import { defineStore } from 'pinia'
 import { getLoginUser1, login, logout as apiLogout, register } from '@/api/authController'
 import { getAuthStudentVoById } from '@/api/authStudentController'
 import { CommonUtil } from '@/utils'
+import {
+  buildDisplayName,
+  buildSessionFromAccount,
+  defaultUserAccounts
+} from './fixtures'
 import type {
   AuthCredentials,
   NotificationPreference,

@@ -23,10 +23,21 @@ public class EduExperimentItemServiceImpl extends ServiceImpl<EduExperimentItemM
     @Override
     public QueryWrapper<EduExperimentItem> getQueryWrapper(EduExperimentItemQueryRequest queryRequest) {
         if (queryRequest == null) {
-            return ServiceMethodSupport.buildQueryWrapper(null);
+            return new QueryWrapper<>();
         }
         queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
-        return ServiceMethodSupport.buildQueryWrapper(queryRequest);
+        QueryWrapper<EduExperimentItem> queryWrapper = new QueryWrapper<>();
+        String sortField = queryRequest.getSortField();
+        String sortOrder = queryRequest.getSortOrder();
+        if (sortField != null && !sortField.isEmpty()) {
+            boolean isAsc = "ascend".equals(sortOrder);
+            queryWrapper.orderBy(true, isAsc, sortField);
+        }
+        // 添加 experimentId 查询条件
+        if (queryRequest.getExperimentId() != null) {
+            queryWrapper.eq("experiment_id", queryRequest.getExperimentId());
+        }
+        return queryWrapper;
     }
 
     @Override

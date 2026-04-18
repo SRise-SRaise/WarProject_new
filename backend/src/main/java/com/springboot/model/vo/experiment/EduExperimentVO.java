@@ -1,6 +1,7 @@
 package com.springboot.model.vo.experiment;
 
 import com.springboot.model.entity.experiment.EduExperiment;
+import com.springboot.model.enums.experiment.ExperimentTypeEnum;
 import java.util.Date;
 import java.util.List;
 import java.io.Serializable;
@@ -27,6 +28,8 @@ public class EduExperimentVO implements Serializable {
 
     private Integer publishStatus;
 
+    private String categoryName;
+
     private Date createdAt;
 
     private Date updatedAt;
@@ -37,6 +40,7 @@ public class EduExperimentVO implements Serializable {
         }
         EduExperimentVO vo = new EduExperimentVO();
         BeanUtils.copyProperties(entity, vo);
+        vo.setCategoryName(ExperimentTypeEnum.getTextByValue(entity.getCategoryId()));
         return vo;
     }
 

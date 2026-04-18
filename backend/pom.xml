@@ -77,11 +77,23 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
+        <!-- 华为云OBS对象存储SDK -->
+    <dependency>
+        <groupId>com.huaweicloud</groupId>   <!-- 注意 groupId 变了 -->
+        <artifactId>esdk-obs-java</artifactId>
+        <version>3.25.10</version>           <!-- 3.22.3 / 3.22.4 / 3.22.12 中央仓库都有 -->
+    </dependency>
         <!-- https://github.com/alibaba/easyexcel -->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
             <version>3.1.1</version>
+        </dependency>
+        <!-- Apache POI for DOCX parsing -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
         </dependency>
         <!-- https://hutool.cn/docs/index.html#/-->
         <dependency>
@@ -134,5 +146,12 @@
             </plugin>
         </plugins>
     </build>
-
+    <!-- 在 pom.xml 根节点下追加 -->
+    <repositories>
+        <repository>
+            <id>huaweicloud-sdk</id>
+            <name>Huawei Cloud SDK</name>
+            <url>https://repo.huaweicloud.com/repository/maven/huaweicloud-sdk/</url>
+        </repository>
+    </repositories>
 </project>

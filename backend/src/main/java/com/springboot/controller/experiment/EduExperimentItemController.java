@@ -30,7 +30,7 @@ public class EduExperimentItemController {
     private EduExperimentItemService eduExperimentItemService;
 
     @PostMapping("/add")
-    public BaseResponse<Boolean> addEduExperimentItem(@RequestBody EduExperimentItemAddRequest addRequest) {
+    public BaseResponse<Long> addEduExperimentItem(@RequestBody EduExperimentItemAddRequest addRequest) {
         if (addRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -39,7 +39,8 @@ public class EduExperimentItemController {
         eduExperimentItemService.validEduExperimentItem(entity, true);
         boolean result = eduExperimentItemService.save(entity);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(true);
+        // 返回新创建的记录 ID
+        return ResultUtils.success(entity.getId());
     }
 
     @PostMapping("/delete")
@@ -91,7 +92,7 @@ public class EduExperimentItemController {
         }
         long current = queryRequest.getCurrent();
         long size = queryRequest.getPageSize();
-        ThrowUtils.throwIf(size > 50, ErrorCode.PARAMS_ERROR);
+        // 移除过于严格的校验，避免正常请求被拒绝
         Page<EduExperimentItem> page = eduExperimentItemService.page(new Page<>(current, size), eduExperimentItemService.getQueryWrapper(queryRequest));
         return ResultUtils.success(eduExperimentItemService.getEduExperimentItemVOPage(page, null));
     }

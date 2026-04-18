@@ -18,7 +18,12 @@
             <span class="app-inline-stat">{{ record.score ?? '待评分' }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button type="link" @click="router.push(`/admin/experiments/results/${record.experimentId}/${record.id}`)">处理结果</a-button>
+            <a-space :size="8">
+              <a-button type="link" @click="router.push(`/experiments/${record.experimentId}/report`)">查看报告</a-button>
+              <a-button type="primary" ghost @click="router.push(`/admin/experiments/results/${record.experimentId}/${record.id}`)">
+                批改
+              </a-button>
+            </a-space>
           </template>
         </template>
       </a-table>
