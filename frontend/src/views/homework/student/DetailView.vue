@@ -12,7 +12,7 @@
     </div>
 
     <HomeworkMetaGrid
-      :topicLabel="homework.topicLabel"
+      topicLabel=""
       :teacher="homework.teacher"
       :open-time="homework.openTime"
       :deadline="homework.deadline"
@@ -22,229 +22,351 @@
       <template #message>提交提示</template>
       <template #description>
         <ul class="hw-tip-list" style="margin:0;padding-left:18px">
-          <li v-for="tip in homework.submitTips" :key="tip">{{ tip }}</li>
+          <li>选择题点击选项即可作答</li>
+          <li>填空题点击横线处输入答案</li>
+          <li>简答题请在文本框中作答</li>
+          <li>截止前可多次提交更新</li>
         </ul>
       </template>
     </a-alert>
 
-    <section v-for="(q, idx) in questions" :key="q.id" class="app-surface-card app-section-card hw-question-block">
-      <div class="hw-question-header">
-        <span class="hw-question-number">{{ idx + 1 }}</span>
-        <span class="hw-question-type-tag">{{ typeLabel(q.type) }}</span>
-        <span v-if="q.maxScore" class="hw-question-score">（{{ q.maxScore }}分）</span>
-      </div>
+    <a-spin :spinning="loading">
+      <section v-for="(q, idx) in questions" :key="q.id" class="app-surface-card app-section-card hw-question-block">
+        <div class="hw-question-header">
+          <span class="hw-question-number">{{ idx + 1 }}</span>
+          <span class="hw-question-type-tag">{{ typeLabel(q.questionType) }}</span>
+          <span v-if="q.maxScore" class="hw-question-score">（{{ q.maxScore }}分）</span>
+        </div>
 
-      <div class="hw-question-stem">
-        <template v-if="q.type === 'fill_blank'">
-          <span v-for="(segment, sIdx) in parseFillBlank(q.stem)" :key="sIdx">
-            <template v-if="segment.type === 'text'">{{ segment.content }}</template>
-            <template v-else>
-              <a-input
-                v-model:value="fillAnswers[segment.blankId]"
-                class="hw-fill-input"
-                placeholder="填写答案"
-                :style="{ width: Math.max(segment.content.length * 16, 80) + 'px' }"
-              />
-            </template>
-          </span>
-        </template>
-        <template v-else>
-          {{ q.stem }}
-        </template>
-      </div>
+        <div class="hw-question-stem">
+          <template v-if="q.questionType === 1">
+            <!-- 填空题 -->
+            <span v-for="(segment, sIdx) in parseFillBlank(q.question)" :key="sIdx">
+              <template v-if="segment.type === 'text'">{{ segment.content }}</template>
+              <template v-else>
+                <a-input
+                  v-model:value="fillAnswers[`${q.id}_${segment.blankIndex}`]"
+                  class="hw-fill-input"
+                  placeholder="填写答案"
+                  style="width: 120px"
+                />
+              </template>
+            </span>
+          </template>
+          <template v-else>
+            {{ q.question }}
+          </template>
+        </div>
 
-      <div v-if="q.type === 'single_choice' || q.type === 'multiple_choice'" class="hw-question-options">
-        <a-radio-group v-if="q.type === 'single_choice'" v-model:value="choiceAnswers[q.id]" class="hw-options-list">
-          <a-radio v-for="opt in q.options" :key="opt.value" :value="opt.value" class="hw-option-item">{{ opt.label }}</a-radio>
-        </a-radio-group>
-        <a-checkbox-group v-else v-model:value="multipleAnswers[q.id]" class="hw-options-list">
-          <a-checkbox v-for="opt in q.options" :key="opt.value" :value="opt.value" class="hw-option-item">{{ opt.label }}</a-checkbox>
-        </a-checkbox-group>
-      </div>
+        <div v-if="q.questionType === 2" class="hw-question-options">
+          <!-- 单选题 -->
+          <a-radio-group v-model:value="choiceAnswers[q.id]" class="hw-options-list">
+            <a-radio v-for="opt in parseOptions(q.optionsText)" :key="opt.value" :value="opt.value" class="hw-option-item">
+              {{ opt.label }}
+            </a-radio>
+          </a-radio-group>
+        </div>
 
-      <div v-if="q.type === 'true_false'" class="hw-question-options">
-        <a-radio-group v-model:value="choiceAnswers[q.id]" class="hw-options-list">
-          <a-radio value="T" class="hw-option-item">正确（T）</a-radio>
-          <a-radio value="F" class="hw-option-item">错误（F）</a-radio>
-        </a-radio-group>
-      </div>
+        <div v-if="q.questionType === 3" class="hw-question-options">
+          <!-- 多选题 -->
+          <a-checkbox-group v-model:value="multipleAnswers[q.id]" class="hw-options-list">
+            <a-checkbox v-for="opt in parseOptions(q.optionsText)" :key="opt.value" :value="opt.value" class="hw-option-item">
+              {{ opt.label }}
+            </a-checkbox>
+          </a-checkbox-group>
+        </div>
 
-      <div v-if="q.type === 'short_answer'" class="hw-question-answer-area">
-        <a-textarea v-model:value="shortAnswers[q.id]" :rows="4" placeholder="请输入你的答案" />
-      </div>
-    </section>
+        <div v-if="q.questionType === 4" class="hw-question-options">
+          <!-- 判断题 -->
+          <a-radio-group v-model:value="choiceAnswers[q.id]" class="hw-options-list">
+            <a-radio value="T" class="hw-option-item">正确（T）</a-radio>
+            <a-radio value="F" class="hw-option-item">错误（F）</a-radio>
+          </a-radio-group>
+        </div>
+
+        <div v-if="q.questionType === 5" class="hw-question-answer-area">
+          <!-- 简答题 -->
+          <a-textarea v-model:value="shortAnswers[q.id]" :rows="4" placeholder="请输入你的答案" />
+        </div>
+      </section>
+    </a-spin>
 
     <section class="app-surface-card app-section-card" style="display:flex;justify-content:flex-end;gap:12px;">
-      <a-button size="large" @click="saveDraft">暂存答案</a-button>
-      <a-button type="primary" size="large" @click="submitAll">提交全部答案</a-button>
+      <a-button size="large" :loading="saving" @click="saveDraft">暂存答案</a-button>
+      <a-button type="primary" size="large" :loading="submitting" @click="submitAll">提交全部答案</a-button>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import dayjs from 'dayjs'
+import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/user/auth'
 import HomeworkMetaGrid from '@/components/homework/HomeworkMetaGrid.vue'
+import { getEduExerciseVoById } from '@/api/eduExerciseController'
+import { listEduExerciseItemVoByPage } from '@/api/eduExerciseItemController'
+import { submitExerciseAnswers, saveExerciseDraft, getExerciseProgress } from '@/api/eduExerciseSubmissionController'
 
-interface HomeworkDetailMock {
+interface QuestionItem {
+  id: number
+  question: string
+  questionType: number
+  optionsText?: string
+  standardAnswer?: string
+  maxScore: number
+}
+
+interface HomeworkDetail {
   id: string
   title: string
-  topicLabel: string
   teacher: string
   openTime: string
   deadline: string
   summary: string
-  submitTips: string[]
-}
-
-type QuestionType = 'single_choice' | 'multiple_choice' | 'fill_blank' | 'true_false' | 'short_answer'
-
-interface QuestionItem {
-  id: string
-  type: QuestionType
-  stem: string
-  options?: { label: string; value: string }[]
-  maxScore: number
 }
 
 interface FillSegment {
   type: 'text' | 'blank'
   content: string
-  blankId: string
-}
-
-const homeworkDetailMock: HomeworkDetailMock[] = [
-  {
-    id: 'hw-101',
-    title: '需求分析作业一：角色旅程拆解',
-    topicLabel: '需求分析专题',
-    teacher: '周老师',
-    openTime: '2026-04-14 08:00',
-    deadline: '2026-04-20 20:00',
-    summary: '围绕教学平台案例完成角色旅程和验收边界分析。',
-    submitTips: ['选择题点击选项即可作答', '填空题点击横线处输入答案', '简答题请在文本框中作答', '截止前可多次提交更新']
-  }
-]
-
-const questions: QuestionItem[] = [
-  {
-    id: 'q-1',
-    type: 'single_choice',
-    stem: '以下哪项最适合作为角色旅程的首层分段？',
-    options: [
-      { label: 'A. 按数据库表名分段', value: 'A' },
-      { label: 'B. 按用户任务阶段分段', value: 'B' },
-      { label: 'C. 按代码文件目录分段', value: 'C' }
-    ],
-    maxScore: 5
-  },
-  {
-    id: 'q-2',
-    type: 'multiple_choice',
-    stem: '验收边界描述中以下哪些属于关键内容？（多选）',
-    options: [
-      { label: 'A. 通过条件', value: 'A' },
-      { label: 'B. 失败条件', value: 'B' },
-      { label: 'C. 界面颜色与字号', value: 'C' },
-      { label: 'D. 开发者个人偏好', value: 'D' }
-    ],
-    maxScore: 5
-  },
-  {
-    id: 'q-3',
-    type: 'true_false',
-    stem: '角色旅程图只需要描述主流程，不需要描述异常流。',
-    maxScore: 3
-  },
-  {
-    id: 'q-4',
-    type: 'fill_blank',
-    stem: '在需求分析中，___是用来描述用户与系统交互过程的工具，而___则定义了系统在何种条件下可以通过验收。',
-    maxScore: 6
-  },
-  {
-    id: 'q-5',
-    type: 'fill_blank',
-    stem: 'HTML中用于插入图片的标签是___，其src属性用于指定___。',
-    maxScore: 4
-  },
-  {
-    id: 'q-6',
-    type: 'short_answer',
-    stem: '请简述角色旅程图的核心价值，并结合教学平台案例说明其在需求分析中的作用。',
-    maxScore: 10
-  },
-  {
-    id: 'q-7',
-    type: 'short_answer',
-    stem: '请描述"验收边界"的概念，并给出至少两条具体的通过/失败口径示例。',
-    maxScore: 10
-  }
-]
-
-function typeLabel(type: QuestionType): string {
-  const map: Record<QuestionType, string> = {
-    single_choice: '单选题',
-    multiple_choice: '多选题',
-    fill_blank: '填空题',
-    true_false: '判断题',
-    short_answer: '简答题'
-  }
-  return map[type] ?? '未知'
-}
-
-let blankCounter = 0
-function parseFillBlank(stem: string): FillSegment[] {
-  blankCounter = 0
-  const segments = stem.split('___')
-  const result: FillSegment[] = []
-  for (let i = 0; i < segments.length; i++) {
-    if (segments[i]) {
-      result.push({ type: 'text', content: segments[i], blankId: '' })
-    }
-    if (i < segments.length - 1) {
-      blankCounter++
-      result.push({ type: 'blank', content: '答案', blankId: `blank_${blankCounter}` })
-    }
-  }
-  return result
+  blankIndex: number
 }
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
-const homework = computed(() => homeworkDetailMock.find((item) => item.id === String(route.params.id)) ?? homeworkDetailMock[0])
-const choiceAnswers = reactive<Record<string, string>>({ 'q-3': '' })
-const multipleAnswers = reactive<Record<string, string[]>>({ 'q-2': [] })
+const loading = ref(true)
+const saving = ref(false)
+const submitting = ref(false)
+const homework = ref<HomeworkDetail | null>(null)
+const questions = ref<QuestionItem[]>([])
+
+const choiceAnswers = reactive<Record<number, string>>({})
+const multipleAnswers = reactive<Record<number, string[]>>({})
 const fillAnswers = reactive<Record<string, string>>({})
-const shortAnswers = reactive<Record<string, string>>({})
+const shortAnswers = reactive<Record<number, string>>({})
 
-// 预初始化选择题的第一个选项
-choiceAnswers['q-1'] = ''
+function formatDateTime(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim().length === 0) {
+    return ''
+  }
+  const parsed = dayjs(String(value))
+  if (!parsed.isValid()) {
+    return String(value)
+  }
+  return parsed.format('YYYY-MM-DD HH:mm')
+}
 
-for (const q of questions) {
-  if (q.type === 'fill_blank') {
-    const segments = parseFillBlank(q.stem)
-    for (const seg of segments) {
-      if (seg.type === 'blank') {
-        fillAnswers[seg.blankId] = ''
-      }
+function typeLabel(questionType: number): string {
+  const typeMap: Record<number, string> = {
+    1: '填空题',
+    2: '单选题',
+    3: '多选题',
+    4: '判断题',
+    5: '简答题',
+    6: '编程题',
+    7: '综合题'
+  }
+  return typeMap[questionType] || '未知'
+}
+
+function parseOptions(optionsText?: string): { label: string; value: string }[] {
+  if (!optionsText) return []
+  // 简单解析：假设格式为 "A选项内容,B选项内容,..."
+  const options = optionsText.split(',')
+  return options.map((opt, idx) => {
+    const letter = String.fromCharCode(65 + idx) // A, B, C, ...
+    return {
+      label: opt.trim() || `${letter}. 选项`,
+      value: letter
+    }
+  })
+}
+
+function parseFillBlank(stem: string): FillSegment[] {
+  const segments: FillSegment[] = []
+  const parts = stem.split('___')
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i]) {
+      segments.push({ type: 'text', content: parts[i], blankIndex: 0 })
+    }
+    if (i < parts.length - 1) {
+      segments.push({ type: 'blank', content: '', blankIndex: i + 1 })
     }
   }
-  if (q.type === 'short_answer') {
-    shortAnswers[q.id] = ''
+  return segments
+}
+
+async function loadData() {
+  const homeworkId = route.params.id as string
+
+  if (!homeworkId) {
+    loading.value = false
+    return
+  }
+
+  try {
+    // 加载作业基本信息
+    const exerciseResponse = await getEduExerciseVoById({ id: homeworkId })
+    const exercise = exerciseResponse.data?.data
+
+    if (exercise) {
+      homework.value = {
+        id: homeworkId,
+        title: exercise.taskName || '',
+        teacher: '',
+        openTime: formatDateTime(exercise.startTime),
+        deadline: formatDateTime(exercise.endTime),
+        summary: exercise.description || ''
+      }
+    }
+
+    // 加载题目列表
+    const itemsResponse = await listEduExerciseItemVoByPage({
+      current: 1,
+      pageSize: 50,
+      exerciseId: Number(homeworkId)
+    })
+
+    const itemRecords = itemsResponse.data?.data?.records ?? []
+    if (Array.isArray(itemRecords)) {
+      questions.value = itemRecords.map((item) => ({
+        id: item.id || 0,
+        question: item.question || '',
+        questionType: item.questionType || 0,
+        optionsText: item.optionsText,
+        standardAnswer: item.standardAnswer,
+        maxScore: item.maxScore || 0
+      }))
+    }
+
+    // 加载已有答题进度（恢复暂存）
+    const studentId = Number(authStore.session?.id) || 0
+    if (studentId) {
+      const progressResponse = await getExerciseProgress({
+        exerciseId: Number(homeworkId),
+        studentId
+      })
+      const progress = progressResponse.data?.data
+
+      if (progress?.items) {
+        for (const item of progress.items) {
+          if (item.choiceAnswer) {
+            choiceAnswers[item.itemId] = item.choiceAnswer
+          }
+          if (item.textContent) {
+            shortAnswers[item.itemId] = item.textContent
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载作业数据失败:', error)
+    message.error('加载作业数据失败')
+  } finally {
+    loading.value = false
   }
 }
 
-function saveDraft(): void {
-  message.success('答案已暂存（Mock）。')
+async function saveDraft() {
+  const homeworkId = route.params.id as string
+  const studentId = Number(authStore.session?.id) || 0
+
+  if (!homeworkId || !studentId) {
+    message.error('请先登录')
+    return
+  }
+
+  saving.value = true
+  try {
+    const answers = buildAnswers()
+    await saveExerciseDraft({
+      exerciseId: Number(homeworkId),
+      studentId,
+      answers
+    })
+    message.success('答案已暂存')
+  } catch (error) {
+    console.error('暂存失败:', error)
+    message.error('暂存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-function submitAll(): void {
-  message.success('全部答案已提交（Mock）。')
-  router.push(`/homework/${homework.value.id}/score`)
+async function submitAll() {
+  const homeworkId = route.params.id as string
+  const studentId = Number(authStore.session?.id) || 0
+
+  if (!homeworkId || !studentId) {
+    message.error('请先登录')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const answers = buildAnswers()
+    const response = await submitExerciseAnswers({
+      exerciseId: Number(homeworkId),
+      studentId,
+      answers
+    })
+    const submitResult = response.data?.data
+
+    if (submitResult?.success) {
+      message.success('提交成功')
+      router.push(`/homework/${homeworkId}/score`)
+    } else {
+      message.error(submitResult?.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('提交失败:', error)
+    message.error('提交失败')
+  } finally {
+    submitting.value = false
+  }
 }
+
+function buildAnswers(): API.AnswerItem[] {
+  return questions.value.map((q) => {
+    const answer: API.AnswerItem = {
+      itemId: q.id,
+      questionType: q.questionType
+    }
+
+    if (q.questionType === 2 || q.questionType === 4) {
+      // 单选或判断
+      answer.choiceAnswer = choiceAnswers[q.id] || ''
+    } else if (q.questionType === 3) {
+      // 多选
+      answer.choiceAnswer = (multipleAnswers[q.id] || []).join('')
+    } else if (q.questionType === 1) {
+      // 填空
+      const fills: API.FillBlankAnswer[] = []
+      const segments = parseFillBlank(q.question)
+      for (let i = 0; i < segments.length; i++) {
+        if (segments[i].type === 'blank') {
+          fills.push({
+            blankIndex: segments[i].blankIndex,
+            answerContent: fillAnswers[`${q.id}_${segments[i].blankIndex}`] || ''
+          })
+        }
+      }
+      answer.fillBlanks = fills
+    } else if (q.questionType === 5) {
+      // 简答
+      answer.textContent = shortAnswers[q.id] || ''
+    }
+
+    return answer
+  })
+}
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>

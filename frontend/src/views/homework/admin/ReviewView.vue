@@ -3,95 +3,189 @@
     <div class="hw-page-header">
       <div class="hw-page-header__left">
         <h1 class="hw-page-header__title">{{ submission.studentName }} · 作业批改</h1>
-        <p class="hw-page-header__desc">{{ submission.summary }}</p>
+        <p class="hw-page-header__desc">{{ submission.exerciseName }}</p>
       </div>
       <div class="hw-page-header__actions">
-        <a-button @click="router.push(`/admin/homework/submissions/${submission.homeworkId}`)">返回提交记录</a-button>
+        <a-button @click="router.push(`/admin/homework/submissions/${homeworkId}`)">返回提交记录</a-button>
       </div>
     </div>
 
-    <section class="app-split-grid">
-      <section class="app-surface-card app-section-card app-panel-grid">
-        <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">学生提交</h2>
-        <article class="app-list-card">
-          <p class="app-list-card__meta">{{ submission.answerPreview }}</p>
-          <div class="review-attachments">
-            <span v-for="item in submission.attachments" :key="item" class="app-inline-stat">{{ item }}</span>
+    <a-spin :spinning="loading">
+      <section class="app-split-grid">
+        <section class="app-surface-card app-section-card app-panel-grid">
+          <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">答题详情</h2>
+          <article v-for="(answer, idx) in submission.answers" :key="answer.recordId" class="app-list-card">
+            <div class="review-answer-header">
+              <h3 class="app-list-card__title">题目 {{ idx + 1 }}：{{ typeLabel(answer.questionType) }}</h3>
+              <span class="app-inline-stat">{{ answer.score || 0 }} / {{ answer.maxScore }}</span>
+            </div>
+            <p class="app-list-card__meta" style="margin-top:8px">{{ answer.question }}</p>
+            <p class="app-list-card__meta" style="margin-top:8px;font-weight:600">学生答案：{{ answer.studentAnswer || '未作答' }}</p>
+            <p class="app-list-card__meta">标准答案：{{ answer.standardAnswer }}</p>
+
+            <a-form layout="inline" style="margin-top:12px" v-if="answer.gradingStatus !== 1">
+              <a-form-item label="评分">
+                <a-input-number v-model:value="answerScores[answer.recordId]" :min="0" :max="answer.maxScore" size="small" />
+              </a-form-item>
+              <a-form-item label="评语">
+                <a-input v-model:value="answerComments[answer.recordId]" size="small" placeholder="评语" />
+              </a-form-item>
+              <a-button size="small" @click="reviewItem(answer.recordId)">批阅此题</a-button>
+            </a-form>
+            <p v-if="answer.comment" class="app-list-card__meta" style="margin-top:8px;color:var(--color-primary)">
+              教师评语：{{ answer.comment }}
+            </p>
+          </article>
+
+          <h2 style="margin:24px 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">成绩汇总</h2>
+          <div class="score-summary">
+            <span class="app-inline-stat">总分：{{ submission.totalScore || 0 }}</span>
           </div>
-        </article>
+        </section>
 
-        <h2 style="margin:24px 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">评分反馈</h2>
-        <a-form layout="vertical">
-          <a-form-item label="得分">
-            <a-input v-model:value="reviewForm.score" size="large" placeholder="例如：89 分" />
-          </a-form-item>
-          <a-form-item label="教师反馈">
-            <a-textarea v-model:value="reviewForm.feedback" :rows="4" placeholder="请输入批改意见" />
-          </a-form-item>
-          <a-button type="primary" size="large" @click="submitReview">保存批改</a-button>
-        </a-form>
+        <div class="hw-side-column">
+          <a-alert type="info" message="批改说明" description="客观题（单选/判断）已自动评分，主观题需人工批阅。" show-icon />
+        </div>
       </section>
-
-      <div class="hw-side-column">
-        <a-alert type="info" message="批改说明" description="先审阅学生内容，再填写评分。后续接入后端后，将支持逐题评分。" show-icon />
-      </div>
-    </section>
+    </a-spin>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getSubmissionDetail, reviewExerciseItem, autoGradeExercise } from '@/api/eduExerciseSubmissionController'
 
-interface ReviewMock {
-  id: string
-  homeworkId: string
+interface SubmissionData {
+  exerciseId: number
+  exerciseName: string
+  studentId: number
   studentName: string
-  summary: string
-  answerPreview: string
-  attachments: string[]
+  className: string
+  submittedAt: string
+  totalScore: number
+  answers: Array<{
+    recordId: number
+    itemId: number
+    question: string
+    questionType: number
+    optionsText?: string
+    standardAnswer: string
+    maxScore: number
+    studentAnswer: string
+    score: number
+    gradingStatus: number
+    comment?: string
+  }>
 }
-
-const reviewMock: ReviewMock[] = [
-  {
-    id: 'sub-1',
-    homeworkId: 'hw-101',
-    studentName: '李明',
-    summary: '已完成角色旅程与异常流梳理。',
-    answerPreview: '本次提交补充了学生与教师双视角流程，并标注了登录失败和重复提交两条异常流。',
-    attachments: ['journey-analysis.pdf']
-  }
-]
 
 const route = useRoute()
 const router = useRouter()
-const submission = computed(() => {
-  const homeworkId = String(route.params.homeworkId)
-  const submissionId = String(route.params.submissionId)
-  return reviewMock.find((item) => item.homeworkId === homeworkId && item.id === submissionId) ?? reviewMock[0]
-})
 
-const reviewForm = reactive({
-  score: '',
-  feedback: ''
-})
+const homeworkId = String(route.params.homeworkId)
+const studentId = Number(route.params.submissionId)
 
-function submitReview(): void {
-  if (reviewForm.score.trim().length === 0) {
-    message.error('请先填写得分。')
+const loading = ref(true)
+const submission = ref<SubmissionData | null>(null)
+const answerScores = reactive<Record<number, number>>({})
+const answerComments = reactive<Record<number, string>>({})
+
+function typeLabel(questionType: number): string {
+  const typeMap: Record<number, string> = {
+    1: '填空题',
+    2: '单选题',
+    3: '多选题',
+    4: '判断题',
+    5: '简答题'
+  }
+  return typeMap[questionType] || '未知'
+}
+
+async function loadData() {
+  if (!homeworkId || !studentId) {
+    loading.value = false
     return
   }
-  message.success('批改结果已保存（Mock）。')
-  router.push(`/admin/homework/submissions/${submission.value.homeworkId}`)
+
+  try {
+    const response = await getSubmissionDetail({
+      exerciseId: Number(homeworkId),
+      studentId
+    })
+    const data = response.data
+
+    if (data) {
+      submission.value = {
+        exerciseId: data.exerciseId || 0,
+        exerciseName: data.exerciseName || '',
+        studentId: data.studentId || 0,
+        studentName: data.studentName || '',
+        className: data.className || '',
+        submittedAt: data.submittedAt || '',
+        totalScore: data.totalScore || 0,
+        answers: (data.answers || []).map((item) => ({
+          recordId: item.recordId || 0,
+          itemId: item.itemId || 0,
+          question: item.question || '',
+          questionType: item.questionType || 0,
+          optionsText: item.optionsText,
+          standardAnswer: item.standardAnswer || '',
+          maxScore: item.maxScore || 0,
+          studentAnswer: item.studentAnswer || '',
+          score: item.score || 0,
+          gradingStatus: item.gradingStatus || 0,
+          comment: item.comment
+        }))
+      }
+
+      // 初始化评分和评语
+      for (const answer of submission.value.answers) {
+        answerScores[answer.recordId] = answer.score || 0
+        if (answer.comment) {
+          answerComments[answer.recordId] = answer.comment
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载提交详情失败:', error)
+    message.error('加载提交详情失败')
+  } finally {
+    loading.value = false
+  }
 }
+
+async function reviewItem(recordId: number) {
+  try {
+    await reviewExerciseItem({
+      recordId,
+      score: answerScores[recordId],
+      comment: answerComments[recordId] || '',
+      gradingStatus: 2
+    })
+    message.success('批阅成功')
+    await loadData() // 刷新数据
+  } catch (error) {
+    console.error('批阅失败:', error)
+    message.error('批阅失败')
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
-.review-attachments {
+.review-answer-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-summary {
+  display: flex;
+  gap: 12px;
 }
 </style>
