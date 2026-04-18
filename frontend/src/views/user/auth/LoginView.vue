@@ -1,105 +1,74 @@
 <template>
   <div class="login-page">
-    <!-- 背景装饰 -->
+    <!-- 动态背景 -->
     <div class="login-page__bg">
-      <div class="login-page__bg-shape login-page__bg-shape--1"></div>
-      <div class="login-page__bg-shape login-page__bg-shape--2"></div>
-      <div class="login-page__bg-shape login-page__bg-shape--3"></div>
+      <div class="bg-orb bg-orb--1"></div>
+      <div class="bg-orb bg-orb--2"></div>
+      <div class="bg-orb bg-orb--3"></div>
+      <div class="bg-grid"></div>
     </div>
 
     <div class="login-page__container">
-      <!-- 左侧品牌区域 -->
-      <div class="login-page__brand">
-        <div class="login-page__brand-content">
-          <div class="login-page__logo">
-            <span class="login-page__logo-icon">E</span>
-            <span class="login-page__logo-text">EduHub</span>
+      <!-- 左侧视觉区域 - 简化设计 -->
+      <div class="login-page__visual">
+        <div class="visual-content">
+          <!-- 3D风格图形装饰 -->
+          <div class="visual-shapes">
+            <div class="shape shape--book">
+              <BookOutlined />
+            </div>
+            <div class="shape shape--bulb">
+              <BulbOutlined />
+            </div>
+            <div class="shape shape--trophy">
+              <TrophyOutlined />
+            </div>
           </div>
-          <h1 class="login-page__title">教学协同平台</h1>
-          <p class="login-page__subtitle">
-            连接师生，赋能教学<br />
-            让学习更高效，让教育更精彩
-          </p>
-          <div class="login-page__features">
-            <div class="login-page__feature">
-              <div class="login-page__feature-icon">
-                <BookOutlined />
-              </div>
-              <div class="login-page__feature-text">
-                <h4>智能课程管理</h4>
-                <p>一站式课程资源管理</p>
-              </div>
-            </div>
-            <div class="login-page__feature">
-              <div class="login-page__feature-icon">
-                <ExperimentOutlined />
-              </div>
-              <div class="login-page__feature-text">
-                <h4>实验实训系统</h4>
-                <p>沉浸式实践教学体验</p>
-              </div>
-            </div>
-            <div class="login-page__feature">
-              <div class="login-page__feature-icon">
-                <TrophyOutlined />
-              </div>
-              <div class="login-page__feature-text">
-                <h4>考试评测中心</h4>
-                <p>全面准确的学业评估</p>
-              </div>
-            </div>
+          
+          <!-- 简洁标语 -->
+          <div class="visual-text">
+            <h1 class="visual-title">EduHub</h1>
+            <p class="visual-slogan">智慧教学，无限可能</p>
           </div>
         </div>
       </div>
 
       <!-- 右侧登录区域 -->
       <div class="login-page__form-area">
-        <div class="login-page__form-card">
-          <div class="login-page__form-header">
-            <h2>欢迎登录</h2>
-            <p>请选择您的身份并输入账号密码</p>
+        <div class="login-page__form-wrapper">
+          <!-- Logo和欢迎语 -->
+          <div class="form-header">
+            <div class="form-logo">
+              <span class="logo-icon">E</span>
+            </div>
+            <h2 class="form-title">欢迎回来</h2>
+            <p class="form-subtitle">选择身份登录您的账户</p>
           </div>
 
-          <!-- 角色选择 -->
-          <div class="login-page__role-selector">
-            <div
-              class="login-page__role-card"
-              :class="{ 'login-page__role-card--active': selectedRole === 'student' }"
+          <!-- 角色切换 - 简洁标签式 -->
+          <div class="role-tabs">
+            <button
+              class="role-tab"
+              :class="{ 'role-tab--active': selectedRole === 'student' }"
               @click="selectedRole = 'student'"
             >
-              <div class="login-page__role-icon login-page__role-icon--student">
-                <UserOutlined />
-              </div>
-              <div class="login-page__role-info">
-                <h4>学生登录</h4>
-                <p>学习、作业、考试</p>
-              </div>
-              <div class="login-page__role-check" v-if="selectedRole === 'student'">
-                <CheckOutlined />
-              </div>
-            </div>
-            <div
-              class="login-page__role-card"
-              :class="{ 'login-page__role-card--active': selectedRole === 'teacher' }"
+              <UserOutlined />
+              <span>学生</span>
+            </button>
+            <button
+              class="role-tab"
+              :class="{ 'role-tab--active': selectedRole === 'teacher' }"
               @click="selectedRole = 'teacher'"
             >
-              <div class="login-page__role-icon login-page__role-icon--teacher">
-                <SolutionOutlined />
-              </div>
-              <div class="login-page__role-info">
-                <h4>教师登录</h4>
-                <p>管理、教学、评测</p>
-              </div>
-              <div class="login-page__role-check" v-if="selectedRole === 'teacher'">
-                <CheckOutlined />
-              </div>
-            </div>
+              <SolutionOutlined />
+              <span>教师</span>
+            </button>
           </div>
 
           <!-- 登录表单 -->
           <a-form
             :model="formState"
-            class="login-page__form"
+            class="login-form"
             @finish="handleSubmit"
           >
             <a-form-item
@@ -110,9 +79,10 @@
                 v-model:value="formState.account"
                 size="large"
                 placeholder="请输入账号"
+                class="form-input"
               >
                 <template #prefix>
-                  <UserOutlined style="color: #9ca3af" />
+                  <UserOutlined class="input-icon" />
                 </template>
               </a-input>
             </a-form-item>
@@ -125,56 +95,39 @@
                 v-model:value="formState.password"
                 size="large"
                 placeholder="请输入密码"
+                class="form-input"
               >
                 <template #prefix>
-                  <LockOutlined style="color: #9ca3af" />
+                  <LockOutlined class="input-icon" />
                 </template>
               </a-input-password>
             </a-form-item>
 
-            <div class="login-page__form-options">
-              <a-checkbox v-model:checked="rememberMe">记住账号</a-checkbox>
-              <a class="login-page__forgot">忘记密码?</a>
+            <div class="form-options">
+              <a-checkbox v-model:checked="rememberMe" class="remember-check">记住账号</a-checkbox>
+              <a class="forgot-link">忘记密码?</a>
             </div>
 
-            <a-form-item>
+            <a-form-item class="submit-item">
               <a-button
                 type="primary"
                 html-type="submit"
                 size="large"
                 block
                 :loading="loading"
-                class="login-page__submit-btn"
+                class="submit-btn"
               >
-                <template #icon>
-                  <LoginOutlined />
-                </template>
-                {{ selectedRole === 'student' ? '学生登录' : '教师登录' }}
+                登录
+                <ArrowRightOutlined />
               </a-button>
             </a-form-item>
           </a-form>
 
-          <!-- 演示账号提示 -->
-          <div class="login-page__demo-hint">
-            <a-divider>
-              <span class="login-page__divider-text">演示账号</span>
-            </a-divider>
-            <div class="login-page__demo-accounts">
-              <div class="login-page__demo-account" @click="fillDemoAccount('student')">
-                <span class="login-page__demo-label">学生</span>
-                <span class="login-page__demo-value">student / 123456</span>
-              </div>
-              <div class="login-page__demo-account" @click="fillDemoAccount('teacher')">
-                <span class="login-page__demo-label">教师</span>
-                <span class="login-page__demo-value">teacher / 123456</span>
-              </div>
-            </div>
-          </div>
+          <!-- 底部信息 -->
+          <p class="form-footer">
+            EduHub 教学协同平台
+          </p>
         </div>
-
-        <p class="login-page__footer">
-          EduHub 教学协同平台 &copy; 2024
-        </p>
       </div>
     </div>
   </div>
@@ -187,11 +140,10 @@ import { message } from 'ant-design-vue'
 import {
   UserOutlined,
   LockOutlined,
-  LoginOutlined,
-  CheckOutlined,
+  ArrowRightOutlined,
   SolutionOutlined,
   BookOutlined,
-  ExperimentOutlined,
+  BulbOutlined,
   TrophyOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/user/auth'
@@ -210,17 +162,6 @@ const formState = reactive({
   account: '',
   password: ''
 })
-
-const fillDemoAccount = (role: RoleType): void => {
-  selectedRole.value = role
-  if (role === 'student') {
-    formState.account = 'student'
-    formState.password = '123456'
-  } else {
-    formState.account = 'teacher'
-    formState.password = '123456'
-  }
-}
 
 const handleSubmit = async (): Promise<void> => {
   if (!selectedRole.value) {
@@ -261,12 +202,13 @@ const handleSubmit = async (): Promise<void> => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f8fbff 0%, #eef3f8 50%, #e8f0f8 100%);
+  background: #0a0a0f;
   position: relative;
   overflow: hidden;
-  padding: 24px;
+  padding: 20px;
 }
 
+/* 动态背景 */
 .login-page__bg {
   position: absolute;
   inset: 0;
@@ -274,413 +216,390 @@ const handleSubmit = async (): Promise<void> => {
   overflow: hidden;
 }
 
-.login-page__bg-shape {
+.bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(120px);
+  opacity: 0.6;
+  animation: float 20s ease-in-out infinite;
 }
 
-.login-page__bg-shape--1 {
-  top: -15%;
-  right: -10%;
+.bg-orb--1 {
+  top: -20%;
+  left: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(31, 95, 174, 0.15) 0%, transparent 70%);
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  animation-delay: 0s;
 }
 
-.login-page__bg-shape--2 {
-  bottom: -20%;
-  left: -15%;
+.bg-orb--2 {
+  bottom: -30%;
+  right: -15%;
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle, rgba(216, 165, 69, 0.12) 0%, transparent 70%);
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  animation-delay: -7s;
 }
 
-.login-page__bg-shape--3 {
-  top: 40%;
-  left: 30%;
+.bg-orb--3 {
+  top: 50%;
+  left: 50%;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(47, 143, 78, 0.08) 0%, transparent 70%);
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  transform: translate(-50%, -50%);
+  animation-delay: -14s;
 }
 
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* 主容器 */
 .login-page__container {
   position: relative;
   z-index: 1;
   display: flex;
   width: 100%;
-  max-width: 1100px;
-  min-height: 680px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  border-radius: 32px;
+  max-width: 1000px;
+  min-height: 600px;
+  background: rgba(18, 18, 24, 0.8);
+  backdrop-filter: blur(40px);
+  border-radius: 28px;
   box-shadow: 
-    0 32px 64px rgba(17, 47, 87, 0.08),
-    0 16px 32px rgba(17, 47, 87, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 40px 80px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 
-.login-page__brand {
+/* 左侧视觉区域 */
+.login-page__visual {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 48px;
-  background: linear-gradient(135deg, #1f5fae 0%, #174a89 50%, #112f57 100%);
+  background: linear-gradient(160deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
-  overflow: hidden;
 }
 
-.login-page__brand::before {
+.visual-content {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* 3D风格图形装饰 */
+.visual-shapes {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.shape {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-size: 32px;
+  color: #fff;
+  position: relative;
+  animation: bounce 3s ease-in-out infinite;
+}
+
+.shape::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.6;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(20px);
+  opacity: 0.5;
+  z-index: -1;
 }
 
-.login-page__brand-content {
-  position: relative;
-  z-index: 1;
-  color: #fff;
-  max-width: 380px;
+.shape--book {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  animation-delay: 0s;
 }
 
-.login-page__logo {
+.shape--bulb {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  animation-delay: -1s;
+  transform: translateY(-20px);
+}
+
+.shape--trophy {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  animation-delay: -2s;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.shape--bulb {
+  animation-name: bounce-alt;
+}
+
+@keyframes bounce-alt {
+  0%, 100% { transform: translateY(-20px); }
+  50% { transform: translateY(-32px); }
+}
+
+.visual-title {
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.visual-slogan {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  letter-spacing: 0.1em;
+}
+
+/* 右侧表单区域 */
+.login-page__form-area {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 32px;
+  justify-content: center;
+  padding: 48px;
 }
 
-.login-page__logo-icon {
-  display: flex;
+.login-page__form-wrapper {
+  width: 100%;
+  max-width: 360px;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.form-logo {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 56px;
   height: 56px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   border-radius: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+}
+
+.logo-icon {
   font-size: 28px;
   font-weight: 800;
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.login-page__logo-text {
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.login-page__title {
-  font-size: 40px;
-  font-weight: 800;
-  margin: 0 0 16px;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.login-page__subtitle {
-  font-size: 18px;
-  line-height: 1.8;
-  opacity: 0.9;
-  margin: 0 0 48px;
-}
-
-.login-page__features {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.login-page__feature {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  transition: all 0.3s ease;
-}
-
-.login-page__feature:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateX(8px);
-}
-
-.login-page__feature-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  font-size: 20px;
-}
-
-.login-page__feature-text h4 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.login-page__feature-text p {
-  margin: 0;
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.login-page__form-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px;
-}
-
-.login-page__form-card {
-  max-width: 400px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.login-page__form-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.login-page__form-header h2 {
+.form-title {
   font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text-main);
+  font-weight: 700;
+  color: #fff;
   margin: 0 0 8px;
 }
 
-.login-page__form-header p {
+.form-subtitle {
   font-size: 15px;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.5);
   margin: 0;
 }
 
-.login-page__role-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 32px;
+/* 角色标签 */
+.role-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
 }
 
-.login-page__role-card {
-  position: relative;
+.role-tab {
+  flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 20px 16px;
-  background: #fff;
-  border: 2px solid var(--color-border);
-  border-radius: 16px;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
-.login-page__role-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 8px 24px rgba(31, 95, 174, 0.1);
+.role-tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.login-page__role-card--active {
-  border-color: var(--color-primary);
-  background: linear-gradient(180deg, rgba(31, 95, 174, 0.04) 0%, rgba(31, 95, 174, 0.08) 100%);
-  box-shadow: 0 8px 24px rgba(31, 95, 174, 0.15);
-}
-
-.login-page__role-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  font-size: 24px;
-  margin-bottom: 12px;
-}
-
-.login-page__role-icon--student {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+.role-tab--active {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
   color: #fff;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
-.login-page__role-icon--teacher {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+.role-tab--active:hover {
   color: #fff;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
 }
 
-.login-page__role-info {
-  text-align: center;
+/* 表单样式 */
+.login-form :deep(.ant-form-item) {
+  margin-bottom: 20px;
 }
 
-.login-page__role-info h4 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-main);
-}
-
-.login-page__role-info p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-
-.login-page__role-check {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-}
-
-.login-page__form :deep(.ant-input-affix-wrapper) {
-  padding: 12px 16px;
+.login-form :deep(.ant-input-affix-wrapper) {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  border-color: var(--color-border);
+  transition: all 0.25s ease;
 }
 
-.login-page__form :deep(.ant-input-affix-wrapper:hover),
-.login-page__form :deep(.ant-input-affix-wrapper-focused) {
-  border-color: var(--color-primary);
+.login-form :deep(.ant-input-affix-wrapper:hover),
+.login-form :deep(.ant-input-affix-wrapper-focused) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-.login-page__form-options {
+.login-form :deep(.ant-input) {
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+}
+
+.login-form :deep(.ant-input::placeholder) {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.input-icon {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+}
+
+.form-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.login-page__forgot {
-  color: var(--color-primary);
+.remember-check :deep(.ant-checkbox-wrapper) {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.remember-check :deep(.ant-checkbox-inner) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.forgot-link {
+  color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: color 0.2s;
 }
 
-.login-page__forgot:hover {
-  opacity: 0.8;
+.forgot-link:hover {
+  color: #3b82f6;
 }
 
-.login-page__submit-btn {
+.submit-item {
+  margin-bottom: 0;
+}
+
+.submit-btn {
   height: 52px;
   font-size: 16px;
-  font-weight: 700;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #1f5fae 0%, #174a89 100%);
+  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
   border: none;
-  box-shadow: 0 8px 24px rgba(31, 95, 174, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
 }
 
-.login-page__submit-btn:hover {
+.submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(31, 95, 174, 0.35);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
 }
 
-.login-page__demo-hint {
-  margin-top: 32px;
-}
-
-.login-page__demo-hint :deep(.ant-divider) {
-  margin: 16px 0;
-  border-color: var(--color-border);
-}
-
-.login-page__divider-text {
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-}
-
-.login-page__demo-accounts {
-  display: flex;
-  gap: 12px;
-}
-
-.login-page__demo-account {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px;
-  background: var(--color-bg-muted);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.login-page__demo-account:hover {
-  background: var(--color-bg-spotlight);
-  transform: scale(1.02);
-}
-
-.login-page__demo-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.login-page__demo-value {
-  font-size: 13px;
-  color: var(--color-text-main);
-  font-family: monospace;
-}
-
-.login-page__footer {
+.form-footer {
   text-align: center;
   margin-top: 32px;
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: rgba(255, 255, 255, 0.3);
 }
 
-@media (max-width: 900px) {
+/* 响应式 */
+@media (max-width: 800px) {
   .login-page__container {
     flex-direction: column;
-    max-width: 480px;
+    max-width: 440px;
     min-height: auto;
   }
 
-  .login-page__brand {
+  .login-page__visual {
     padding: 40px 32px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  .login-page__brand-content {
-    max-width: 100%;
-  }
-
-  .login-page__title {
-    font-size: 28px;
-  }
-
-  .login-page__subtitle {
-    font-size: 15px;
+  .visual-shapes {
+    gap: 16px;
     margin-bottom: 32px;
   }
 
-  .login-page__features {
-    display: none;
+  .shape {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    border-radius: 16px;
+  }
+
+  .visual-title {
+    font-size: 36px;
+  }
+
+  .visual-slogan {
+    font-size: 15px;
   }
 
   .login-page__form-area {
@@ -690,43 +609,38 @@ const handleSubmit = async (): Promise<void> => {
 
 @media (max-width: 480px) {
   .login-page {
-    padding: 16px;
+    padding: 12px;
   }
 
   .login-page__container {
-    border-radius: 24px;
+    border-radius: 20px;
   }
 
-  .login-page__brand {
+  .login-page__visual {
     padding: 32px 24px;
   }
 
-  .login-page__logo-icon {
-    width: 44px;
-    height: 44px;
-    font-size: 22px;
-  }
-
-  .login-page__logo-text {
-    font-size: 24px;
-  }
-
-  .login-page__title {
-    font-size: 24px;
-  }
-
-  .login-page__role-selector {
-    gap: 12px;
-  }
-
-  .login-page__role-card {
-    padding: 16px 12px;
-  }
-
-  .login-page__role-icon {
-    width: 44px;
-    height: 44px;
+  .shape {
+    width: 52px;
+    height: 52px;
     font-size: 20px;
+  }
+
+  .visual-title {
+    font-size: 28px;
+  }
+
+  .form-title {
+    font-size: 24px;
+  }
+
+  .role-tabs {
+    gap: 8px;
+  }
+
+  .role-tab {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }
 </style>
