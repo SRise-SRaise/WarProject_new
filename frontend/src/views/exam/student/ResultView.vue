@@ -166,7 +166,7 @@
                   参考答案
                 </div>
                 <div class="answer-value">
-                  {{ formatCorrectAnswer(question.question) || '暂无' }}
+                  {{ formatCorrectAnswer(question) || '暂无' }}
                 </div>
               </div>
             </div>
@@ -240,6 +240,8 @@ const router = useRouter()
 const examStore = useExamStudentStore()
 const examId = computed(() => Number(route.params.id))
 const submission = computed(() => examStore.currentSubmission)
+// 从后端获取的试卷详情（包含参考答案）
+const paperDetail = computed(() => examStore.resultPaperDetail)
 
 const filterType = ref<'all' | 'correct' | 'wrong'>('all')
 
@@ -336,13 +338,34 @@ function formatAnswer(answer: string | string[] | undefined): string {
   return answer
 }
 
+// 获取参考答案：优先从 paperDetail 中查找，其次从 question 对象
+function getStandardAnswer(questionId: number): string | null {
+  // 从后端获取的试卷详情中查找
+  if (paperDetail.value?.questions) {
+    const pq = paperDetail.value.questions.find(q => q.questionId === questionId)
+    if (pq?.question?.standardAnswer) {
+      return pq.question.standardAnswer
+    }
+  }
+  return null
+}
+
 function formatCorrectAnswer(question: any): string {
   if (!question) return ''
-  // 根据题目类型返回正确答案
+  
+  // 先尝试从后端获取的试卷详情中获取标准答案
+  const standardFromBackend = getStandardAnswer(question.questionId)
+  if (standardFromBackend) {
+    return standardFromBackend
+  }
+  
+  // 如果后端没有，尝试从 question 对象本身获取
   if (question.standardAnswer) return question.standardAnswer
   if (question.correctAnswer) return question.correctAnswer
+  
   // 主观题暂不显示参考答案
-  if (question.questionType === 5 || question.questionType === 6 || question.questionType === 7) {
+  const questionType = question.questionType ?? question.question?.questionType
+  if (questionType === 5 || questionType === 6 || questionType === 7) {
     return '主观题，请参考教师批改'
   }
   return '暂无'

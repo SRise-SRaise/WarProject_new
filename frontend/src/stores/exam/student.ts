@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { examRepository } from './repository'
-import type { Exam, PaperDetail, QuestionType, StudentExamResult } from './types'
+import type { Exam, PaperDetail, QuestionItem, QuestionType, StudentExamResult } from './types'
 
 const EXAM_SUBMISSION_STORAGE_KEY = 'eduhub.exam.student.submissions'
 const AUTH_SESSION_STORAGE_KEY = 'eduhub.auth.session'
@@ -110,6 +110,8 @@ export const useExamStudentStore = defineStore('exam-student', () => {
   const answers = ref<Record<number, string | string[]>>({})
   const examResult = ref<StudentExamResult | null>(null)
   const currentSubmission = ref<StoredExamSubmission | null>(null)
+  // 用于查看成绩时获取试卷详情（包含参考答案）
+  const resultPaperDetail = ref<PaperDetail | null>(null)
   const loading = ref(false)
   const hydrated = ref(false)
   const submissionLedger = ref<SubmissionLedger>(readLedger())
@@ -154,7 +156,17 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     const existing = getSubmission(examId)
     if (!existing) return null
     try {
-      const backend = await examRepository.getStudentExamResult(examId)
+      // 同时获取后端结果和试卷详情（包含参考答案）
+      const [backend, paperDetailResponse] = await Promise.all([
+        examRepository.getStudentExamResult(examId),
+        examRepository.getExamDetailForStudent(examId).catch(() => null)
+      ])
+      
+      // 存储试卷详情用于显示参考答案
+      if (paperDetailResponse?.paper) {
+        resultPaperDetail.value = paperDetailResponse.paper
+      }
+      
       if (!backend) {
         currentSubmission.value = existing
         return existing
@@ -322,6 +334,7 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     answers,
     examResult,
     currentSubmission,
+    resultPaperDetail,
     loading,
     hydrated,
     availableCount,
