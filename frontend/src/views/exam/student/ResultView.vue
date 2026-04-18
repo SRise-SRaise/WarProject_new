@@ -160,13 +160,22 @@
                   {{ formatAnswer(submission.answers[question.questionId]) || '未作答' }}
                 </div>
               </div>
-              <div class="answer-block answer-block--correct">
+              <div class="answer-block answer-block--correct" v-if="shouldShowStandardAnswer(question)">
                 <div class="answer-label">
                   <CheckOutlined />
                   参考答案
                 </div>
                 <div class="answer-value">
                   {{ formatCorrectAnswer(question) || '暂无' }}
+                </div>
+              </div>
+              <div class="answer-block answer-block--correct" v-else>
+                <div class="answer-label">
+                  <CheckOutlined />
+                  批改说明
+                </div>
+                <div class="answer-value">
+                  {{ getTeacherComment(question.questionId) || '主观题，请参考教师批改意见' }}
                 </div>
               </div>
             </div>
@@ -338,6 +347,20 @@ function formatAnswer(answer: string | string[] | undefined): string {
   return answer
 }
 
+// 判断是否应该显示标准答案（客观题显示标准答案，主观题显示批改意见）
+function shouldShowStandardAnswer(question: any): boolean {
+  const questionType = question.questionType ?? question.question?.questionType
+  // 客观题类型：1填空、2单选、3多选、4判断
+  return questionType === 1 || questionType === 2 || questionType === 3 || questionType === 4
+}
+
+// 获取教师批改意见
+function getTeacherComment(questionId: number): string {
+  // 从 submission 的 questionScores 或其他地方获取教师评语
+  // 这里需要根据实际数据结构调整
+  return '教师已批改，请查看得分情况'
+}
+
 // 获取参考答案：优先从 paperDetail 中查找，其次从 question 对象
 function getStandardAnswer(questionId: number): string | null {
   // 从后端获取的试卷详情中查找
@@ -352,22 +375,17 @@ function getStandardAnswer(questionId: number): string | null {
 
 function formatCorrectAnswer(question: any): string {
   if (!question) return ''
-  
+
   // 先尝试从后端获取的试卷详情中获取标准答案
   const standardFromBackend = getStandardAnswer(question.questionId)
   if (standardFromBackend) {
     return standardFromBackend
   }
-  
+
   // 如果后端没有，尝试从 question 对象本身获取
   if (question.standardAnswer) return question.standardAnswer
   if (question.correctAnswer) return question.correctAnswer
-  
-  // 主观题暂不显示参考答案
-  const questionType = question.questionType ?? question.question?.questionType
-  if (questionType === 5 || questionType === 6 || questionType === 7) {
-    return '主观题，请参考教师批改'
-  }
+
   return '暂无'
 }
 

@@ -156,17 +156,14 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     const existing = getSubmission(examId)
     if (!existing) return null
     try {
-      // 同时获取后端结果和试卷详情（包含参考答案）
-      const [backend, paperDetailResponse] = await Promise.all([
-        examRepository.getStudentExamResult(examId),
-        examRepository.getExamDetailForStudent(examId).catch(() => null)
-      ])
-      
+      // 获取后端结果（现在包含 paper 字段，其中有标准答案）
+      const backend = await examRepository.getStudentExamResult(examId)
+
       // 存储试卷详情用于显示参考答案
-      if (paperDetailResponse?.paper) {
-        resultPaperDetail.value = paperDetailResponse.paper
+      if (backend?.paper) {
+        resultPaperDetail.value = backend.paper
       }
-      
+
       if (!backend) {
         currentSubmission.value = existing
         return existing

@@ -664,13 +664,14 @@ export const examRepository = {
     }
   },
 
-  async getStudentExamResult(examId: number): Promise<{ record: StudentAnswerRecord; exam: Exam } | null> {
+  async getStudentExamResult(examId: number): Promise<{ record: StudentAnswerRecord; exam: Exam; paper?: PaperDetail } | null> {
     const response = await request.get('/exam/resExamRecord/student/result', { params: { examId } })
     const raw = unwrapMap(response, '获取学生考试结果')
     const record = isRecord(raw.record) ? mapStudentAnswerRecord(raw.record) : null
     const exam = isRecord(raw.exam) ? mapExam(raw.exam) : null
+    const paper = isRecord(raw.paper) ? mapPaperDetail(raw.paper) : undefined
     if (!record || !exam) return null
-    return { record, exam }
+    return { record, exam, paper }
   },
 
   async getStudentAnswerRecords(examId: number): Promise<StudentAnswerRecord[]> {

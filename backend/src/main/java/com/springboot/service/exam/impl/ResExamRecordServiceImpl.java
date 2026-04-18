@@ -173,9 +173,26 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
         if (studentRecord == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到学生考试结果");
         }
+
+        // 获取考试信息
+        Map<String, Object> examCard = eduExamService.getAdminExamCard(examId);
+
+        // 从 res_exam_summary 查 paper_id，获取试卷详情（含标准答案）
+        Map<String, Object> paperDetail = null;
+        List<Map<String, Object>> summaries = jdbcTemplate.queryForList(
+                "SELECT paper_id FROM res_exam_summary WHERE exam_id = ? AND student_id = ? LIMIT 1",
+                examId, studentId);
+        if (!summaries.isEmpty()) {
+            Long paperId = toLong(summaries.get(0).get("paper_id"));
+            if (paperId != null) {
+                paperDetail = eduPaperService.getPaperDetail(paperId);
+            }
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("record", studentRecord);
-        result.put("exam", eduExamService.getAdminExamCard(examId));
+        result.put("exam", examCard);
+        result.put("paper", paperDetail);
         return result;
     }
 
