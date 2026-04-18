@@ -47,7 +47,13 @@ public class EduExerciseItemController {
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        boolean result = eduExerciseItemService.removeById(id);
+        long itemId;
+        try {
+            itemId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目ID格式错误");
+        }
+        boolean result = eduExerciseItemService.removeExerciseItemById(itemId);
         return ResultUtils.success(result);
     }
 

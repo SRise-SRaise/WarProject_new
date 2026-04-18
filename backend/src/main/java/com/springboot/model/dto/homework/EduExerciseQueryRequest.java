@@ -28,5 +28,9 @@ public class EduExerciseQueryRequest extends PageRequest implements Serializable
 
     private Date updatedAt;
 
+    private Long teacherId;
+
+    private Integer publishStatus;
+
     private static final long serialVersionUID = 1L;
 }

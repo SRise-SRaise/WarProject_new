@@ -64,6 +64,18 @@ public class EduExerciseItem implements Serializable {
     private Long questionBankId;
 
     /**
+     * 题目解析
+     */
+    @TableField(value = "analysis")
+    private String analysis;
+
+    /**
+     * 难度系数 1-5
+     */
+    @TableField(value = "difficulty")
+    private Integer difficulty;
+
+    /**
      * 
      */
     @TableField(value = "created_at")
@@ -98,6 +110,8 @@ public class EduExerciseItem implements Serializable {
             && (this.getQuestionType() == null ? other.getQuestionType() == null : this.getQuestionType().equals(other.getQuestionType()))
             && (this.getMaxScore() == null ? other.getMaxScore() == null : this.getMaxScore().equals(other.getMaxScore()))
             && (this.getQuestionBankId() == null ? other.getQuestionBankId() == null : this.getQuestionBankId().equals(other.getQuestionBankId()))
+            && (this.getAnalysis() == null ? other.getAnalysis() == null : this.getAnalysis().equals(other.getAnalysis()))
+            && (this.getDifficulty() == null ? other.getDifficulty() == null : this.getDifficulty().equals(other.getDifficulty()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
     }
@@ -114,6 +128,8 @@ public class EduExerciseItem implements Serializable {
         result = prime * result + ((getQuestionType() == null) ? 0 : getQuestionType().hashCode());
         result = prime * result + ((getMaxScore() == null) ? 0 : getMaxScore().hashCode());
         result = prime * result + ((getQuestionBankId() == null) ? 0 : getQuestionBankId().hashCode());
+        result = prime * result + ((getAnalysis() == null) ? 0 : getAnalysis().hashCode());
+        result = prime * result + ((getDifficulty() == null) ? 0 : getDifficulty().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
         return result;
@@ -133,6 +149,8 @@ public class EduExerciseItem implements Serializable {
         sb.append(", questionType=").append(questionType);
         sb.append(", maxScore=").append(maxScore);
         sb.append(", questionBankId=").append(questionBankId);
+        sb.append(", analysis=").append(analysis);
+        sb.append(", difficulty=").append(difficulty);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);
         sb.append(", serialVersionUID=").append(serialVersionUID);

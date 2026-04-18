@@ -23,6 +23,14 @@ public class EduExerciseItemVO implements Serializable {
 
     private Integer questionType;
 
+    private Integer maxScore;
+
+    private Long questionBankId;
+
+    private String analysis;
+
+    private Integer difficulty;
+
     private Date createdAt;
 
     private Date updatedAt;
