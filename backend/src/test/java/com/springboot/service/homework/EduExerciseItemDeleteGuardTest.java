@@ -97,7 +97,6 @@ class EduExerciseItemDeleteGuardTest {
         exerciseId = exercise.getId();
 
         EduExerciseItem item = new EduExerciseItem();
-        item.setExerciseId(exerciseId);
         item.setQuestion("删除保护测试题目");
         item.setQuestionType(2);
         item.setStandardAnswer("A");

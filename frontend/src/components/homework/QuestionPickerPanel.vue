@@ -117,7 +117,6 @@
 import { computed, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { addEduExerciseItem, deleteEduExerciseItem, listEduExerciseItemVoByPage } from '@/api/eduExerciseItemController'
-import { listEduQuestionBankByPage } from '@/api/eduQuestionBankController'
 import type { HomeworkQuestionStat } from '@/types/homework/assignment'
 
 interface ExerciseItem {
@@ -208,7 +207,7 @@ function toItem(raw: any): ExerciseItem {
   return {
     id,
     exerciseId,
-    question: String(raw.question || raw.questionContent || ''),
+    question: String(raw.question || ''),
     questionType: Number(raw.questionType || 0),
     optionsText: raw.optionsText || '',
     standardAnswer: raw.standardAnswer || '',
@@ -360,7 +359,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 async function loadBankQuestions(): Promise<void> {
-  const response = await listEduQuestionBankByPage({ current: 1, pageSize: 50 })
+  const response = await listEduExerciseItemVoByPage({ current: 1, pageSize: 50 })
   const allItems = unwrapRecords(response).map(toItem)
   const selectedIdSet = new Set(selectedQuestions.value.map((item) => item.id))
   const selectedSourceSet = new Set(selectedQuestions.value.map((item) => item.questionBankId || '').filter((id) => id.length > 0))
@@ -444,7 +443,7 @@ async function addSelectedQuestions(): Promise<void> {
 async function removeQuestion(itemId: string): Promise<void> {
   loading.value = true
   try {
-    const response = await deleteEduExerciseItem({ id: itemId })
+    const response = await deleteEduExerciseItem({ id: itemId, exerciseId: props.exerciseId } as any)
     const code = (response as any)?.data?.code
     const success = (response as any)?.data?.data ?? (response as any)?.data
     const messageText = (response as any)?.data?.message

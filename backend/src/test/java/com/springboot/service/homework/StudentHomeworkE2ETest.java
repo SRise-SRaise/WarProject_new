@@ -4,6 +4,7 @@ import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.springboot.mapper.homework.EduExerciseItemMapper;
 import com.springboot.mapper.homework.EduExerciseMapper;
+import com.springboot.mapper.homework.RelExerciseItemMapper;
 import com.springboot.mapper.homework.RelExerciseClassMapper;
 import com.springboot.mapper.homework.ResExerciseRecordMapper;
 import com.springboot.mapper.user.AuthClassMapper;
@@ -13,6 +14,7 @@ import com.springboot.model.dto.homework.*;
 import com.springboot.model.entity.homework.EduExercise;
 import com.springboot.model.entity.homework.EduExerciseItem;
 import com.springboot.model.entity.homework.RelExerciseClass;
+import com.springboot.model.entity.homework.RelExerciseItem;
 import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthClass;
 import com.springboot.model.entity.user.AuthStudent;
@@ -51,6 +53,9 @@ class StudentHomeworkE2ETest {
     private RelExerciseClassMapper relExerciseClassMapper;
 
     @Resource
+    private RelExerciseItemMapper relExerciseItemMapper;
+
+    @Resource
     private ResExerciseRecordMapper resExerciseRecordMapper;
 
     @Resource
@@ -62,9 +67,9 @@ class StudentHomeworkE2ETest {
     @Resource
     private AuthClassMapper authClassMapper;
 
-    private static final String TEST_CLASS_CODE = "TST001";
-    private static final String TEST_TEACHER_USERNAME = "TT001";
-    private static final String TEST_STUDENT_CODE = "SS00001";
+    private String testClassCode;
+    private String testTeacherUsername;
+    private String testStudentCode;
     private static final String TEST_STUDENT_PASSWORD = "test123456";
 
     private static Long teacherId;
@@ -79,21 +84,26 @@ class StudentHomeworkE2ETest {
     void cleanupAfterAll() {
         if (itemIdTrueFalse != null) {
             try { resExerciseRecordMapper.delete(new QueryWrapper<ResExerciseRecord>().eq("item_id", itemIdTrueFalse)); } catch (Exception e) {}
+            try { relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", itemIdTrueFalse)); } catch (Exception e) {}
             try { eduExerciseItemMapper.deleteById(itemIdTrueFalse); } catch (Exception e) {}
         }
         if (itemIdFillBlank != null) {
             try { resExerciseRecordMapper.delete(new QueryWrapper<ResExerciseRecord>().eq("item_id", itemIdFillBlank)); } catch (Exception e) {}
+            try { relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", itemIdFillBlank)); } catch (Exception e) {}
             try { eduExerciseItemMapper.deleteById(itemIdFillBlank); } catch (Exception e) {}
         }
         if (itemIdMultipleChoice != null) {
             try { resExerciseRecordMapper.delete(new QueryWrapper<ResExerciseRecord>().eq("item_id", itemIdMultipleChoice)); } catch (Exception e) {}
+            try { relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", itemIdMultipleChoice)); } catch (Exception e) {}
             try { eduExerciseItemMapper.deleteById(itemIdMultipleChoice); } catch (Exception e) {}
         }
         if (itemIdSingleChoice != null) {
             try { resExerciseRecordMapper.delete(new QueryWrapper<ResExerciseRecord>().eq("item_id", itemIdSingleChoice)); } catch (Exception e) {}
+            try { relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", itemIdSingleChoice)); } catch (Exception e) {}
             try { eduExerciseItemMapper.deleteById(itemIdSingleChoice); } catch (Exception e) {}
         }
         if (exerciseId != null) {
+            try { relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("exercise_id", exerciseId)); } catch (Exception e) {}
             try { relExerciseClassMapper.delete(new QueryWrapper<RelExerciseClass>().eq("exercise_id", exerciseId)); } catch (Exception e) {}
             try { eduExerciseMapper.deleteById(exerciseId); } catch (Exception e) {}
         }
@@ -103,51 +113,50 @@ class StudentHomeworkE2ETest {
         if (teacherId != null) {
             try { authTeacherMapper.deleteById(teacherId); } catch (Exception e) {}
         }
-        try { authClassMapper.deleteById(TEST_CLASS_CODE); } catch (Exception e) {}
+        if (testClassCode != null) {
+            try { authClassMapper.deleteById(testClassCode); } catch (Exception e) {}
+        }
     }
 
     @Test
     @Order(1)
     void test01_SetupAllTestData() {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 4).toUpperCase();
+        testClassCode = "TS" + suffix;
+        testTeacherUsername = "TT" + suffix;
+        testStudentCode = "SS" + suffix;
+
         AuthClass authClass = new AuthClass();
-        authClass.setClassCode(TEST_CLASS_CODE);
+        authClass.setClassCode(testClassCode);
         authClass.setHeadmasterName("测试班主任");
         authClass.setClassStatus(0);
         authClass.setCreatedAt(new Date());
         authClass.setUpdatedAt(new Date());
         authClassMapper.insert(authClass);
-        assertNotNull(authClassMapper.selectById(TEST_CLASS_CODE));
+        assertNotNull(authClassMapper.selectById(testClassCode));
 
         AuthTeacher teacher = new AuthTeacher();
-        teacher.setUsername(TEST_TEACHER_USERNAME);
+        teacher.setUsername(testTeacherUsername);
         teacher.setRealName("测试教师");
         teacher.setPasswordMd5(DigestUtil.md5Hex(TEST_STUDENT_PASSWORD));
         teacher.setCreatedAt(new Date());
         teacher.setUpdatedAt(new Date());
         authTeacherMapper.insert(teacher);
-
-        QueryWrapper<AuthTeacher> teacherQuery = new QueryWrapper<>();
-        teacherQuery.eq("username", TEST_TEACHER_USERNAME);
-        AuthTeacher savedTeacher = authTeacherMapper.selectOne(teacherQuery);
-        assertNotNull(savedTeacher);
-        teacherId = savedTeacher.getId();
+        teacherId = teacher.getId();
+        assertNotNull(teacherId);
 
         AuthStudent student = new AuthStudent();
-        student.setStudentCode(TEST_STUDENT_CODE);
+        student.setStudentCode(testStudentCode);
         student.setStudentName("测试学生");
         student.setPasswordMd5(DigestUtil.md5Hex(TEST_STUDENT_PASSWORD));
-        student.setClassCode(TEST_CLASS_CODE);
+        student.setClassCode(testClassCode);
         student.setAccountStatus(0);
         student.setLoginFailCount(0);
         student.setCreatedAt(new Date());
         student.setUpdatedAt(new Date());
         authStudentMapper.insert(student);
-
-        QueryWrapper<AuthStudent> studentQuery = new QueryWrapper<>();
-        studentQuery.eq("student_code", TEST_STUDENT_CODE);
-        AuthStudent savedStudent = authStudentMapper.selectOne(studentQuery);
-        assertNotNull(savedStudent);
-        studentId = savedStudent.getId();
+        studentId = student.getId();
+        assertNotNull(studentId);
 
         EduExercise exercise = new EduExercise();
         exercise.setSortOrder(1);
@@ -161,17 +170,12 @@ class StudentHomeworkE2ETest {
         exercise.setCreatedAt(new Date());
         exercise.setUpdatedAt(new Date());
         eduExerciseMapper.insert(exercise);
-
-        QueryWrapper<EduExercise> exerciseQuery = new QueryWrapper<>();
-        exerciseQuery.eq("task_name", "Java基础测试");
-        EduExercise savedExercise = eduExerciseMapper.selectOne(exerciseQuery);
-        assertNotNull(savedExercise);
-        exerciseId = savedExercise.getId();
+        exerciseId = exercise.getId();
+        assertNotNull(exerciseId);
 
         List<EduExerciseItem> items = new ArrayList<>();
 
         EduExerciseItem item1 = new EduExerciseItem();
-        item1.setExerciseId(exerciseId);
         item1.setQuestion("Java中super关键字的作用是？");
         item1.setOptionsText("A.调用父类方法;B.调用子类方法;C.调用构造方法;D.无作用");
         item1.setStandardAnswer("A");
@@ -182,7 +186,6 @@ class StudentHomeworkE2ETest {
         items.add(item1);
 
         EduExerciseItem item2 = new EduExerciseItem();
-        item2.setExerciseId(exerciseId);
         item2.setQuestion("下列哪些是Java的基本数据类型？");
         item2.setOptionsText("A.int;B.String;C.boolean;D.double");
         item2.setStandardAnswer("ACD");
@@ -193,7 +196,6 @@ class StudentHomeworkE2ETest {
         items.add(item2);
 
         EduExerciseItem item3 = new EduExerciseItem();
-        item3.setExerciseId(exerciseId);
         item3.setQuestion("Java是一门______编程语言。");
         item3.setStandardAnswer("面向对象");
         item3.setQuestionType(1);
@@ -203,7 +205,6 @@ class StudentHomeworkE2ETest {
         items.add(item3);
 
         EduExerciseItem item4 = new EduExerciseItem();
-        item4.setExerciseId(exerciseId);
         item4.setQuestion("Java中的main方法必须返回void类型。");
         item4.setStandardAnswer("T");
         item4.setQuestionType(4);
@@ -216,10 +217,20 @@ class StudentHomeworkE2ETest {
             eduExerciseItemMapper.insert(item);
         }
 
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        List<EduExerciseItem> savedItems = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> savedItems = eduExerciseItemMapper.selectBatchIds(
+                items.stream().map(EduExerciseItem::getId).toList()
+        );
         assertEquals(4, savedItems.size());
+
+        int order = 1;
+        for (EduExerciseItem savedItem : savedItems) {
+            RelExerciseItem rel = new RelExerciseItem();
+            rel.setExerciseId(exerciseId);
+            rel.setItemId(savedItem.getId());
+            rel.setItemOrder(order++);
+            rel.setItemScore(savedItem.getMaxScore());
+            relExerciseItemMapper.insert(rel);
+        }
 
         itemIdSingleChoice = savedItems.stream()
                 .filter(i -> i.getQuestionType() == 2)
@@ -249,7 +260,7 @@ class StudentHomeworkE2ETest {
 
         ExercisePublishRequest request = new ExercisePublishRequest();
         request.setExerciseId(exerciseId);
-        request.setClassCodes(Collections.singletonList(TEST_CLASS_CODE));
+        request.setClassCodes(Collections.singletonList(testClassCode));
         Boolean publishResult = eduExerciseService.publishExercise(request);
         assertTrue(publishResult);
 

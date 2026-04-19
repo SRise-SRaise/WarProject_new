@@ -6,11 +6,13 @@ import com.springboot.common.ErrorCode;
 import com.springboot.exception.BusinessException;
 import com.springboot.mapper.homework.EduExerciseItemMapper;
 import com.springboot.mapper.homework.EduExerciseMapper;
+import com.springboot.mapper.homework.RelExerciseItemMapper;
 import com.springboot.mapper.homework.ResExerciseRecordMapper;
 import com.springboot.mapper.user.AuthStudentMapper;
 import com.springboot.model.dto.homework.*;
 import com.springboot.model.entity.homework.EduExercise;
 import com.springboot.model.entity.homework.EduExerciseItem;
+import com.springboot.model.entity.homework.RelExerciseItem;
 import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthStudent;
 import com.springboot.model.vo.homework.*;
@@ -35,6 +37,9 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
     private ResExerciseRecordMapper resExerciseRecordMapper;
 
     @Resource
+    private RelExerciseItemMapper relExerciseItemMapper;
+
+    @Resource
     private AuthStudentMapper authStudentMapper;
 
     @Override
@@ -52,10 +57,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "答案列表为空");
         }
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         if (CollUtil.isEmpty(items)) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "作业题目不存在");
@@ -199,11 +201,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        itemQuery.orderByAsc("id");
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         // 查询学生答题记录
         QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
@@ -265,10 +263,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         // 查询学生答题记录
         QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
@@ -329,10 +324,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         recordQuery.eq("grading_status", 0);
         List<ResExerciseRecord> records = resExerciseRecordMapper.selectList(recordQuery);
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         int gradedCount = 0;
 
@@ -415,11 +407,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         EduExercise exercise = eduExerciseMapper.selectById(exerciseId);
         AuthStudent student = authStudentMapper.selectById(studentId);
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        itemQuery.orderByAsc("id");
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         // 查询学生答题记录
         QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
@@ -496,11 +484,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         // 查询学生信息
         AuthStudent student = authStudentMapper.selectById(studentId);
 
-        // 查询作业题目列表
-        QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-        itemQuery.eq("exercise_id", exerciseId);
-        itemQuery.orderByAsc("id");
-        List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
+        List<EduExerciseItem> items = listItemsByExerciseId(exerciseId);
 
         // 查询学生答题记录
         QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
@@ -631,6 +615,35 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         recordVO.setStatus(pendingCount == 0 ? "reviewed" : "submitted");
         recordVO.setGradingSummary(pendingCount == 0 ? "全部题目已完成批阅" : "还有 " + pendingCount + " 题待教师批阅");
         return recordVO;
+    }
+
+    private List<EduExerciseItem> listItemsByExerciseId(Long exerciseId) {
+        List<RelExerciseItem> rels = relExerciseItemMapper.selectList(
+                new QueryWrapper<RelExerciseItem>()
+                        .eq("exercise_id", exerciseId)
+                        .orderByAsc("item_order")
+                        .orderByAsc("id")
+        );
+        if (CollUtil.isEmpty(rels)) {
+            return Collections.emptyList();
+        }
+        List<Long> itemIds = rels.stream().map(RelExerciseItem::getItemId).collect(Collectors.toList());
+        List<EduExerciseItem> items = eduExerciseItemMapper.selectBatchIds(itemIds);
+        if (CollUtil.isEmpty(items)) {
+            return Collections.emptyList();
+        }
+        Map<Long, EduExerciseItem> itemMap = items.stream().collect(Collectors.toMap(EduExerciseItem::getId, item -> item));
+        List<EduExerciseItem> orderedItems = new ArrayList<>();
+        for (RelExerciseItem rel : rels) {
+            EduExerciseItem item = itemMap.get(rel.getItemId());
+            if (item != null) {
+                if (rel.getItemScore() != null) {
+                    item.setMaxScore(rel.getItemScore());
+                }
+                orderedItems.add(item);
+            }
+        }
+        return orderedItems;
     }
 
     /**

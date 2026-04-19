@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.springboot.mapper.homework.EduExerciseItemMapper;
 import com.springboot.mapper.homework.EduExerciseMapper;
 import com.springboot.mapper.homework.RelExerciseClassMapper;
+import com.springboot.mapper.homework.RelExerciseItemMapper;
 import com.springboot.mapper.homework.ResExerciseRecordMapper;
 import com.springboot.mapper.user.AuthClassMapper;
 import com.springboot.mapper.user.AuthStudentMapper;
@@ -16,6 +17,7 @@ import com.springboot.model.dto.homework.ReviewItemRequest;
 import com.springboot.model.entity.homework.EduExercise;
 import com.springboot.model.entity.homework.EduExerciseItem;
 import com.springboot.model.entity.homework.RelExerciseClass;
+import com.springboot.model.entity.homework.RelExerciseItem;
 import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthClass;
 import com.springboot.model.entity.user.AuthStudent;
@@ -58,6 +60,9 @@ class TeacherHomeworkOverviewServiceTest {
     private RelExerciseClassMapper relExerciseClassMapper;
 
     @Resource
+    private RelExerciseItemMapper relExerciseItemMapper;
+
+    @Resource
     private ResExerciseRecordMapper resExerciseRecordMapper;
 
     @Resource
@@ -80,12 +85,15 @@ class TeacherHomeworkOverviewServiceTest {
     void cleanup() {
         if (exerciseId != null) {
             resExerciseRecordMapper.delete(new QueryWrapper<ResExerciseRecord>().eq("exercise_id", exerciseId));
+            relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("exercise_id", exerciseId));
             relExerciseClassMapper.delete(new QueryWrapper<RelExerciseClass>().eq("exercise_id", exerciseId));
         }
         if (objectiveItemId != null) {
+            relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", objectiveItemId));
             eduExerciseItemMapper.deleteById(objectiveItemId);
         }
         if (essayItemId != null) {
+            relExerciseItemMapper.delete(new QueryWrapper<RelExerciseItem>().eq("item_id", essayItemId));
             eduExerciseItemMapper.deleteById(essayItemId);
         }
         if (exerciseId != null) {
@@ -220,7 +228,6 @@ class TeacherHomeworkOverviewServiceTest {
         exerciseId = exercise.getId();
 
         EduExerciseItem objectiveItem = new EduExerciseItem();
-        objectiveItem.setExerciseId(exerciseId);
         objectiveItem.setQuestion("Java 支持面向对象编程。\nA. 正确\nB. 错误");
         objectiveItem.setOptionsText("正确,错误");
         objectiveItem.setStandardAnswer("A");
@@ -231,8 +238,14 @@ class TeacherHomeworkOverviewServiceTest {
         eduExerciseItemMapper.insert(objectiveItem);
         objectiveItemId = objectiveItem.getId();
 
+        RelExerciseItem relObjectiveItem = new RelExerciseItem();
+        relObjectiveItem.setExerciseId(exerciseId);
+        relObjectiveItem.setItemId(objectiveItemId);
+        relObjectiveItem.setItemOrder(1);
+        relObjectiveItem.setItemScore(objectiveItem.getMaxScore());
+        relExerciseItemMapper.insert(relObjectiveItem);
+
         EduExerciseItem essayItem = new EduExerciseItem();
-        essayItem.setExerciseId(exerciseId);
         essayItem.setQuestion("请简述面向对象的三个核心特性。");
         essayItem.setQuestionType(5);
         essayItem.setMaxScore(20);
@@ -240,6 +253,13 @@ class TeacherHomeworkOverviewServiceTest {
         essayItem.setUpdatedAt(new Date());
         eduExerciseItemMapper.insert(essayItem);
         essayItemId = essayItem.getId();
+
+        RelExerciseItem relEssayItem = new RelExerciseItem();
+        relEssayItem.setExerciseId(exerciseId);
+        relEssayItem.setItemId(essayItemId);
+        relEssayItem.setItemOrder(2);
+        relEssayItem.setItemScore(essayItem.getMaxScore());
+        relExerciseItemMapper.insert(relEssayItem);
 
         ExercisePublishRequest publishRequest = new ExercisePublishRequest();
         publishRequest.setExerciseId(exerciseId);
