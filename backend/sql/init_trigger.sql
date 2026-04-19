@@ -77,6 +77,40 @@ BEGIN
             FROM rel_paper_question rpq
             WHERE rpq.question_id = NEW.question_id
             LIMIT 1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         END IF;
     END IF;
 
