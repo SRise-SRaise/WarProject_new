@@ -117,6 +117,7 @@
 import { computed, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { addEduExerciseItem, deleteEduExerciseItem, listEduExerciseItemVoByPage } from '@/api/eduExerciseItemController'
+import { listEduQuestionBankByPage } from '@/api/eduQuestionBankController'
 import type { HomeworkQuestionStat } from '@/types/homework/assignment'
 
 interface ExerciseItem {
@@ -207,7 +208,7 @@ function toItem(raw: any): ExerciseItem {
   return {
     id,
     exerciseId,
-    question: String(raw.question || ''),
+    question: String(raw.question || raw.questionContent || ''),
     questionType: Number(raw.questionType || 0),
     optionsText: raw.optionsText || '',
     standardAnswer: raw.standardAnswer || '',
@@ -346,8 +347,20 @@ function toggleAnswer(id: string): void {
   answerVisibleIds.value = [...answerVisibleIds.value, id]
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const responseMessage = (error as any)?.response?.data?.message
+  const directMessage = (error as any)?.message
+  if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+    return responseMessage
+  }
+  if (typeof directMessage === 'string' && directMessage.trim().length > 0) {
+    return directMessage
+  }
+  return fallback
+}
+
 async function loadBankQuestions(): Promise<void> {
-  const response = await listEduExerciseItemVoByPage({ current: 1, pageSize: 50 })
+  const response = await listEduQuestionBankByPage({ current: 1, pageSize: 50 })
   const allItems = unwrapRecords(response).map(toItem)
   const selectedIdSet = new Set(selectedQuestions.value.map((item) => item.id))
   const selectedSourceSet = new Set(selectedQuestions.value.map((item) => item.questionBankId || '').filter((id) => id.length > 0))
@@ -384,7 +397,7 @@ async function loadData(): Promise<void> {
     await loadBankQuestions()
   } catch (error) {
     console.error('加载题目数据失败:', error)
-    message.error('加载题目数据失败')
+    message.error(getErrorMessage(error, '加载题目数据失败'))
   } finally {
     loading.value = false
   }
@@ -422,7 +435,7 @@ async function addSelectedQuestions(): Promise<void> {
     persistSelectedOrder()
   } catch (error) {
     console.error('加入题目失败:', error)
-    message.error('加入题目失败')
+    message.error(getErrorMessage(error, '加入题目失败'))
   } finally {
     loading.value = false
   }
@@ -450,8 +463,7 @@ async function removeQuestion(itemId: string): Promise<void> {
     persistSelectedOrder()
   } catch (error) {
     console.error('移除题目失败:', error)
-    const errorMessage = (error as any)?.response?.data?.message
-    message.error(errorMessage || '移除题目失败')
+    message.error(getErrorMessage(error, '移除题目失败'))
   } finally {
     loading.value = false
   }

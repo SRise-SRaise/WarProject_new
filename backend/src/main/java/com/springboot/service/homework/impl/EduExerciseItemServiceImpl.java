@@ -27,6 +27,18 @@ public class EduExerciseItemServiceImpl extends ServiceImpl<EduExerciseItemMappe
     @Override
     public void validEduExerciseItem(EduExerciseItem eduExerciseItem, boolean add) {
         ServiceMethodSupport.validEntity(eduExerciseItem);
+        if (add && eduExerciseItem.getExerciseId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "作业ID不能为空");
+        }
+        if (StringUtils.isBlank(eduExerciseItem.getQuestion())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题干不能为空");
+        }
+        if (eduExerciseItem.getQuestionType() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题型不能为空");
+        }
+        if (StringUtils.isBlank(eduExerciseItem.getStandardAnswer())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标准答案不能为空");
+        }
     }
 
     @Override

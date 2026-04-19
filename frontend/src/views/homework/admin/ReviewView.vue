@@ -14,24 +14,34 @@
       <section class="app-split-grid">
         <section class="app-surface-card app-section-card app-panel-grid">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:var(--color-text-main)">答题详情</h2>
-          <article v-for="(answer, idx) in submission.answers" :key="answer.recordId" class="app-list-card">
+          <article v-for="(answer, idx) in submission.answers" :key="answer.formKey" class="app-list-card">
             <div class="review-answer-header">
               <h3 class="app-list-card__title">题目 {{ idx + 1 }}：{{ typeLabel(answer.questionType) }}</h3>
               <span class="app-inline-stat">{{ answer.score || 0 }} / {{ answer.maxScore }}</span>
             </div>
             <p class="app-list-card__meta" style="margin-top:8px">{{ answer.question }}</p>
-            <p class="app-list-card__meta" style="margin-top:8px;font-weight:600">学生答案：{{ answer.studentAnswer || '未作答' }}</p>
+            <div class="review-answer-status" :class="{ 'review-answer-status--empty': !answer.recordId }">
+              <span class="review-answer-status__label">学生答案</span>
+              <span class="review-answer-status__value">{{ answer.studentAnswer || '未作答' }}</span>
+            </div>
             <p class="app-list-card__meta">标准答案：{{ answer.standardAnswer }}</p>
 
-            <a-form layout="inline" style="margin-top:12px" v-if="answer.gradingStatus !== 1">
+            <a-form layout="inline" style="margin-top:12px" v-if="answer.gradingStatus !== 1 && answer.recordId">
               <a-form-item label="评分">
-                <a-input-number v-model:value="answerScores[answer.recordId]" :min="0" :max="answer.maxScore" size="small" />
+                <a-input-number v-model:value="answerScores[answer.formKey]" :min="0" :max="answer.maxScore" size="small" />
               </a-form-item>
               <a-form-item label="评语">
-                <a-input v-model:value="answerComments[answer.recordId]" size="small" placeholder="评语" />
+                <a-input v-model:value="answerComments[answer.formKey]" size="small" placeholder="评语" />
               </a-form-item>
-              <a-button size="small" @click="reviewItem(answer.recordId)">批阅此题</a-button>
+              <a-button size="small" @click="reviewItem(answer)">批阅此题</a-button>
             </a-form>
+            <p
+              v-else-if="answer.gradingStatus !== 1"
+              class="app-list-card__meta"
+              style="margin-top:12px;color:var(--color-text-secondary)"
+            >
+              该题未提交，无法单独批阅。
+            </p>
             <p v-if="answer.comment" class="app-list-card__meta" style="margin-top:8px;color:var(--color-primary)">
               教师评语：{{ answer.comment }}
             </p>
@@ -55,7 +65,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getSubmissionDetail, reviewExerciseItem, autoGradeExercise } from '@/api/eduExerciseSubmissionController'
+import { getSubmissionDetail, reviewExerciseItem } from '@/api/eduExerciseSubmissionController'
 
 interface SubmissionData {
   exerciseId: number
@@ -66,7 +76,8 @@ interface SubmissionData {
   submittedAt: string
   totalScore: number
   answers: Array<{
-    recordId: number
+    formKey: string
+    recordId?: number
     itemId: number
     question: string
     questionType: number
@@ -88,8 +99,8 @@ const studentId = Number(route.params.submissionId)
 
 const loading = ref(true)
 const submission = ref<SubmissionData | null>(null)
-const answerScores = reactive<Record<number, number>>({})
-const answerComments = reactive<Record<number, string>>({})
+const answerScores = reactive<Record<string, number>>({})
+const answerComments = reactive<Record<string, string>>({})
 
 function typeLabel(questionType: number): string {
   const typeMap: Record<number, string> = {
@@ -113,7 +124,7 @@ async function loadData() {
       exerciseId: Number(homeworkId),
       studentId
     })
-    const data = response.data
+    const data = response.data?.data
 
     if (data) {
       submission.value = {
@@ -124,26 +135,33 @@ async function loadData() {
         className: data.className || '',
         submittedAt: data.submittedAt || '',
         totalScore: data.totalScore || 0,
-        answers: (data.answers || []).map((item) => ({
-          recordId: item.recordId || 0,
-          itemId: item.itemId || 0,
-          question: item.question || '',
-          questionType: item.questionType || 0,
-          optionsText: item.optionsText,
-          standardAnswer: item.standardAnswer || '',
-          maxScore: item.maxScore || 0,
-          studentAnswer: item.studentAnswer || '',
-          score: item.score || 0,
-          gradingStatus: item.gradingStatus || 0,
-          comment: item.comment
-        }))
+        answers: (data.answers || []).map((item, index) => {
+          const recordId = item.recordId || undefined
+          const itemId = item.itemId || 0
+          return {
+            formKey: recordId ? `record-${recordId}` : `item-${itemId || index + 1}`,
+            recordId,
+            itemId,
+            question: item.question || '',
+            questionType: item.questionType || 0,
+            optionsText: item.optionsText,
+            standardAnswer: item.standardAnswer || '',
+            maxScore: item.maxScore || 0,
+            studentAnswer: item.studentAnswer || '',
+            score: item.score || 0,
+            gradingStatus: item.gradingStatus || 0,
+            comment: item.comment
+          }
+        })
       }
 
       // 初始化评分和评语
+      Object.keys(answerScores).forEach((key) => delete answerScores[key])
+      Object.keys(answerComments).forEach((key) => delete answerComments[key])
       for (const answer of submission.value.answers) {
-        answerScores[answer.recordId] = answer.score || 0
+        answerScores[answer.formKey] = answer.score || 0
         if (answer.comment) {
-          answerComments[answer.recordId] = answer.comment
+          answerComments[answer.formKey] = answer.comment
         }
       }
     }
@@ -155,12 +173,12 @@ async function loadData() {
   }
 }
 
-async function reviewItem(recordId: number) {
+async function reviewItem(answer: SubmissionData['answers'][number]) {
   try {
     await reviewExerciseItem({
-      recordId,
-      score: answerScores[recordId],
-      comment: answerComments[recordId] || '',
+      recordId: answer.recordId,
+      score: answerScores[answer.formKey],
+      comment: answerComments[answer.formKey] || '',
       gradingStatus: 2
     })
     message.success('批阅成功')
@@ -187,5 +205,38 @@ onMounted(() => {
 .score-summary {
   display: flex;
   gap: 12px;
+}
+
+.review-answer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-page);
+}
+
+.review-answer-status__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.review-answer-status__value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.review-answer-status--empty {
+  border-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.review-answer-status--empty .review-answer-status__label,
+.review-answer-status--empty .review-answer-status__value {
+  color: var(--color-warning);
 }
 </style>

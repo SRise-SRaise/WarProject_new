@@ -11,8 +11,8 @@
     </div>
 
     <section class="app-surface-card app-section-card">
-      <a-spin :spinning="loading">
-        <a-table :columns="columns" :data-source="submissions" row-key="id" :pagination="false">
+        <a-spin :spinning="loading">
+        <a-table :columns="columns" :data-source="submissions" row-key="id" :pagination="tablePagination">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
               <StatusTag :type="statusTone(record.status)" :label="statusLabel(record.status)" />
@@ -31,11 +31,13 @@
 </template>
 
 <script setup lang="ts">
+import dayjs from 'dayjs'
 import { computed, onMounted, ref } from 'vue'
+import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
+import request from '@/request'
 import StatusTag from '@/components/common/StatusTag.vue'
-import { getMyExerciseScore } from '@/api/eduExerciseSubmissionController'
-import { listAuthStudentVoByPage } from '@/api/authStudentController'
+import { getSubmissionDetail } from '@/api/eduExerciseSubmissionController'
 
 type SubmissionStatus = 'draft' | 'submitted' | 'reviewed' | 'late'
 
@@ -51,12 +53,31 @@ interface SubmissionItem {
   summary: string
 }
 
+interface SubmissionRecordResponseItem {
+  id?: number
+  exerciseId?: number
+  studentId?: number
+  studentName?: string
+  className?: string
+  classCode?: string
+  status?: string
+  submittedAt?: string
+  totalScore?: number
+  gradingSummary?: string
+}
+
 const route = useRoute()
 const router = useRouter()
 
 const homeworkId = computed(() => String(route.params.id || ''))
 const loading = ref(false)
 const submissions = ref<SubmissionItem[]>([])
+const tablePagination = computed(() => ({
+  pageSize: 10,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total: number) => `共 ${total} 条提交记录`
+}))
 
 const columns = [
   { title: '学生', dataIndex: 'studentName', key: 'studentName' },
@@ -82,49 +103,87 @@ function statusLabel(status: SubmissionStatus): string {
   return '草稿'
 }
 
+function formatDateTime(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim().length === 0) {
+    return '--'
+  }
+  const parsed = dayjs(String(value))
+  if (!parsed.isValid()) {
+    return String(value)
+  }
+  return parsed.format('YYYY-MM-DD HH:mm')
+}
+
+function toTimestamp(value: string): number {
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.valueOf() : 0
+}
+
+async function loadSubmissionDetailTimes(records: SubmissionItem[]): Promise<SubmissionItem[]> {
+  const detailResults = await Promise.allSettled(
+    records.map(async (record) => {
+      const detailResponse = await getSubmissionDetail({
+        exerciseId: Number(homeworkId.value),
+        studentId: record.studentId
+      })
+      return {
+        studentId: record.studentId,
+        submittedAt: formatDateTime(detailResponse.data?.data?.submittedAt)
+      }
+    })
+  )
+
+  const submittedAtMap = new Map<number, string>()
+  for (const result of detailResults) {
+    if (result.status === 'fulfilled') {
+      submittedAtMap.set(result.value.studentId, result.value.submittedAt)
+    }
+  }
+
+  return records.map((record) => ({
+    ...record,
+    submittedAt: submittedAtMap.get(record.studentId) ?? record.submittedAt
+  }))
+}
+
 async function loadSubmissions() {
-  if (!homeworkId.value) return
+  if (!homeworkId.value) {
+    message.warning('请先从作业列表选择具体作业，再查看提交记录')
+    await router.replace('/admin/homework')
+    return
+  }
 
   loading.value = true
   try {
-    // 获取班级学生列表
-    const studentsResponse = await listAuthStudentVoByPage({ current: 1, pageSize: 50 })
-    if (studentsResponse.data?.records) {
-      const students = studentsResponse.data.records
-
-      // 查询每个学生的成绩状态
-      const submissionList: SubmissionItem[] = []
-
-      for (const student of students) {
-        try {
-          const scoreResponse = await getMyExerciseScore({
-            exerciseId: Number(homeworkId.value),
-            studentId: student.id || 0
-          })
-
-          const scoreData = scoreResponse.data
-          if (scoreData) {
-            submissionList.push({
-              id: `sub-${student.id}`,
-              homeworkId: homeworkId.value,
-              studentId: student.id || 0,
-              studentName: student.studentName || '',
-              className: student.classCode || '',
-              submittedAt: '',
-              status: scoreData.status === 'reviewed' ? 'reviewed' : 'submitted',
-              score: `${scoreData.totalScore} / ${scoreData.maxScore}`,
-              summary: ''
-            })
-          }
-        } catch {
-          // 学生未提交，跳过
-        }
+    const response = await request<{ code?: number; data?: SubmissionRecordResponseItem[] }>(
+      '/homework/submission/listRecords',
+      {
+        method: 'GET',
+        params: { exerciseId: Number(homeworkId.value) }
       }
+    )
 
-      submissions.value = submissionList
-    }
+    const records = Array.isArray(response.data?.data) ? response.data.data : []
+    const normalizedRecords = records.map((record) => ({
+      id: `sub-${Number(record.studentId ?? 0)}`,
+      homeworkId: homeworkId.value,
+      studentId: Number(record.studentId ?? 0),
+      studentName: String(record.studentName ?? ''),
+      className: String(record.className ?? record.classCode ?? ''),
+      submittedAt: formatDateTime(record.submittedAt),
+      status: record.status === 'reviewed' ? 'reviewed' : 'submitted',
+      score: String(Number(record.totalScore ?? 0)),
+      summary: String(record.gradingSummary ?? '')
+    }))
+    const recordsWithDetail = await loadSubmissionDetailTimes(normalizedRecords)
+
+    submissions.value = recordsWithDetail
+      .filter((record) => record.studentId > 0)
+      .sort((left, right) => toTimestamp(right.submittedAt) - toTimestamp(left.submittedAt))
   } catch (error) {
     console.error('加载提交记录失败:', error)
+    message.error('加载提交记录失败')
+    submissions.value = []
   } finally {
     loading.value = false
   }

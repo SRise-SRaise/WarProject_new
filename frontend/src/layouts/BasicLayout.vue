@@ -128,17 +128,7 @@ const shellMode = computed(() => route.meta.shell ?? 'public')
 const studentMenuItems: NavItem[] = [
   { key: 'learning', label: '学习概览', path: '/learning' },
   { key: 'materials', label: '资料', path: '/materials' },
-  {
-    key: 'homework',
-    label: '作业',
-    path: '/homework',
-    children: [
-      { key: 'homework-all', label: '作业总览', path: '/homework' },
-      { key: 'homework-pending', label: '待完成作业', path: '/homework?status=pending' },
-      { key: 'homework-submitted', label: '已提交作业', path: '/homework?status=submitted' },
-      { key: 'homework-reviewed', label: '作业成绩', path: '/homework?status=reviewed' }
-    ]
-  },
+  { key: 'homework', label: '作业', path: '/homework' },
   { key: 'experiments', label: '实验', path: '/experiments' },
   { key: 'exams', label: '考试', path: '/exams' }
 ]

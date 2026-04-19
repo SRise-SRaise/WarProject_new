@@ -75,4 +75,11 @@ public interface EduExerciseSubmissionService {
      * @return 提交详情
      */
     SubmissionDetailVO getSubmissionDetail(Long exerciseId, Long studentId);
+
+    /**
+     * 获取作业的提交记录列表（教师端）
+     * @param exerciseId 作业ID
+     * @return 提交记录列表
+     */
+    java.util.List<SubmissionRecordVO> listSubmissionRecords(Long exerciseId);
 }

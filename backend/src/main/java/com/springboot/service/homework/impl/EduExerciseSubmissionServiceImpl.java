@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.springboot.common.ErrorCode;
 import com.springboot.exception.BusinessException;
 import com.springboot.mapper.homework.EduExerciseItemMapper;
+import com.springboot.mapper.homework.EduExerciseMapper;
 import com.springboot.mapper.homework.ResExerciseRecordMapper;
 import com.springboot.mapper.user.AuthStudentMapper;
 import com.springboot.model.dto.homework.*;
+import com.springboot.model.entity.homework.EduExercise;
 import com.springboot.model.entity.homework.EduExerciseItem;
 import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthStudent;
@@ -25,6 +27,9 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
 
     @Resource
     private EduExerciseItemMapper eduExerciseItemMapper;
+
+    @Resource
+    private EduExerciseMapper eduExerciseMapper;
 
     @Resource
     private ResExerciseRecordMapper resExerciseRecordMapper;
@@ -407,6 +412,9 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
+        EduExercise exercise = eduExerciseMapper.selectById(exerciseId);
+        AuthStudent student = authStudentMapper.selectById(studentId);
+
         // 查询作业题目列表
         QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
         itemQuery.eq("exercise_id", exerciseId);
@@ -424,7 +432,9 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
 
         StudentScoreVO scoreVO = new StudentScoreVO();
         scoreVO.setExerciseId(exerciseId);
+        scoreVO.setExerciseName(exercise != null ? exercise.getTaskName() : "");
         scoreVO.setStudentId(studentId);
+        scoreVO.setStudentName(student != null ? student.getStudentName() : "");
 
         // 计算总分
         int totalScore = records.stream()
@@ -482,6 +492,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
+        EduExercise exercise = eduExerciseMapper.selectById(exerciseId);
         // 查询学生信息
         AuthStudent student = authStudentMapper.selectById(studentId);
 
@@ -502,6 +513,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
 
         SubmissionDetailVO detailVO = new SubmissionDetailVO();
         detailVO.setExerciseId(exerciseId);
+        detailVO.setExerciseName(exercise != null ? exercise.getTaskName() : "");
         detailVO.setStudentId(studentId);
         detailVO.setStudentName(student != null ? student.getStudentName() : "");
         detailVO.setClassName(student != null ? student.getClassCode() : "");
@@ -549,6 +561,76 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         detailVO.setAnswers(answerDetails);
 
         return detailVO;
+    }
+
+    @Override
+    public List<SubmissionRecordVO> listSubmissionRecords(Long exerciseId) {
+        if (exerciseId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+
+        List<ResExerciseRecord> records = resExerciseRecordMapper.selectList(
+                new QueryWrapper<ResExerciseRecord>()
+                        .eq("exercise_id", exerciseId)
+                        .orderByDesc("submitted_at")
+                        .orderByDesc("id")
+        );
+        if (CollUtil.isEmpty(records)) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, List<ResExerciseRecord>> recordsByStudent = records.stream()
+                .filter(record -> record.getStudentId() != null)
+                .collect(Collectors.groupingBy(ResExerciseRecord::getStudentId, LinkedHashMap::new, Collectors.toList()));
+        if (recordsByStudent.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, AuthStudent> studentMap = authStudentMapper.selectBatchIds(new ArrayList<>(recordsByStudent.keySet())).stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(AuthStudent::getId, student -> student));
+
+        return recordsByStudent.entrySet().stream()
+                .map(entry -> toSubmissionRecordVO(exerciseId, entry.getKey(), entry.getValue(), studentMap.get(entry.getKey())))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(SubmissionRecordVO::getSubmittedAt, Comparator.nullsLast(Date::compareTo)).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private SubmissionRecordVO toSubmissionRecordVO(Long exerciseId,
+                                                    Long studentId,
+                                                    List<ResExerciseRecord> studentRecords,
+                                                    AuthStudent student) {
+        if (studentId == null || CollUtil.isEmpty(studentRecords)) {
+            return null;
+        }
+
+        ResExerciseRecord latestRecord = studentRecords.stream()
+                .max(Comparator.comparing(ResExerciseRecord::getSubmittedAt, Comparator.nullsLast(Date::compareTo))
+                        .thenComparing(ResExerciseRecord::getId, Comparator.nullsLast(Long::compareTo)))
+                .orElse(studentRecords.get(0));
+
+        int totalScore = studentRecords.stream()
+                .map(ResExerciseRecord::getScore)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        long pendingCount = studentRecords.stream()
+                .filter(item -> item.getGradingStatus() == null || item.getGradingStatus() == 0)
+                .count();
+
+        SubmissionRecordVO recordVO = new SubmissionRecordVO();
+        recordVO.setId(latestRecord.getId());
+        recordVO.setExerciseId(exerciseId);
+        recordVO.setStudentId(studentId);
+        recordVO.setStudentName(student != null ? student.getStudentName() : "学生" + studentId);
+        recordVO.setClassCode(student != null ? student.getClassCode() : "");
+        recordVO.setClassName(student != null ? student.getClassCode() : "");
+        recordVO.setSubmittedAt(latestRecord.getSubmittedAt());
+        recordVO.setTotalScore(totalScore);
+        recordVO.setStatus(pendingCount == 0 ? "reviewed" : "submitted");
+        recordVO.setGradingSummary(pendingCount == 0 ? "全部题目已完成批阅" : "还有 " + pendingCount + " 题待教师批阅");
+        return recordVO;
     }
 
     /**

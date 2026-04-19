@@ -35,6 +35,21 @@ public class EduExerciseVO implements Serializable {
 
     private Date updatedAt;
 
+    /**
+     * 已布置班级编号
+     */
+    private List<String> classCodes;
+
+    /**
+     * 已提交人数（按学生去重）
+     */
+    private Integer submissionCount;
+
+    /**
+     * 已完成批阅人数（按学生去重）
+     */
+    private Integer reviewedCount;
+
     public static EduExerciseVO objToVo(EduExercise entity) {
         if (entity == null) {
             return null;
