@@ -34,16 +34,33 @@ public class EduExerciseItemController {
         if (addRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        EduExerciseItem entity = new EduExerciseItem();
-        BeanUtils.copyProperties(addRequest, entity);
-        eduExerciseItemService.validEduExerciseItem(entity, true);
-        boolean result = eduExerciseItemService.save(entity);
+
+        if (addRequest.getExerciseId() != null) {
+            Long itemId = addRequest.getQuestionBankId();
+            if (itemId == null) {
+                EduExerciseItem newItem = new EduExerciseItem();
+                BeanUtils.copyProperties(addRequest, newItem);
+                eduExerciseItemService.validEduExerciseItem(newItem, true);
+                boolean saveResult = eduExerciseItemService.save(newItem);
+                ThrowUtils.throwIf(!saveResult, ErrorCode.OPERATION_ERROR);
+                itemId = newItem.getId();
+            }
+            boolean result = eduExerciseItemService.addExerciseItemToExercise(addRequest.getExerciseId(), itemId, addRequest.getMaxScore());
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+            return ResultUtils.success(true);
+        }
+
+        EduExerciseItem item = new EduExerciseItem();
+        BeanUtils.copyProperties(addRequest, item);
+        eduExerciseItemService.validEduExerciseItem(item, true);
+        boolean result = eduExerciseItemService.save(item);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteEduExerciseItem(@RequestParam String id) {
+    public BaseResponse<Boolean> deleteEduExerciseItem(@RequestParam String id,
+                                                       @RequestParam(required = false) Long exerciseId) {
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -53,7 +70,12 @@ public class EduExerciseItemController {
         } catch (NumberFormatException e) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目ID格式错误");
         }
-        boolean result = eduExerciseItemService.removeExerciseItemById(itemId);
+        boolean result;
+        if (exerciseId != null) {
+            result = eduExerciseItemService.removeExerciseItemFromExercise(exerciseId, itemId);
+        } else {
+            result = eduExerciseItemService.removeExerciseItemById(itemId);
+        }
         return ResultUtils.success(result);
     }
 
@@ -74,7 +96,13 @@ public class EduExerciseItemController {
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        EduExerciseItem entity = eduExerciseItemService.getById(id);
+        long itemId;
+        try {
+            itemId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目ID格式错误");
+        }
+        EduExerciseItem entity = eduExerciseItemService.getById(itemId);
         ThrowUtils.throwIf(entity == null, ErrorCode.NOT_FOUND_ERROR);
         return ResultUtils.success(eduExerciseItemService.getEduExerciseItemVO(entity, null));
     }
@@ -98,6 +126,9 @@ public class EduExerciseItemController {
         long current = queryRequest.getCurrent();
         long size = queryRequest.getPageSize();
         ThrowUtils.throwIf(size > 50, ErrorCode.PARAMS_ERROR);
+        if (queryRequest.getExerciseId() != null) {
+            return ResultUtils.success(eduExerciseItemService.listExerciseItemVOByExerciseId(queryRequest.getExerciseId(), current, size));
+        }
         Page<EduExerciseItem> page = eduExerciseItemService.page(new Page<>(current, size), eduExerciseItemService.getQueryWrapper(queryRequest));
         return ResultUtils.success(eduExerciseItemService.getEduExerciseItemVOPage(page, null));
     }

@@ -9,6 +9,7 @@ import com.springboot.exception.BusinessException;
 import com.springboot.mapper.homework.EduExerciseItemMapper;
 import com.springboot.mapper.homework.EduExerciseMapper;
 import com.springboot.mapper.homework.RelExerciseClassMapper;
+import com.springboot.mapper.homework.RelExerciseItemMapper;
 import com.springboot.mapper.homework.ResExerciseRecordMapper;
 import com.springboot.mapper.user.AuthClassMapper;
 import com.springboot.mapper.user.AuthStudentMapper;
@@ -19,6 +20,7 @@ import com.springboot.model.dto.homework.StudentExerciseQueryRequest;
 import com.springboot.model.entity.homework.EduExercise;
 import com.springboot.model.entity.homework.EduExerciseItem;
 import com.springboot.model.entity.homework.RelExerciseClass;
+import com.springboot.model.entity.homework.RelExerciseItem;
 import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthClass;
 import com.springboot.model.entity.user.AuthStudent;
@@ -45,6 +47,9 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
     private EduExerciseItemMapper eduExerciseItemMapper;
 
     @Resource
+    private RelExerciseItemMapper relExerciseItemMapper;
+
+    @Resource
     private ResExerciseRecordMapper resExerciseRecordMapper;
 
     @Resource
@@ -59,6 +64,9 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
     @Override
     public void validEduExercise(EduExercise eduExercise, boolean add) {
         ServiceMethodSupport.validEntity(eduExercise);
+        if (!add && eduExercise.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "作业ID不能为空");
+        }
     }
 
     @Override
@@ -254,9 +262,7 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
         // 查询各作业的题目数量
         Map<Long, Integer> itemCountMap = new HashMap<>();
         for (Long exerciseId : exerciseIds) {
-            QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-            itemQuery.eq("exercise_id", exerciseId);
-            Long count = eduExerciseItemMapper.selectCount(itemQuery);
+            Long count = relExerciseItemMapper.selectCount(new QueryWrapper<RelExerciseItem>().eq("exercise_id", exerciseId));
             itemCountMap.put(exerciseId, count.intValue());
         }
 
@@ -295,11 +301,9 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
             vo.setTeacherName(teacherNameMap.getOrDefault(exercise.getTeacherId(), ""));
 
             // 计算作业满分
-            QueryWrapper<EduExerciseItem> itemQuery = new QueryWrapper<>();
-            itemQuery.eq("exercise_id", exercise.getId());
-            List<EduExerciseItem> items = eduExerciseItemMapper.selectList(itemQuery);
-            int maxScore = items.stream()
-                    .map(i -> i.getMaxScore() != null ? i.getMaxScore() : 0)
+            List<RelExerciseItem> relItems = relExerciseItemMapper.selectList(new QueryWrapper<RelExerciseItem>().eq("exercise_id", exercise.getId()));
+            int maxScore = relItems.stream()
+                    .map(i -> i.getItemScore() != null ? i.getItemScore() : 0)
                     .reduce(0, Integer::sum);
             vo.setTotalScore(maxScore);
 
