@@ -16,9 +16,6 @@
           <a-form-item label="作业标题" required>
             <a-input v-model:value="formState.title" size="large" placeholder="输入作业标题" />
           </a-form-item>
-          <a-form-item label="关联实验">
-            <a-input v-model:value="formState.relateExpId" size="large" placeholder="关联实验ID（可选）" />
-          </a-form-item>
           <a-form-item label="开始时间">
             <a-date-picker
               v-model:value="formState.startTime"
