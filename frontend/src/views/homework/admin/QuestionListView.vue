@@ -40,7 +40,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
-import { deleteEduExerciseItem, listEduExerciseItemVoByPage } from '@/api/eduExerciseItemController'
+import { deleteEduQuestionBank, listEduQuestionBankByPage } from '@/api/eduQuestionBankController'
 
 interface QuestionItem {
   id: string
@@ -76,22 +76,22 @@ function formatDateText(value?: string): string {
   return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
-function buildTags(item: API.EduExerciseItemVO): string {
+function buildTags(item: API.EduQuestionBank): string {
   const labels: string[] = []
-  if (item.exerciseId) labels.push(`作业 ${item.exerciseId}`)
   if (item.questionType) labels.push(typeMap[item.questionType] || '未知题型')
+  if (item.difficulty) labels.push(`难度 ${item.difficulty}`)
   return labels.length > 0 ? labels.join(' / ') : '--'
 }
 
 async function loadQuestions(): Promise<void> {
   loading.value = true
   try {
-    const response = await listEduExerciseItemVoByPage({ current: 1, pageSize: 50 })
+    const response = await listEduQuestionBankByPage({ current: 1, pageSize: 50 })
     const records = (response as any)?.data?.data?.records ?? (response as any)?.data?.records ?? []
     questions.value = Array.isArray(records)
-      ? records.map((item: API.EduExerciseItemVO) => ({
+      ? records.map((item: API.EduQuestionBank) => ({
           id: String(item.id || ''),
-          stem: item.question || '',
+          stem: item.questionContent || '',
           type: typeMap[item.questionType || 1] || '填空',
           tags: buildTags(item),
           updatedAt: formatDateText(item.updatedAt)
@@ -133,7 +133,7 @@ const filteredQuestions = computed(() => {
 
 async function deleteQuestion(questionId: string): Promise<void> {
   try {
-    await deleteEduExerciseItem({ id: questionId })
+    await deleteEduQuestionBank({ id: questionId })
     message.success('题目已删除')
     await loadQuestions()
   } catch (error) {

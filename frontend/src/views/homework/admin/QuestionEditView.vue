@@ -80,9 +80,6 @@
             />
           </a-form-item>
 
-          <a-form-item label="分值">
-            <a-input-number v-model:value="formState.maxScore" size="large" :min="1" :max="100" placeholder="满分分值" />
-          </a-form-item>
           <a-form-item label="题目解析">
             <a-textarea v-model:value="formState.analysis" :rows="3" placeholder="选填，帮助学生理解答案" />
           </a-form-item>
@@ -114,10 +111,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  addEduExerciseItem,
-  getEduExerciseItemVoById,
-  updateEduExerciseItem
-} from '@/api/eduExerciseItemController'
+  addEduQuestionBank,
+  listEduQuestionBankByPage,
+  updateEduQuestionBank
+} from '@/api/eduQuestionBankController'
 
 interface OptionItem {
   key: string
@@ -184,7 +181,6 @@ const formState = reactive({
   stem: '',
   options: [] as OptionItem[],
   answer: '',
-  maxScore: null as number | null,
   analysis: '',
   difficulty: null as number | null
 })
@@ -281,11 +277,11 @@ watch(
 
 ensureTypeDefaults(formState.type)
 
-function fillForm(data: API.EduExerciseItemVO): void {
+function fillForm(data: API.EduQuestionBank): void {
   isLoadingForm.value = true
   suppressTypeAnswerReset.value = true
   formState.type = data.questionType || 2
-  formState.stem = data.question || ''
+  formState.stem = data.questionContent || ''
   const rawAnswer = data.standardAnswer || ''
   if (isChoiceTypeByType(data.questionType)) {
     formState.options = data.optionsText ? parseOptionsText(data.optionsText) : []
@@ -294,7 +290,6 @@ function fillForm(data: API.EduExerciseItemVO): void {
     formState.options = []
     formState.answer = rawAnswer
   }
-  formState.maxScore = data.maxScore ?? null
   formState.analysis = data.analysis || ''
   formState.difficulty = data.difficulty ?? null
   ensureTypeDefaults(formState.type)
@@ -305,20 +300,36 @@ function isChoiceTypeByType(t: number | undefined): boolean {
   return t != null && [2, 3, 4].includes(t)
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const responseMessage = (error as any)?.response?.data?.message
+  const directMessage = (error as any)?.message
+  if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+    return responseMessage
+  }
+  if (typeof directMessage === 'string' && directMessage.trim().length > 0) {
+    return directMessage
+  }
+  return fallback
+}
+
 async function loadQuestion(): Promise<void> {
   if (!questionId.value) return
 
   loading.value = true
   try {
-    const response = await getEduExerciseItemVoById({ id: questionId.value })
+    const response = await listEduQuestionBankByPage({
+      current: 1,
+      pageSize: 1,
+      id: Number(questionId.value)
+    })
     const raw = response as any
-    const candidate = raw?.data?.data ?? raw?.data
+    const candidate = raw?.data?.data?.records?.[0] ?? raw?.data?.records?.[0]
     if (candidate && candidate.id != null) {
-      fillForm(candidate as API.EduExerciseItemVO)
+      fillForm(candidate as API.EduQuestionBank)
     }
   } catch (error) {
     console.error('加载题目失败:', error)
-    message.error('加载题目失败')
+    message.error(getErrorMessage(error, '加载题目失败'))
   } finally {
     loading.value = false
   }
@@ -361,28 +372,27 @@ async function saveQuestion(): Promise<void> {
   try {
     const payload = {
       questionType: formState.type,
-      question: formState.stem,
+      questionContent: formState.stem,
       optionsText: isChoiceType.value ? optionsText : '',
       standardAnswer: formState.answer.trim(),
-      maxScore: formState.maxScore ?? undefined,
       analysis: formState.analysis.trim() || undefined,
       difficulty: formState.difficulty ?? undefined
     }
 
     if (questionId.value) {
-      await updateEduExerciseItem({
+      await updateEduQuestionBank({
         id: Number(questionId.value),
         ...payload
       })
       message.success('题目已更新')
     } else {
-      await addEduExerciseItem(payload)
+      await addEduQuestionBank(payload)
       message.success('题目已创建')
     }
     router.push('/admin/questions')
   } catch (error) {
     console.error('保存题目失败:', error)
-    message.error('保存题目失败')
+    message.error(getErrorMessage(error, '保存题目失败'))
   } finally {
     saving.value = false
   }
