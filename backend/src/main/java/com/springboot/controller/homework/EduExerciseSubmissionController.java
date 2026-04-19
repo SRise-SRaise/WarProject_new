@@ -145,4 +145,16 @@ public class EduExerciseSubmissionController {
         SubmissionDetailVO detail = eduExerciseSubmissionService.getSubmissionDetail(exerciseId, studentId);
         return ResultUtils.success(detail);
     }
+
+    /**
+     * 获取作业提交记录列表（教师端）
+     * GET /homework/submission/listRecords
+     */
+    @GetMapping("/listRecords")
+    public BaseResponse<java.util.List<SubmissionRecordVO>> listSubmissionRecords(@RequestParam Long exerciseId) {
+        if (exerciseId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        return ResultUtils.success(eduExerciseSubmissionService.listSubmissionRecords(exerciseId));
+    }
 }

@@ -78,12 +78,50 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
 
     @Override
     public EduExerciseVO getEduExerciseVO(EduExercise eduExercise, HttpServletRequest request) {
-        return EduExerciseVO.objToVo(eduExercise);
+        EduExerciseVO vo = EduExerciseVO.objToVo(eduExercise);
+        if (vo == null || eduExercise == null || eduExercise.getId() == null) {
+            return vo;
+        }
+
+        Long exerciseId = eduExercise.getId();
+
+        QueryWrapper<RelExerciseClass> relQuery = new QueryWrapper<>();
+        relQuery.eq("exercise_id", exerciseId);
+        relQuery.orderByAsc("class_code");
+        List<RelExerciseClass> relExerciseClasses = relExerciseClassMapper.selectList(relQuery);
+        vo.setClassCodes(relExerciseClasses.stream()
+                .map(RelExerciseClass::getClassCode)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList()));
+
+        QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
+        recordQuery.eq("exercise_id", exerciseId);
+        List<ResExerciseRecord> records = resExerciseRecordMapper.selectList(recordQuery);
+        if (CollUtil.isEmpty(records)) {
+            vo.setSubmissionCount(0);
+            vo.setReviewedCount(0);
+            return vo;
+        }
+
+        Map<Long, List<ResExerciseRecord>> recordsByStudent = records.stream()
+                .filter(record -> record.getStudentId() != null)
+                .collect(Collectors.groupingBy(ResExerciseRecord::getStudentId));
+
+        int reviewedCount = (int) recordsByStudent.values().stream()
+                .filter(studentRecords -> CollUtil.isNotEmpty(studentRecords))
+                .filter(studentRecords -> studentRecords.stream()
+                        .allMatch(record -> record.getGradingStatus() != null && record.getGradingStatus() > 0))
+                .count();
+
+        vo.setSubmissionCount(recordsByStudent.size());
+        vo.setReviewedCount(reviewedCount);
+        return vo;
     }
 
     @Override
     public Page<EduExerciseVO> getEduExerciseVOPage(Page<EduExercise> entityPage, HttpServletRequest request) {
-        return ServiceMethodSupport.toVOPage(entityPage, EduExerciseVO::objToVo);
+        return ServiceMethodSupport.toVOPage(entityPage, entity -> getEduExerciseVO(entity, request));
     }
 
     @Override
