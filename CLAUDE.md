@@ -71,7 +71,7 @@ ThrowUtils.throwIf(condition, ErrorCode.NOT_FOUND_ERROR);
 使用 `@Resource`（JSR-250），**禁止** `@Autowired`。
 
 ### 实体规范
-- `@TableName` + `@Data`（Lombok）+ `implements Serializable`
+- `@TableName` + `@Data` + `@Builder`（Lombok）+ `implements Serializable`
 - 自增主键用 `@TableId(type = IdType.AUTO)`
 - 蛇形列名用 `@TableField` 显式映射
 - 实体前缀表示领域：`Edu*`（核心业务）、`Auth*`（认证）、`Res*`（记录）、`Rel*`（关联）、`Sys*`（系统）
