@@ -2,6 +2,9 @@ package com.springboot.model.enums.experiment;
 
 import lombok.Getter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 实验类型枚举
  */
@@ -33,5 +36,13 @@ public enum ExperimentTypeEnum {
             }
         }
         return null;
+    }
+
+    public static List<Integer> getAllValues() {
+        List<Integer> values = new ArrayList<>();
+        for (ExperimentTypeEnum typeEnum : values()) {
+            values.add(typeEnum.getValue());
+        }
+        return values;
     }
 }

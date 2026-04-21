@@ -26,6 +26,7 @@ import com.springboot.service.experiment.EduExperimentService;
 import com.springboot.utils.DocxTemplateGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpHeaders;
@@ -43,6 +44,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/experiment/eduExperiment")
 public class EduExperimentController {
@@ -67,6 +69,7 @@ public class EduExperimentController {
 
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduExperiment(@RequestBody EduExperimentAddRequest addRequest) {
+        log.info("[EduExperiment] 新增实验");
         if (addRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -75,20 +78,24 @@ public class EduExperimentController {
         eduExperimentService.validEduExperiment(entity, true);
         boolean result = eduExperimentService.save(entity);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        log.info("[EduExperiment] 新增实验成功: id={}", entity.getId());
         return ResultUtils.success(true);
     }
 
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteEduExperiment(@RequestParam String id) {
+        log.info("[EduExperiment] 删除实验: id={}", id);
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         boolean result = eduExperimentService.removeById(id);
+        log.info("[EduExperiment] 删除实验完成: id={}, success={}", id, result);
         return ResultUtils.success(result);
     }
 
     @PostMapping("/update")
     public BaseResponse<Boolean> updateEduExperiment(@RequestBody EduExperimentUpdateRequest updateRequest) {
+        log.info("[EduExperiment] 更新实验");
         if (updateRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -96,11 +103,13 @@ public class EduExperimentController {
         BeanUtils.copyProperties(updateRequest, entity);
         eduExperimentService.validEduExperiment(entity, false);
         boolean result = eduExperimentService.updateById(entity);
+        log.info("[EduExperiment] 更新实验完成: id={}, success={}", updateRequest.getId(), result);
         return ResultUtils.success(result);
     }
 
     @GetMapping("/get/vo")
     public BaseResponse<EduExperimentVO> getEduExperimentVOById(@RequestParam String id) {
+        log.debug("[EduExperiment] 查询实验详情: id={}", id);
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -114,6 +123,7 @@ public class EduExperimentController {
      */
     @GetMapping("/classes")
     public BaseResponse<List<String>> getExperimentClasses(@RequestParam Long experimentId) {
+        log.debug("[EduExperiment] 获取实验班级列表: experimentId={}", experimentId);
         if (experimentId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -168,6 +178,9 @@ public class EduExperimentController {
 
     @PostMapping("/list/page")
     public BaseResponse<Page<EduExperiment>> listEduExperimentByPage(@RequestBody EduExperimentQueryRequest queryRequest) {
+        log.debug("[EduExperiment] 分页查询实验: current={}, size={}",
+                queryRequest != null ? queryRequest.getCurrent() : "null",
+                queryRequest != null ? queryRequest.getPageSize() : "null");
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -179,6 +192,9 @@ public class EduExperimentController {
 
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<EduExperimentVO>> listEduExperimentVOByPage(@RequestBody EduExperimentQueryRequest queryRequest) {
+        log.debug("[EduExperiment] 分页查询实验VO: current={}, size={}",
+                queryRequest != null ? queryRequest.getCurrent() : "null",
+                queryRequest != null ? queryRequest.getPageSize() : "null");
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -239,7 +255,7 @@ public class EduExperimentController {
 
         // 调用导入服务
         DocxImportResult result = eduExperimentQuestionService.importExperimentFromDocx(importRequest, experiment);
-
+        log.info("[EduExperiment] DOCX导入完成: experimentName={}, success={}", result.getExperimentName(), result.getSuccess());
         return ResultUtils.success(result);
     }
 
@@ -264,7 +280,7 @@ public class EduExperimentController {
 
         // 调用导入服务
         DocxImportResult result = eduExperimentQuestionService.importExperimentFromDocx(importRequest, experiment);
-
+        log.info("[EduExperiment] DOCX导入(JSON)完成: experimentName={}, success={}", result.getExperimentName(), result.getSuccess());
         return ResultUtils.success(result);
     }
 
@@ -277,6 +293,7 @@ public class EduExperimentController {
      */
     @GetMapping("/template/download")
     public ResponseEntity<byte[]> downloadTemplate() {
+        log.debug("[EduExperiment] 下载实验导入模板");
         try {
             byte[] templateBytes = DocxTemplateGenerator.generateTemplate();
 

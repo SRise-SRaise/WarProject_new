@@ -13,6 +13,7 @@ import com.springboot.model.entity.experiment.EduExperimentQuestion;
 import com.springboot.model.vo.experiment.EduExperimentQuestionVO;
 import com.springboot.service.experiment.EduExperimentQuestionService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,7 @@ import java.util.List;
 /**
  * 实验题库控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/experiment/eduExperimentQuestion")
 public class EduExperimentQuestionController {
@@ -127,12 +129,6 @@ public class EduExperimentQuestionController {
 
     /**
      * 随机选题
-     *
-     * @param questionType 题目类型：1-选择题，2-填空题，3-编程题，4-简答题
-     * @param difficulty 难度等级：1-简单，2-中等，3-困难
-     * @param tag 标签
-     * @param count 选取数量
-     * @return 随机选取的题目列表
      */
     @GetMapping("/select/random")
     public BaseResponse<List<EduExperimentQuestion>> selectRandomQuestions(
@@ -140,6 +136,8 @@ public class EduExperimentQuestionController {
             @RequestParam(required = false) Integer difficulty,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "10") Integer count) {
+        log.info("[EduExperimentQuestion] 随机选题: questionType={}, difficulty={}, tag={}, count={}",
+                questionType, difficulty, tag, count);
         List<EduExperimentQuestion> questions = eduExperimentQuestionService.selectRandomQuestions(
                 questionType, difficulty, tag, count);
         return ResultUtils.success(questions);
@@ -150,6 +148,7 @@ public class EduExperimentQuestionController {
      */
     @PostMapping("/batch/import")
     public BaseResponse<Boolean> batchImportQuestions(@RequestBody List<EduExperimentQuestionAddRequest> questionList) {
+        log.info("[EduExperimentQuestion] 批量导入题目: 数量={}", questionList != null ? questionList.size() : 0);
         if (questionList == null || questionList.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目列表为空");
         }
@@ -159,6 +158,7 @@ public class EduExperimentQuestionController {
             return entity;
         }).toList();
         boolean result = eduExperimentQuestionService.batchImportQuestions(entities);
+        log.info("[EduExperimentQuestion] 批量导入题目完成: success={}", result);
         return ResultUtils.success(result);
     }
 
@@ -167,6 +167,7 @@ public class EduExperimentQuestionController {
      */
     @GetMapping("/list/all")
     public BaseResponse<List<EduExperimentQuestionVO>> listAllEnabledQuestions() {
+        log.debug("[EduExperimentQuestion] 获取所有启用题目");
         EduExperimentQuestionQueryRequest queryRequest = new EduExperimentQuestionQueryRequest();
         queryRequest.setStatus(1);
         List<EduExperimentQuestion> questions = eduExperimentQuestionService.list(

@@ -13,14 +13,15 @@ import com.springboot.model.vo.experiment.EduExperimentReportListVO;
 import com.springboot.model.vo.experiment.EduExperimentReportVO;
 import com.springboot.service.experiment.EduExperimentReportService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/experiment/report")
 public class EduExperimentReportController {
-
     @Resource
     private EduExperimentReportService eduExperimentReportService;
 
@@ -31,6 +32,7 @@ public class EduExperimentReportController {
     public BaseResponse<EduExperimentReportVO> getStudentReport(
             @RequestParam Long experimentId,
             @RequestParam Long studentId) {
+        log.debug("[EduExperimentReport] 获取学生实验报告: experimentId={}, studentId={}", experimentId, studentId);
         if (experimentId == null || studentId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -43,6 +45,9 @@ public class EduExperimentReportController {
      */
     @PostMapping("/submit")
     public BaseResponse<Boolean> saveStudentAnswer(@RequestBody EduExperimentReportSubmitRequest request) {
+        log.info("[EduExperimentReport] 提交学生答题: experimentId={}, studentId={}",
+                request != null ? request.getExperimentId() : "null",
+                request != null ? request.getStudentId() : "null");
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -51,6 +56,8 @@ public class EduExperimentReportController {
         }
         boolean result = eduExperimentReportService.saveStudentAnswer(request);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "保存失败");
+        log.info("[EduExperimentReport] 提交学生答题完成: experimentId={}, studentId={}, success={}",
+                request.getExperimentId(), request.getStudentId(), result);
         return ResultUtils.success(true);
     }
 
@@ -59,6 +66,9 @@ public class EduExperimentReportController {
      */
     @PostMapping("/grade")
     public BaseResponse<Boolean> gradeReport(@RequestBody EduExperimentReportGradeRequest request) {
+        log.info("[EduExperimentReport] 批改实验报告: experimentId={}, studentId={}",
+                request != null ? request.getExperimentId() : "null",
+                request != null ? request.getStudentId() : "null");
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -67,6 +77,8 @@ public class EduExperimentReportController {
         }
         boolean result = eduExperimentReportService.gradeReport(request);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "批改失败");
+        log.info("[EduExperimentReport] 批改实验报告完成: experimentId={}, studentId={}, success={}",
+                request.getExperimentId(), request.getStudentId(), result);
         return ResultUtils.success(true);
     }
 
@@ -75,6 +87,7 @@ public class EduExperimentReportController {
      */
     @GetMapping("/list/student")
     public BaseResponse<List<EduExperimentReportVO>> getStudentReportList(@RequestParam Long studentId) {
+        log.debug("[EduExperimentReport] 获取学生报告列表: studentId={}", studentId);
         if (studentId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -87,6 +100,7 @@ public class EduExperimentReportController {
      */
     @GetMapping("/list/experiment")
     public BaseResponse<List<EduExperimentReportVO>> getExperimentReportList(@RequestParam Long experimentId) {
+        log.debug("[EduExperimentReport] 获取实验报告列表: experimentId={}", experimentId);
         if (experimentId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -99,6 +113,8 @@ public class EduExperimentReportController {
      */
     @GetMapping("/list/teacher/page")
     public BaseResponse<Page<EduExperimentReportListVO>> getTeacherReportListPage(EduExperimentReportQueryRequest queryRequest) {
+        log.debug("[EduExperimentReport] 教师端报告列表分页查询: experimentId={}",
+                queryRequest != null ? queryRequest.getExperimentId() : "null");
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "查询参数不能为空");
         }

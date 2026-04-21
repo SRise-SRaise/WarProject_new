@@ -43,6 +43,7 @@ export interface ExperimentStudentItem {
 
 export interface ExperimentAdminItem {
   id: string
+  sortOrder?: number
   title: string
   topicLabel: string
   status: ExperimentAdminStatus
@@ -256,4 +257,33 @@ export interface GradeSubmitRequest {
   }>
   totalScore?: number
   feedback?: string
+}
+
+// ==================== 学生实验数据分析类型 ====================
+
+export interface StudentExperimentAnalysisVO {
+  totalPublishedExperiments: number
+  completedExperiments: number
+  completionRate: number
+  gradedExperiments: number
+  totalScore: number
+  totalMaxScore: number
+  averageScore: number
+  maxScore: number
+  minScore: number
+  experimentTypeScores: ExperimentTypeScoreVO[]
+}
+
+export interface ExperimentTypeScoreVO {
+  typeCode: number
+  typeName: string
+  experimentCount: number
+  totalScore: number
+  averageScore: number
+}
+
+export interface StudentAnalysisState {
+  loading: boolean
+  data: StudentExperimentAnalysisVO | null
+  error: string | null
 }

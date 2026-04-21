@@ -43,14 +43,19 @@ public class EduExperimentAttachmentServiceImpl
     @Override
     public EduExperimentAttachmentVO uploadAttachment(MultipartFile file, Long resultId, Long studentId) {
         if (file == null || file.isEmpty()) {
+            log.warn("[uploadAttachment] 上传文件为空: resultId={}, studentId={}", resultId, studentId);
             throw new RuntimeException("上传文件不能为空");
         }
         if (resultId == null) {
+            log.warn("[uploadAttachment] 实验提交记录ID为空: studentId={}", studentId);
             throw new RuntimeException("实验提交记录ID不能为空");
         }
         if (studentId == null) {
+            log.warn("[uploadAttachment] 学生ID为空: resultId={}", resultId);
             throw new RuntimeException("学生ID不能为空");
         }
+        log.debug("[uploadAttachment] 开始上传附件: resultId={}, studentId={}, fileName={}",
+                resultId, studentId, file.getOriginalFilename());
 
         // 上传文件到OBS或本地
         ObsUploadService.ObsUploadResult uploadResult = obsUploadService.uploadFile(file, BIZ_TYPE, studentId);
@@ -80,8 +85,11 @@ public class EduExperimentAttachmentServiceImpl
     @Override
     public List<EduExperimentAttachmentVO> batchUploadAttachment(MultipartFile[] files, Long resultId, Long studentId) {
         if (files == null || files.length == 0) {
+            log.warn("[batchUploadAttachment] 上传文件数组为空: resultId={}, studentId={}", resultId, studentId);
             throw new RuntimeException("上传文件不能为空");
         }
+        log.info("[batchUploadAttachment] 批量上传附件: 文件数={}, resultId={}, studentId={}",
+                files.length, resultId, studentId);
         return Arrays.stream(files)
                 .filter(file -> !file.isEmpty())
                 .map(file -> uploadAttachment(file, resultId, studentId))
@@ -91,20 +99,24 @@ public class EduExperimentAttachmentServiceImpl
     @Override
     public void validAttachment(EduExperimentAttachment attachment, boolean add) {
         if (attachment == null) {
+            log.warn("[validAttachment] 附件信息为空");
             throw new RuntimeException("附件信息不能为空");
         }
 
         if (add) {
             if (attachment.getResultId() == null) {
+                log.warn("[validAttachment] 实验提交记录ID为空");
                 throw new RuntimeException("实验提交记录ID不能为空");
             }
             if (attachment.getStudentId() == null) {
+                log.warn("[validAttachment] 学生ID为空");
                 throw new RuntimeException("学生ID不能为空");
             }
         }
 
         // 校验文件大小
         if (attachment.getFileSize() != null && attachment.getFileSize() > MAX_FILE_SIZE) {
+            log.warn("[validAttachment] 文件大小超过限制: size={}", attachment.getFileSize());
             throw new RuntimeException("文件大小不能超过50MB");
         }
 
@@ -112,6 +124,7 @@ public class EduExperimentAttachmentServiceImpl
         if (attachment.getFileSuffix() != null) {
             String suffix = attachment.getFileSuffix().toLowerCase();
             if (!ALLOWED_FILE_TYPES.contains(suffix)) {
+                log.warn("[validAttachment] 不支持的文件类型: {}", suffix);
                 throw new RuntimeException("不支持的文件类型: " + suffix);
             }
         }
@@ -176,6 +189,7 @@ public class EduExperimentAttachmentServiceImpl
 
     @Override
     public List<EduExperimentAttachmentVO> getAttachmentsByResultId(Long resultId) {
+        log.debug("[getAttachmentsByResultId] 查询附件: resultId={}", resultId);
         QueryWrapper<EduExperimentAttachment> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("result_id", resultId);
         queryWrapper.eq("is_deleted", 0);
@@ -186,6 +200,7 @@ public class EduExperimentAttachmentServiceImpl
 
     @Override
     public List<EduExperimentAttachmentVO> getAttachmentsByStudentId(Long studentId) {
+        log.debug("[getAttachmentsByStudentId] 查询附件: studentId={}", studentId);
         QueryWrapper<EduExperimentAttachment> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_id", studentId);
         queryWrapper.eq("is_deleted", 0);
@@ -196,13 +211,16 @@ public class EduExperimentAttachmentServiceImpl
 
     @Override
     public boolean deleteAttachment(Long attachmentId, Long studentId) {
+        log.info("[deleteAttachment] 删除附件: attachmentId={}, studentId={}", attachmentId, studentId);
         EduExperimentAttachment attachment = this.getById(attachmentId);
         if (attachment == null) {
+            log.warn("[deleteAttachment] 附件不存在: attachmentId={}", attachmentId);
             throw new RuntimeException("附件不存在");
         }
 
         // 校验是否是本人操作
         if (studentId != null && !studentId.equals(attachment.getStudentId())) {
+            log.warn("[deleteAttachment] 无权删除他人附件: attachmentId={}, studentId={}", attachmentId, studentId);
             throw new RuntimeException("无权删除他人的附件");
         }
 
@@ -213,14 +231,17 @@ public class EduExperimentAttachmentServiceImpl
 
     @Override
     public String getDownloadUrl(Long attachmentId, int expireSeconds) {
+        log.debug("[getDownloadUrl] 获取附件下载链接: attachmentId={}, expireSeconds={}", attachmentId, expireSeconds);
         EduExperimentAttachment attachment = this.getById(attachmentId);
         if (attachment == null) {
+            log.warn("[getDownloadUrl] 附件不存在: attachmentId={}", attachmentId);
             throw new RuntimeException("附件不存在");
         }
 
         // 从OBS URL中提取objectName
         String obsUrl = attachment.getObsUrl();
         if (obsUrl == null || obsUrl.isEmpty()) {
+            log.warn("[getDownloadUrl] 文件路径无效: attachmentId={}", attachmentId);
             throw new RuntimeException("文件路径无效");
         }
 

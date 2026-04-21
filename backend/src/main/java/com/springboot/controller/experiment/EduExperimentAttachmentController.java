@@ -44,6 +44,9 @@ public class EduExperimentAttachmentController {
             @Parameter(description = "实验提交记录ID", required = true) @RequestParam Long resultId,
             @Parameter(description = "学生ID", required = true) @RequestParam Long studentId) {
 
+        log.info("[attachment] 上传附件: resultId={}, studentId={}, fileName={}",
+                resultId, studentId, file != null ? file.getOriginalFilename() : "null");
+
         if (resultId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "实验提交记录ID不能为空");
         }
@@ -52,6 +55,7 @@ public class EduExperimentAttachmentController {
         }
 
         EduExperimentAttachmentVO attachmentVO = attachmentService.uploadAttachment(file, resultId, studentId);
+        log.info("[attachment] 上传附件成功: id={}", attachmentVO.getId());
         return ResultUtils.success(attachmentVO);
     }
 
@@ -61,6 +65,9 @@ public class EduExperimentAttachmentController {
             @Parameter(description = "上传的文件数组", required = true) @RequestPart("files") MultipartFile[] files,
             @Parameter(description = "实验提交记录ID", required = true) @RequestParam Long resultId,
             @Parameter(description = "学生ID", required = true) @RequestParam Long studentId) {
+
+        log.info("[attachment] 批量上传附件: 文件数={}, resultId={}, studentId={}",
+                files != null ? files.length : 0, resultId, studentId);
 
         if (resultId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "实验提交记录ID不能为空");
@@ -73,6 +80,7 @@ public class EduExperimentAttachmentController {
         }
 
         List<EduExperimentAttachmentVO> attachments = attachmentService.batchUploadAttachment(files, resultId, studentId);
+        log.info("[attachment] 批量上传附件完成: 成功数={}", attachments.size());
         return ResultUtils.success(attachments);
     }
 
@@ -82,6 +90,8 @@ public class EduExperimentAttachmentController {
             @Parameter(description = "附件ID", required = true) @RequestParam Long id,
             @Parameter(description = "学生ID", required = true) @RequestParam Long studentId) {
 
+        log.info("[attachment] 删除附件: id={}, studentId={}", id, studentId);
+
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "附件ID不能为空");
         }
@@ -90,6 +100,7 @@ public class EduExperimentAttachmentController {
         }
 
         boolean result = attachmentService.deleteAttachment(id, studentId);
+        log.info("[attachment] 删除附件完成: id={}, success={}", id, result);
         return ResultUtils.success(result);
     }
 
@@ -98,11 +109,14 @@ public class EduExperimentAttachmentController {
     public BaseResponse<Boolean> adminDeleteAttachment(
             @Parameter(description = "附件ID", required = true) @RequestParam Long id) {
 
+        log.info("[attachment] 管理员删除附件: id={}", id);
+
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "附件ID不能为空");
         }
 
         boolean result = attachmentService.deleteAttachment(id, null);
+        log.info("[attachment] 管理员删除附件完成: id={}, success={}", id, result);
         return ResultUtils.success(result);
     }
 
@@ -110,6 +124,8 @@ public class EduExperimentAttachmentController {
     @Operation(summary = "获取附件详情", description = "根据ID获取附件详细信息")
     public BaseResponse<EduExperimentAttachmentVO> getAttachmentVO(
             @Parameter(description = "附件ID", required = true) @RequestParam Long id) {
+
+        log.debug("[attachment] 获取附件详情: id={}", id);
 
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "附件ID不能为空");
@@ -127,6 +143,10 @@ public class EduExperimentAttachmentController {
     @Operation(summary = "分页查询附件", description = "分页查询附件列表")
     public BaseResponse<Page<EduExperimentAttachmentVO>> listAttachmentByPage(
             @RequestBody EduExperimentAttachmentQueryRequest queryRequest) {
+
+        log.debug("[attachment] 分页查询附件: current={}, size={}",
+                queryRequest != null ? queryRequest.getCurrent() : "null",
+                queryRequest != null ? queryRequest.getPageSize() : "null");
 
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -148,6 +168,8 @@ public class EduExperimentAttachmentController {
     public BaseResponse<List<EduExperimentAttachmentVO>> getAttachmentsByResultId(
             @Parameter(description = "实验提交记录ID", required = true) @PathVariable Long resultId) {
 
+        log.debug("[attachment] 获取实验提交附件列表: resultId={}", resultId);
+
         if (resultId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "实验提交记录ID不能为空");
         }
@@ -160,6 +182,8 @@ public class EduExperimentAttachmentController {
     @Operation(summary = "获取学生的所有附件", description = "根据学生ID获取所有附件")
     public BaseResponse<List<EduExperimentAttachmentVO>> getAttachmentsByStudentId(
             @Parameter(description = "学生ID", required = true) @PathVariable Long studentId) {
+
+        log.debug("[attachment] 获取学生附件列表: studentId={}", studentId);
 
         if (studentId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "学生ID不能为空");
@@ -174,6 +198,8 @@ public class EduExperimentAttachmentController {
     public void downloadAttachment(
             @Parameter(description = "附件ID", required = true) @PathVariable Long id,
             HttpServletResponse response) {
+
+        log.info("[attachment] 下载附件: id={}", id);
 
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "附件ID不能为空");
@@ -204,6 +230,7 @@ public class EduExperimentAttachmentController {
                 os.write(fileContent);
                 os.flush();
             }
+            log.info("[attachment] 附件下载成功: id={}, fileName={}", id, attachment.getFileName());
 
         } catch (BusinessException e) {
             throw e;
@@ -218,6 +245,8 @@ public class EduExperimentAttachmentController {
     public BaseResponse<String> getDownloadUrl(
             @Parameter(description = "附件ID", required = true) @PathVariable Long id,
             @Parameter(description = "链接有效期（秒），默认3600秒") @RequestParam(defaultValue = "3600") int expireSeconds) {
+
+        log.debug("[attachment] 获取附件下载链接: id={}, expireSeconds={}", id, expireSeconds);
 
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "附件ID不能为空");

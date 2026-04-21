@@ -20,6 +20,7 @@ import com.springboot.model.vo.experiment.EduExperimentReportVO;
 import com.springboot.service.experiment.EduExperimentReportService;
 import com.springboot.service.experiment.EduExperimentService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class EduExperimentReportServiceImpl implements EduExperimentReportService {
 
@@ -115,10 +117,12 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                     resultQuery.eq("student_id", studentId);
                     resultQuery.orderByDesc("fill_time");
                     resultQuery.last("LIMIT 1");
-                    System.out.println("[getStudentReport] 查询答题记录: itemId=" + item.getId() + ", studentId=" + studentId);
+                    log.debug("[getStudentReport] 查询答题记录: itemId={}, studentId={}", item.getId(), studentId);
                     ResExperimentResult result = resExperimentResultMapper.selectOne(resultQuery);
 
-                    System.out.println("[getStudentReport] 查询结果: " + (result != null ? "找到记录, subContent=" + (result.getSubContent() != null ? result.getSubContent().substring(0, Math.min(30, result.getSubContent().length())) : "null") + ", gradingStatus=" + result.getGradingStatus() : "未找到记录"));
+                    log.debug("[getStudentReport] 查询结果: {}", result != null
+                            ? "找到记录, gradingStatus=" + result.getGradingStatus()
+                            : "未找到记录");
 
                     if (result != null) {
                         questionVO.setStudentAnswer(result.getSubContent());
@@ -142,6 +146,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                     }
                 } catch (Exception e) {
                     // 表不存在时忽略，继续使用空的学生答题信息
+                    log.warn("[getStudentReport] 查询答题记录异常: itemId={}, studentId={}", item.getId(), studentId, e);
                 }
 
                 questions.add(questionVO);
@@ -177,23 +182,26 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveStudentAnswer(EduExperimentReportSubmitRequest request) {
+        log.info("[saveStudentAnswer] 保存学生答案: experimentId={}, studentId={}, answers数量={}",
+                request != null ? request.getExperimentId() : "null",
+                request != null ? request.getStudentId() : "null",
+                request != null && request.getAnswers() != null ? request.getAnswers().size() : 0);
+
         if (request == null || request.getExperimentId() == null || request.getStudentId() == null) {
-            System.out.println("[saveStudentAnswer] 参数校验失败: request=" + request + ", experimentId=" + request.getExperimentId() + ", studentId=" + request.getStudentId());
+            log.warn("[saveStudentAnswer] 参数校验失败");
             return false;
         }
-
-        System.out.println("[saveStudentAnswer] 开始保存学生答案: experimentId=" + request.getExperimentId() + ", studentId=" + request.getStudentId() + ", answers数量=" + (request.getAnswers() != null ? request.getAnswers().size() : 0));
 
         Date now = new Date();
 
         if (request.getAnswers() != null && !request.getAnswers().isEmpty()) {
             for (EduExperimentReportSubmitRequest.QuestionAnswer answer : request.getAnswers()) {
                 if (answer.getItemId() == null) {
-                    System.out.println("[saveStudentAnswer] 跳过空的itemId");
+                    log.debug("[saveStudentAnswer] 跳过空的itemId");
                     continue;
                 }
 
-                System.out.println("[saveStudentAnswer] 处理答案: itemId=" + answer.getItemId() + " (类型:" + (answer.getItemId() != null ? answer.getItemId().getClass().getName() : "null") + "), answer=" + (answer.getAnswer() != null ? answer.getAnswer().substring(0, Math.min(50, answer.getAnswer().length())) : "null"));
+                log.debug("[saveStudentAnswer] 处理答案: itemId={}", answer.getItemId());
 
                 // 查询是否已有记录
                 QueryWrapper<ResExperimentResult> resultQuery = new QueryWrapper<>();
@@ -203,15 +211,15 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                 ResExperimentResult existingResult = resExperimentResultMapper.selectOne(resultQuery);
 
                 if (existingResult != null) {
-                    System.out.println("[saveStudentAnswer] 找到已有记录, id=" + existingResult.getId() + ", 原内容=" + existingResult.getSubContent());
+                    log.debug("[saveStudentAnswer] 更新已有记录: id={}", existingResult.getId());
                     // 更新已有记录
                     existingResult.setSubContent(answer.getAnswer());
                     existingResult.setFillTime(now);
                     existingResult.setGradingStatus(1); // 已提交
                     int updateCount = resExperimentResultMapper.updateById(existingResult);
-                    System.out.println("[saveStudentAnswer] 更新记录, 影响行数=" + updateCount);
+                    log.debug("[saveStudentAnswer] 更新记录, 影响行数={}", updateCount);
                 } else {
-                    System.out.println("[saveStudentAnswer] 未找到已有记录, 创建新记录");
+                    log.debug("[saveStudentAnswer] 创建新记录");
                     // 新增记录
                     ResExperimentResult newResult = new ResExperimentResult();
                     newResult.setItemId(answer.getItemId());
@@ -220,11 +228,11 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                     newResult.setFillTime(now);
                     newResult.setGradingStatus(1); // 已提交
                     int insertCount = resExperimentResultMapper.insert(newResult);
-                    System.out.println("[saveStudentAnswer] 新增记录, 影响行数=" + insertCount + ", 新记录ID=" + newResult.getId());
+                    log.debug("[saveStudentAnswer] 新增记录成功: 新记录ID={}", newResult.getId());
                 }
             }
         } else {
-            System.out.println("[saveStudentAnswer] answers为空或null");
+            log.debug("[saveStudentAnswer] answers为空");
         }
 
         return true;
@@ -234,8 +242,12 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
     @Transactional(rollbackFor = Exception.class)
     public boolean gradeReport(EduExperimentReportGradeRequest request) {
         if (request == null || request.getExperimentId() == null || request.getStudentId() == null) {
+            log.warn("[gradeReport] 参数校验失败");
             return false;
         }
+        log.info("[gradeReport] 开始批改: experimentId={}, studentId={}, 题目数={}",
+                request.getExperimentId(), request.getStudentId(),
+                request.getScores() != null ? request.getScores().size() : 0);
 
         Date now = new Date();
 
@@ -261,7 +273,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
 
     @Override
     public List<EduExperimentReportVO> getStudentReportList(Long studentId) {
-        System.out.println("[学生报告列表] 开始查询, studentId=" + studentId);
+        log.info("[getStudentReportList] 查询学生报告列表: studentId={}", studentId);
 
         if (studentId == null) {
             return Collections.emptyList();
@@ -271,7 +283,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
 
         // 获取所有已发布的实验（不需要 res_experiment_result 表）
         List<EduExperiment> allExperiments = eduExperimentService.list();
-        System.out.println("[学生报告列表] 总实验数: " + (allExperiments != null ? allExperiments.size() : 0));
+        log.debug("[getStudentReportList] 总实验数: {}", allExperiments != null ? allExperiments.size() : 0);
 
         for (EduExperiment experiment : allExperiments) {
             // state = 1 或 publishStatus = 1 表示已发布
@@ -280,7 +292,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
             }
         }
 
-        System.out.println("[学生报告列表] 已发布实验数: " + experimentIds.size());
+        log.debug("[getStudentReportList] 已发布实验数: {}", experimentIds.size());
 
         // 为每个实验生成报告
         List<EduExperimentReportVO> result = experimentIds.stream()
@@ -290,7 +302,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                 .filter(report -> report.getSubmittedAt() != null && !report.getSubmittedAt().isEmpty())
                 .collect(Collectors.toList());
 
-        System.out.println("[学生报告列表] 返回报告数: " + result.size());
+        log.debug("[getStudentReportList] 返回报告数: {}", result.size());
         return result;
     }
 
@@ -336,22 +348,23 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
 
     @Override
     public Page<EduExperimentReportListVO> getExperimentReportListPage(EduExperimentReportQueryRequest queryRequest) {
-        System.out.println("[教师报告列表] 开始查询, queryRequest=" + queryRequest + ", clazzNo=" + (queryRequest != null ? queryRequest.getClazzNo() : "null"));
-
         if (queryRequest == null) {
-            System.out.println("[教师报告列表] 参数验证失败: queryRequest is null");
+            log.warn("[getExperimentReportListPage] 参数为null");
             return new Page<>();
         }
 
         Long current = queryRequest.getCurrent() != null ? queryRequest.getCurrent() : 1L;
         Long pageSize = queryRequest.getPageSize() != null ? queryRequest.getPageSize() : 10L;
 
+        log.info("[getExperimentReportListPage] 教师报告列表分页查询: experimentId={}, current={}, pageSize={}",
+                queryRequest.getExperimentId(), current, pageSize);
+
         String experimentName = "";
         Integer experimentNo = null;
         Set<Long> itemIds = new HashSet<>();
 
         if (queryRequest.getExperimentId() != null) {
-            System.out.println("[教师报告列表] 查询实验信息, experimentId=" + queryRequest.getExperimentId());
+            log.debug("[getExperimentReportListPage] 查询指定实验: experimentId={}", queryRequest.getExperimentId());
             EduExperiment experiment = eduExperimentService.getById(queryRequest.getExperimentId());
             experimentName = experiment != null ? experiment.getName() : "";
             experimentNo = experiment != null ? experiment.getSortOrder() : null;
@@ -365,7 +378,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
         } else {
-            System.out.println("[教师报告列表] 查询全部实验报告");
+            log.debug("[getExperimentReportListPage] 查询全部实验报告");
             List<EduExperimentItem> items = eduExperimentItemMapper.selectList(new QueryWrapper<>());
             itemIds = items.stream()
                     .map(EduExperimentItem::getId)
@@ -374,14 +387,14 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
         }
 
         // 查询所有学生（不依赖 res_experiment_result 表）
-        System.out.println("[教师报告列表] 开始查询学生列表");
+        log.debug("[getExperimentReportListPage] 查询学生列表");
         QueryWrapper<AuthStudent> studentQuery = new QueryWrapper<>();
         // 按班级筛选
         if (queryRequest.getClazzNo() != null && !queryRequest.getClazzNo().isEmpty()) {
             studentQuery.eq("class_code", queryRequest.getClazzNo());
         }
         List<AuthStudent> students = authStudentMapper.selectList(studentQuery);
-        System.out.println("[教师报告列表] 查询到学生数量: " + (students != null ? students.size() : 0));
+        log.debug("[getExperimentReportListPage] 查询到学生数量: {}", students != null ? students.size() : 0);
         if (students != null && !students.isEmpty()) {
             AuthStudent firstStudent = students.get(0);
             System.out.println("[教师报告列表] 首个学生: id=" + firstStudent.getId()
@@ -391,7 +404,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
         }
 
         if (students == null || students.isEmpty()) {
-            System.out.println("[教师报告列表] 学生列表为空，返回空分页");
+            log.warn("[getExperimentReportListPage] 学生列表为空，返回空分页");
             Page<EduExperimentReportListVO> resultPage = new Page<>(current, pageSize);
             resultPage.setTotal(0);
             resultPage.setRecords(new ArrayList<>());
@@ -517,7 +530,8 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
             resultPage.setRecords(new ArrayList<>());
         }
 
-        System.out.println("[教师报告列表] 查询完成，返回记录数: " + resultPage.getRecords().size() + ", 总数: " + total);
+        log.info("[getExperimentReportListPage] 查询完成，返回记录数: {}, 总数: {}",
+                resultPage.getRecords().size(), total);
         return resultPage;
     }
 }
