@@ -17,6 +17,14 @@ import com.springboot.model.entity.homework.ResExerciseRecord;
 import com.springboot.model.entity.user.AuthStudent;
 import com.springboot.model.vo.homework.*;
 import com.springboot.service.homework.EduExerciseSubmissionService;
+import com.springboot.service.homework.support.assembler.StudentScoreAssembler;
+import com.springboot.service.homework.support.assembler.SubmissionDetailAssembler;
+import com.springboot.service.homework.support.flow.SaveDraftFlow;
+import com.springboot.service.homework.support.flow.SubmissionProcessSummary;
+import com.springboot.service.homework.support.flow.SubmitAnswerFlow;
+import com.springboot.service.homework.support.strategy.AnswerPersistenceStrategyFactory;
+import com.springboot.service.homework.support.strategy.AutoGradeStrategyFactory;
+import com.springboot.service.homework.support.status.GradingStatusMachine;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +34,14 @@ import java.util.stream.Collectors;
 
 @Service
 public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionService {
+
+    private final AnswerPersistenceStrategyFactory answerPersistenceStrategyFactory = new AnswerPersistenceStrategyFactory();
+    private final AutoGradeStrategyFactory autoGradeStrategyFactory = new AutoGradeStrategyFactory();
+    private final SubmitAnswerFlow submitAnswerFlow = new SubmitAnswerFlow(answerPersistenceStrategyFactory, autoGradeStrategyFactory);
+    private final SaveDraftFlow saveDraftFlow = new SaveDraftFlow(answerPersistenceStrategyFactory);
+    private final GradingStatusMachine gradingStatusMachine = new GradingStatusMachine();
+    private final StudentScoreAssembler studentScoreAssembler = new StudentScoreAssembler();
+    private final SubmissionDetailAssembler submissionDetailAssembler = new SubmissionDetailAssembler();
 
     @Resource
     private EduExerciseItemMapper eduExerciseItemMapper;
@@ -63,9 +79,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "作业题目不存在");
         }
 
-        int submittedCount = 0;
-        int pendingReviewCount = 0;
-        int autoScore = 0;
+        SubmissionProcessSummary summary = new SubmissionProcessSummary();
 
         for (ExerciseSubmitRequest.AnswerItem answer : answers) {
             EduExerciseItem item = items.stream()
@@ -88,36 +102,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
                 record.setStudentId(studentId);
             }
 
-            // 根据题目类型设置答案
-            Integer questionType = answer.getQuestionType();
-            if (questionType != null && questionType <= 3) {
-                // 选择题/判断题：存储到 choiceAnswer
-                record.setChoiceAnswer(answer.getChoiceAnswer());
-            } else if (questionType != null && questionType == 4) {
-                // 填空题：将答案拼接存储
-                if (CollUtil.isNotEmpty(answer.getFillBlanks())) {
-                    String fillContent = answer.getFillBlanks().stream()
-                            .map(ExerciseSubmitRequest.FillBlankAnswer::getAnswerContent)
-                            .collect(Collectors.joining("|"));
-                    record.setTextContent(fillContent);
-                }
-            } else {
-                // 简答题：存储到 textContent
-                record.setTextContent(answer.getTextContent());
-            }
-
-            record.setSubmittedAt(new Date());
-            record.setGradingStatus(0); // 未批改
-
-            // 自动评分（客观题）
-            Integer itemScore = autoGradeItem(item, answer);
-            if (itemScore != null) {
-                record.setScore(itemScore);
-                record.setGradingStatus(1); // 自动判分
-                autoScore += itemScore;
-            } else {
-                pendingReviewCount++;
-            }
+            submitAnswerFlow.process(record, item, answer, summary);
 
             // 保存或更新记录
             if (record.getId() == null) {
@@ -125,14 +110,13 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             } else {
                 resExerciseRecordMapper.updateById(record);
             }
-            submittedCount++;
         }
 
         SubmissionResultVO result = new SubmissionResultVO();
         result.setSuccess(true);
-        result.setSubmittedCount(submittedCount);
-        result.setAutoScore(autoScore);
-        result.setPendingReviewCount(pendingReviewCount);
+        result.setSubmittedCount(summary.getSubmittedCount());
+        result.setAutoScore(summary.getAutoScore());
+        result.setPendingReviewCount(summary.getPendingReviewCount());
         result.setMessage("提交成功，客观题已自动评分，主观题等待教师批阅");
 
         return result;
@@ -153,6 +137,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
             return true; // 无答案直接返回成功
         }
 
+        SubmissionProcessSummary summary = new SubmissionProcessSummary();
         for (ExerciseSubmitRequest.AnswerItem answer : answers) {
             // 查找或创建答题记录
             QueryWrapper<ResExerciseRecord> recordQuery = new QueryWrapper<>();
@@ -167,23 +152,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
                 record.setStudentId(studentId);
             }
 
-            // 根据题目类型设置答案
-            Integer questionType = answer.getQuestionType();
-            if (questionType != null && questionType <= 3) {
-                record.setChoiceAnswer(answer.getChoiceAnswer());
-            } else if (questionType != null && questionType == 4) {
-                if (CollUtil.isNotEmpty(answer.getFillBlanks())) {
-                    String fillContent = answer.getFillBlanks().stream()
-                            .map(ExerciseSubmitRequest.FillBlankAnswer::getAnswerContent)
-                            .collect(Collectors.joining("|"));
-                    record.setTextContent(fillContent);
-                }
-            } else {
-                record.setTextContent(answer.getTextContent());
-            }
-
-            record.setSubmittedAt(new Date());
-            // 暂存不设置 gradingStatus 和 score
+            saveDraftFlow.process(record, null, answer, summary);
 
             if (record.getId() == null) {
                 resExerciseRecordMapper.insert(record);
@@ -418,60 +387,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         Map<Long, ResExerciseRecord> recordMap = records.stream()
                 .collect(Collectors.toMap(ResExerciseRecord::getItemId, r -> r));
 
-        StudentScoreVO scoreVO = new StudentScoreVO();
-        scoreVO.setExerciseId(exerciseId);
-        scoreVO.setExerciseName(exercise != null ? exercise.getTaskName() : "");
-        scoreVO.setStudentId(studentId);
-        scoreVO.setStudentName(student != null ? student.getStudentName() : "");
-
-        // 计算总分
-        int totalScore = records.stream()
-                .map(r -> r.getScore() != null ? r.getScore() : 0)
-                .reduce(0, Integer::sum);
-        scoreVO.setTotalScore(totalScore);
-
-        // 计算满分
-        int maxScore = items.stream()
-                .map(i -> i.getMaxScore() != null ? i.getMaxScore() : 0)
-                .reduce(0, Integer::sum);
-        scoreVO.setMaxScore(maxScore);
-
-        // 判断批改状态
-        boolean allReviewed = !records.isEmpty() && records.stream()
-                .allMatch(r -> r.getGradingStatus() != null && r.getGradingStatus() > 0);
-        scoreVO.setStatus(allReviewed ? "reviewed" : "submitted");
-
-        // 各题得分详情
-        List<StudentScoreVO.ScoreItemVO> itemScores = new ArrayList<>();
-        int order = 1;
-        for (EduExerciseItem item : items) {
-            StudentScoreVO.ScoreItemVO itemScore = new StudentScoreVO.ScoreItemVO();
-            itemScore.setItemId(item.getId());
-            itemScore.setItemOrder(order++);
-            itemScore.setQuestion(item.getQuestion());
-            itemScore.setQuestionType(item.getQuestionType());
-            itemScore.setMaxScore(item.getMaxScore());
-            itemScore.setCorrectAnswer(item.getStandardAnswer());
-
-            ResExerciseRecord record = recordMap.get(item.getId());
-            if (record != null) {
-                itemScore.setStudentScore(record.getScore());
-                // 组合学生答案
-                String studentAnswer = record.getChoiceAnswer() != null
-                        ? record.getChoiceAnswer()
-                        : record.getTextContent();
-                itemScore.setStudentAnswer(studentAnswer);
-                itemScore.setGradingStatus(record.getGradingStatus());
-                itemScore.setComment(record.getComment());
-            } else {
-                itemScore.setStudentScore(0);
-                itemScore.setGradingStatus(0);
-            }
-            itemScores.add(itemScore);
-        }
-        scoreVO.setItems(itemScores);
-
-        return scoreVO;
+        return studentScoreAssembler.assemble(exercise, student, items, records);
     }
 
     @Override
@@ -492,59 +408,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
         recordQuery.eq("student_id", studentId);
         List<ResExerciseRecord> records = resExerciseRecordMapper.selectList(recordQuery);
 
-        Map<Long, ResExerciseRecord> recordMap = records.stream()
-                .collect(Collectors.toMap(ResExerciseRecord::getItemId, r -> r));
-
-        SubmissionDetailVO detailVO = new SubmissionDetailVO();
-        detailVO.setExerciseId(exerciseId);
-        detailVO.setExerciseName(exercise != null ? exercise.getTaskName() : "");
-        detailVO.setStudentId(studentId);
-        detailVO.setStudentName(student != null ? student.getStudentName() : "");
-        detailVO.setClassName(student != null ? student.getClassCode() : "");
-
-        // 计算总分
-        int totalScore = records.stream()
-                .map(r -> r.getScore() != null ? r.getScore() : 0)
-                .reduce(0, Integer::sum);
-        detailVO.setTotalScore(totalScore);
-
-        // 设置提交时间（取最早提交时间）
-        Date submittedAt = records.stream()
-                .map(ResExerciseRecord::getSubmittedAt)
-                .filter(Objects::nonNull)
-                .min(Date::compareTo)
-                .orElse(null);
-        detailVO.setSubmittedAt(submittedAt);
-
-        // 各题答题详情
-        List<SubmissionDetailVO.AnswerDetailVO> answerDetails = new ArrayList<>();
-        int order = 1;
-        for (EduExerciseItem item : items) {
-            SubmissionDetailVO.AnswerDetailVO answerDetail = new SubmissionDetailVO.AnswerDetailVO();
-            answerDetail.setItemId(item.getId());
-            answerDetail.setItemOrder(order++);
-            answerDetail.setQuestion(item.getQuestion());
-            answerDetail.setQuestionType(item.getQuestionType());
-            answerDetail.setOptionsText(item.getOptionsText());
-            answerDetail.setStandardAnswer(item.getStandardAnswer());
-            answerDetail.setMaxScore(item.getMaxScore());
-
-            ResExerciseRecord record = recordMap.get(item.getId());
-            if (record != null) {
-                answerDetail.setRecordId(record.getId());
-                String studentAnswer = record.getChoiceAnswer() != null
-                        ? record.getChoiceAnswer()
-                        : record.getTextContent();
-                answerDetail.setStudentAnswer(studentAnswer);
-                answerDetail.setScore(record.getScore());
-                answerDetail.setGradingStatus(record.getGradingStatus());
-                answerDetail.setComment(record.getComment());
-            }
-            answerDetails.add(answerDetail);
-        }
-        detailVO.setAnswers(answerDetails);
-
-        return detailVO;
+        return submissionDetailAssembler.assemble(exercise, student, items, records);
     }
 
     @Override
@@ -599,9 +463,7 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
                 .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
-        long pendingCount = studentRecords.stream()
-                .filter(item -> item.getGradingStatus() == null || item.getGradingStatus() == 0)
-                .count();
+        long pendingCount = gradingStatusMachine.pendingCount(studentRecords);
 
         SubmissionRecordVO recordVO = new SubmissionRecordVO();
         recordVO.setId(latestRecord.getId());
@@ -653,60 +515,6 @@ public class EduExerciseSubmissionServiceImpl implements EduExerciseSubmissionSe
      * @return 得分（null表示无法自动评分）
      */
     private Integer autoGradeItem(EduExerciseItem item, ExerciseSubmitRequest.AnswerItem answer) {
-        Integer questionType = item.getQuestionType();
-        Integer maxScore = item.getMaxScore() != null ? item.getMaxScore() : 0;
-        String standardAnswer = item.getStandardAnswer();
-
-        if (standardAnswer == null || standardAnswer.isEmpty()) {
-            return null; // 无标准答案，无法自动评分
-        }
-
-        // 单选题（type=2）或判断题（type=4）
-        if (questionType != null && (questionType == 2 || questionType == 4)) {
-            if (answer.getChoiceAnswer() != null
-                    && answer.getChoiceAnswer().equalsIgnoreCase(standardAnswer.trim())) {
-                return maxScore;
-            }
-            return 0;
-        }
-
-        // 多选题（type=3）
-        if (questionType != null && questionType == 3) {
-            if (answer.getChoiceAnswer() != null && standardAnswer != null) {
-                // 将答案排序后比较
-                String sortedAnswer = answer.getChoiceAnswer().chars()
-                        .sorted()
-                        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                        .toString();
-                String sortedStandard = standardAnswer.trim().chars()
-                        .sorted()
-                        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                        .toString();
-                if (sortedAnswer.equalsIgnoreCase(sortedStandard)) {
-                    return maxScore;
-                }
-            }
-            return 0;
-        }
-
-        // 填空题（type=1）
-        if (questionType != null && questionType == 1) {
-            if (CollUtil.isNotEmpty(answer.getFillBlanks()) && standardAnswer != null) {
-                String[] standardFills = standardAnswer.split("\\|");
-                int correctCount = 0;
-                for (int i = 0; i < standardFills.length && i < answer.getFillBlanks().size(); i++) {
-                    String studentFill = answer.getFillBlanks().get(i).getAnswerContent();
-                    if (studentFill != null && studentFill.trim().equalsIgnoreCase(standardFills[i].trim())) {
-                        correctCount++;
-                    }
-                }
-                // 按正确数量比例得分
-                return maxScore * correctCount / standardFills.length;
-            }
-            return null;
-        }
-
-        // 简答题无法自动评分
-        return null;
+        return autoGradeStrategyFactory.resolve(item.getQuestionType()).grade(item, answer);
     }
 }

@@ -28,6 +28,7 @@ import com.springboot.model.entity.user.AuthTeacher;
 import com.springboot.model.vo.homework.EduExerciseVO;
 import com.springboot.model.vo.homework.StudentExerciseVO;
 import com.springboot.service.homework.EduExerciseService;
+import com.springboot.service.homework.support.status.HomeworkStatusMachine;
 import com.springboot.service.support.ServiceMethodSupport;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,6 +40,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduExercise> implements EduExerciseService {
+
+    private final HomeworkStatusMachine homeworkStatusMachine = new HomeworkStatusMachine();
 
     @Resource
     private RelExerciseClassMapper relExerciseClassMapper;
@@ -309,34 +312,9 @@ public class EduExerciseServiceImpl extends ServiceImpl<EduExerciseMapper, EduEx
 
             // 判断状态
             List<ResExerciseRecord> exerciseRecords = recordMap.getOrDefault(exercise.getId(), new ArrayList<>());
-            if (exerciseRecords.isEmpty()) {
-                // 未答题
-                if (exercise.getEndTime() != null && exercise.getEndTime().before(now)) {
-                    vo.setStatus("overdue");
-                } else {
-                    vo.setStatus("pending");
-                }
-                vo.setStudentScore(0);
-            } else {
-                // 已答题，判断是否批阅完成
-                boolean allReviewed = exerciseRecords.stream()
-                        .allMatch(r -> r.getGradingStatus() != null && r.getGradingStatus() > 0);
-                if (allReviewed) {
-                    vo.setStatus("reviewed");
-                    int totalScore = exerciseRecords.stream()
-                            .map(r -> r.getScore() != null ? r.getScore() : 0)
-                            .reduce(0, Integer::sum);
-                    vo.setStudentScore(totalScore);
-                } else {
-                    vo.setStatus("submitted");
-                    // 计算已自动评分部分
-                    int autoScore = exerciseRecords.stream()
-                            .filter(r -> r.getGradingStatus() != null && r.getGradingStatus() == 1)
-                            .map(r -> r.getScore() != null ? r.getScore() : 0)
-                            .reduce(0, Integer::sum);
-                    vo.setStudentScore(autoScore);
-                }
-            }
+            String status = homeworkStatusMachine.resolveStudentStatus(exercise.getEndTime(), exerciseRecords);
+            vo.setStatus(status);
+            vo.setStudentScore(homeworkStatusMachine.calculateStudentScore(status, exerciseRecords));
 
             result.add(vo);
         }
