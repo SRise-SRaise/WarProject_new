@@ -170,12 +170,16 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
                 break;
             }
         }
-        if (studentRecord == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到学生考试结果");
-        }
-
         // 获取考试信息
         Map<String, Object> examCard = eduExamService.getAdminExamCard(examId);
+
+        if (studentRecord == null) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("record", null);
+            result.put("exam", examCard);
+            result.put("paper", null);
+            return result;
+        }
 
         // 从 res_exam_summary 查 paper_id，获取试卷详情（含标准答案）
         Map<String, Object> paperDetail = null;

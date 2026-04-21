@@ -156,17 +156,18 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     const existing = getSubmission(examId)
     if (!existing) return null
     try {
-      // 获取后端结果（现在包含 paper 字段，其中有标准答案）
       const backend = await examRepository.getStudentExamResult(examId)
 
-      // 存储试卷详情用于显示参考答案
       if (backend?.paper) {
         resultPaperDetail.value = backend.paper
       }
 
       if (!backend) {
-        currentSubmission.value = existing
-        return existing
+        removeSubmission(examId)
+        if (currentSubmission.value?.examId === examId) {
+          currentSubmission.value = null
+        }
+        return null
       }
       const releaseMode: ReleaseMode = backend.record.status === 'graded' ? 'immediate' : 'pending_teacher'
       const updated: StoredExamSubmission = {
@@ -203,10 +204,10 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     try {
       publishedExams.value = await examRepository.getPublishedExamsForStudent()
       hydrated.value = true
-      const pendingIds = publishedExams.value
-        .filter((exam) => getSubmissionState(exam.id) === 'pending_teacher')
+      const submittedIds = publishedExams.value
+        .filter((exam) => hasSubmittedExam(exam.id))
         .map((exam) => exam.id)
-      for (const examId of pendingIds) {
+      for (const examId of submittedIds) {
         await syncSubmissionResult(examId)
       }
     } finally {
@@ -270,6 +271,17 @@ export const useExamStudentStore = defineStore('exam-student', () => {
       ...submissionLedger.value,
       [buildLedgerKey(scope, submission.examId)]: submission,
     }
+    writeLedger(submissionLedger.value)
+  }
+
+  function removeSubmission(examId: number): void {
+    const scope = getCurrentStudentScope()
+    if (!scope) return
+    const key = buildLedgerKey(scope, examId)
+    if (!(key in submissionLedger.value)) return
+    const next = { ...submissionLedger.value }
+    delete next[key]
+    submissionLedger.value = next
     writeLedger(submissionLedger.value)
   }
 
