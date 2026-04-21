@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
-import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined } from '@ant-design/icons-vue'
+import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons-vue'
 import type { MenuGroup } from './meta'
 
 const ExperimentListView = () => import('@/views/experiment/student/ListView.vue')
@@ -18,6 +18,8 @@ const AdminExperimentResultReviewView = () => import('@/views/experiment/admin/R
 const AdminExperimentStepsEditorView = () => import('@/views/experiment/admin/StepsEditorView.vue')
 const AdminExperimentReportView = () => import('@/views/experiment/admin/TeacherReportView.vue')
 const StudentReportView = () => import('@/views/experiment/student/StudentReportView.vue')
+const StudentAnalysisView = () => import('@/views/experiment/student/StudentAnalysisView.vue')
+const TeacherAnalysisView = () => import('@/views/experiment/admin/TeacherAnalysisView.vue')
 
 const experimentGroup: MenuGroup = { key: 'experiment', title: '实验管理', icon: ExperimentOutlined }
 
@@ -28,6 +30,7 @@ const experimentRoutes: RouteRecordRaw[] = [
     children: [
       { path: '', name: 'StudentExperimentList', component: ExperimentListView, meta: { title: '实验列表', requiresAuth: true, audience: 'student', shell: 'student', navLabel: '实验', summary: '查看实验开放安排和当前状态。' } },
       { path: 'reports', name: 'StudentReportList', component: StudentReportListView, meta: { title: '实验报告', icon: FileTextOutlined, requiresAuth: true, audience: 'student', shell: 'student', navLabel: '实验报告', summary: '查看所有实验的报告和批改结果。' } },
+      { path: 'analysis', name: 'StudentExperimentAnalysis', component: StudentAnalysisView, meta: { title: '数据分析', requiresAuth: true, audience: 'student', shell: 'student', summary: '查看个人实验完成情况与各类型实验的得分分布。' } },
       { path: ':id', name: 'StudentExperimentDetail', component: ExperimentDetailView, meta: { title: '实验详情', requiresAuth: true, audience: 'student', shell: 'student', summary: '查看实验目标、步骤和附件资料。' } },
       { path: ':id/answer', name: 'StudentExperimentAnswer', component: ExperimentAnswerSheetView, meta: { title: '进行实验', requiresAuth: true, audience: 'student', shell: 'student', summary: '在 Word 风格页面中完成所有实验题目。' } },
       { path: ':id/work', name: 'StudentExperimentWork', component: ExperimentWorkView, meta: { title: '实验处理', requiresAuth: true, audience: 'student', shell: 'student', summary: '记录实验过程并提交结果。' } },
@@ -45,11 +48,17 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     component: () => import('@/views/experiment/admin/ExperimentListView.vue'),
     meta: { title: '实验列表管理', icon: UnorderedListOutlined, group: experimentGroup, order: 40, requiresAuth: true, audience: 'admin', summary: '维护实验基本信息、步骤内容和评分标准。' }
   },
-  {
+    {
     path: '/admin/experiments/reports',
     name: 'AdminReportList',
     component: () => import('@/views/experiment/admin/AdminReportListView.vue'),
     meta: { title: '实验报告', icon: FileTextOutlined, group: experimentGroup, order: 46, requiresAuth: true, audience: 'admin', summary: '选择实验和班级，查看学生实验报告并批改。' }
+  },
+  {
+    path: '/admin/experiments/analysis',
+    name: 'AdminExperimentAnalysis',
+    component: TeacherAnalysisView,
+    meta: { title: '数据分析', icon: BarChartOutlined, group: experimentGroup, order: 48, requiresAuth: true, audience: 'admin', summary: '查看单个实验的完成情况、得分分布，或统计所有实验的总体情况。' }
   },
   {
     path: '/admin/experiments/reports/:id/:studentId',

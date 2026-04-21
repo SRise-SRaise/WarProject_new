@@ -18,6 +18,7 @@ import com.springboot.model.vo.experiment.EduExperimentQuestionVO;
 import com.springboot.service.experiment.EduExperimentQuestionService;
 import com.springboot.service.support.ServiceMethodSupport;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -27,9 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 实验题库服务实现类
- */
+@Slf4j
 @Service
 public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQuestionMapper, EduExperimentQuestion>
         implements EduExperimentQuestionService {
@@ -39,7 +38,7 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
         if (eduExperimentQuestion == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-
+        log.debug("[EduExperimentQuestion] 参数校验: add={}", add);
         String questionName = eduExperimentQuestion.getQuestionName();
         String questionContent = eduExperimentQuestion.getQuestionContent();
         Integer questionType = eduExperimentQuestion.getQuestionType();
@@ -122,21 +121,27 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
             queryWrapper.eq("status", 1);
         }
 
+        log.debug("[EduExperimentQuestion] 构建查询Wrapper: id={}, questionType={}, difficulty={}",
+                id, questionType, difficulty);
         return queryWrapper;
     }
 
     @Override
     public EduExperimentQuestionVO getEduExperimentQuestionVO(EduExperimentQuestion eduExperimentQuestion, HttpServletRequest request) {
+        log.debug("[EduExperimentQuestion] 转换为VO: id={}", eduExperimentQuestion != null ? eduExperimentQuestion.getId() : "null");
         return EduExperimentQuestionVO.objToVo(eduExperimentQuestion);
     }
 
     @Override
     public Page<EduExperimentQuestionVO> getEduExperimentQuestionVOPage(Page<EduExperimentQuestion> entityPage, HttpServletRequest request) {
+        log.debug("[EduExperimentQuestion] 分页转换为VO: current={}, size={}", entityPage.getCurrent(), entityPage.getSize());
         return ServiceMethodSupport.toVOPage(entityPage, EduExperimentQuestionVO::objToVo);
     }
 
     @Override
     public List<EduExperimentQuestion> selectRandomQuestions(Integer questionType, Integer difficulty, String tag, int count) {
+        log.info("[EduExperimentQuestion] 随机选题: questionType={}, difficulty={}, tag={}, count={}",
+                questionType, difficulty, tag, count);
         if (count <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "选取数量必须大于0");
         }
@@ -181,6 +186,7 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
         if (questionList == null || questionList.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "导入题目列表为空");
         }
+        log.info("[EduExperimentQuestion] 批量导入题目: 数量={}", questionList.size());
 
         // 逐个校验并保存
         for (EduExperimentQuestion question : questionList) {
@@ -196,6 +202,7 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
 
     @Override
     public DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment) {
+        log.info("[EduExperimentQuestion] 开始从DOCX导入实验");
         if (importRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "导入请求不能为空");
         }
@@ -299,6 +306,8 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
             result.setMessage("部分导入成功，成功" + successCount + "道，失败" + failCount + "道");
         }
 
+        log.info("[EduExperimentQuestion] DOCX导入完成: 实验名称={}, 成功={}, 失败={}",
+                experimentName, successCount, failCount);
         return result;
     }
 }

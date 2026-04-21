@@ -13,6 +13,7 @@ import com.springboot.model.entity.experiment.EduExperimentItem;
 import com.springboot.model.vo.experiment.EduExperimentItemVO;
 import com.springboot.service.experiment.EduExperimentItemService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/experiment/eduExperimentItem")
 public class EduExperimentItemController {
@@ -31,6 +33,7 @@ public class EduExperimentItemController {
 
     @PostMapping("/add")
     public BaseResponse<Long> addEduExperimentItem(@RequestBody EduExperimentItemAddRequest addRequest) {
+        log.info("[EduExperimentItem] 新增实验题目");
         if (addRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -39,21 +42,24 @@ public class EduExperimentItemController {
         eduExperimentItemService.validEduExperimentItem(entity, true);
         boolean result = eduExperimentItemService.save(entity);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        // 返回新创建的记录 ID
+        log.info("[EduExperimentItem] 新增实验题目成功: id={}", entity.getId());
         return ResultUtils.success(entity.getId());
     }
 
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteEduExperimentItem(@RequestParam String id) {
+        log.info("[EduExperimentItem] 删除实验题目: id={}", id);
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         boolean result = eduExperimentItemService.removeById(id);
+        log.info("[EduExperimentItem] 删除实验题目完成: id={}, success={}", id, result);
         return ResultUtils.success(result);
     }
 
     @PostMapping("/update")
     public BaseResponse<Boolean> updateEduExperimentItem(@RequestBody EduExperimentItemUpdateRequest updateRequest) {
+        log.info("[EduExperimentItem] 更新实验题目");
         if (updateRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -61,11 +67,13 @@ public class EduExperimentItemController {
         BeanUtils.copyProperties(updateRequest, entity);
         eduExperimentItemService.validEduExperimentItem(entity, false);
         boolean result = eduExperimentItemService.updateById(entity);
+        log.info("[EduExperimentItem] 更新实验题目完成: id={}, success={}", updateRequest.getId(), result);
         return ResultUtils.success(result);
     }
 
     @GetMapping("/get/vo")
     public BaseResponse<EduExperimentItemVO> getEduExperimentItemVOById(@RequestParam String id) {
+        log.debug("[EduExperimentItem] 查询题目详情: id={}", id);
         if (StringUtils.isBlank(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -76,6 +84,9 @@ public class EduExperimentItemController {
 
     @PostMapping("/list/page")
     public BaseResponse<Page<EduExperimentItem>> listEduExperimentItemByPage(@RequestBody EduExperimentItemQueryRequest queryRequest) {
+        log.debug("[EduExperimentItem] 分页查询题目: current={}, size={}",
+                queryRequest != null ? queryRequest.getCurrent() : "null",
+                queryRequest != null ? queryRequest.getPageSize() : "null");
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -87,6 +98,9 @@ public class EduExperimentItemController {
 
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<EduExperimentItemVO>> listEduExperimentItemVOByPage(@RequestBody EduExperimentItemQueryRequest queryRequest) {
+        log.debug("[EduExperimentItem] 分页查询题目VO: current={}, size={}",
+                queryRequest != null ? queryRequest.getCurrent() : "null",
+                queryRequest != null ? queryRequest.getPageSize() : "null");
         if (queryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }

@@ -8,6 +8,10 @@
               <template #icon><FileTextOutlined /></template>
               我的报告
             </a-button>
+            <a-button @click="router.push('/experiments/analysis')">
+              <template #icon><BarChartOutlined /></template>
+              数据分析
+            </a-button>
             <a-button @click="router.push('/learning')">返回学习概览</a-button>
           </a-space>
         </template>
@@ -78,7 +82,7 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { FileTextOutlined } from '@ant-design/icons-vue'
+import { FileTextOutlined, BarChartOutlined } from '@ant-design/icons-vue'
 import SectionHeader from '@/components/common/SectionHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { useExperimentStudentStore } from '@/stores/experiment/student'

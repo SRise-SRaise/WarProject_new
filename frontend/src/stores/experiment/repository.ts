@@ -6,26 +6,18 @@ import {
 } from './fixtures'
 import type {
   ExperimentAdminItem,
+  ExperimentAdminStatus,
   ExperimentEditPayload,
   ExperimentResultItem,
   ExperimentResultPayload,
   ExperimentStudentItem,
   ExperimentQuestion,
   AnswerSaveRequest,
-  ExperimentReport
+  ExperimentReport,
+  ExperimentStep
 } from './types'
 import {
-  listEduExperimentByPage,
-  listEduExperimentVoByPage,
-  getEduExperimentVoById
-} from '@/api/eduExperimentController'
-import {
-  listEduExperimentItemByPage,
-  listEduExperimentItemVoByPage
-} from '@/api/eduExperimentItemController'
-import {
-  addResExperimentResult,
-  updateResExperimentResult
+  addResExperimentResult
 } from '@/api/resExperimentResultController'
 
 // 本地 mock 数据缓存，用于降级展示
@@ -210,13 +202,69 @@ export const experimentRepository = {
     return CommonUtil.deepClone(matched)
   },
   async listAdminExperiments(): Promise<ExperimentAdminItem[]> {
-    await CommonUtil.sleep(100)
-    return CommonUtil.deepClone(adminExperiments)
+    try {
+      const requestData = {
+        current: 1,
+        pageSize: 100
+      }
+
+      const response = await fetch('/api/experiment/eduExperiment/list/page/vo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData),
+        credentials: 'include'
+      })
+
+      const responseText = await response.text()
+      let backendData
+      try {
+        backendData = JSON.parse(responseText)
+      } catch (e) {
+        console.error('[Repository] JSON 解析失败:', e)
+        return CommonUtil.deepClone(adminExperiments)
+      }
+
+      if (backendData?.code === 0) {
+        const records = Array.isArray(backendData?.data?.records) ? backendData.data.records : []
+        console.log('[Repository] 教师端获取实验列表:', records.length, '条')
+        return records.map((item: any) => transformToAdminItem(item))
+      }
+
+      console.log('[Repository] 教师端获取实验列表失败:', backendData?.message || '未知错误')
+      return CommonUtil.deepClone(adminExperiments)
+    } catch (error: any) {
+      console.error('[Repository] 教师端获取实验列表失败:', error?.message || error)
+      return CommonUtil.deepClone(adminExperiments)
+    }
   },
   async getAdminExperimentById(id: string): Promise<ExperimentAdminItem | null> {
-    await CommonUtil.sleep(80)
-    const matched = adminExperiments.find((item) => item.id === id)
-    return matched ? CommonUtil.deepClone(matched) : null
+    try {
+      const response = await fetch(`/api/experiment/eduExperiment/get/vo?id=${encodeURIComponent(id)}`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      const responseText = await response.text()
+      let backendData
+      try {
+        backendData = JSON.parse(responseText)
+      } catch (e) {
+        console.error('[Repository] JSON 解析失败:', e)
+        return null
+      }
+
+      if (backendData?.code === 0 && backendData?.data) {
+        return transformToAdminItem(backendData.data)
+      }
+
+      console.log('[Repository] 获取实验详情失败:', backendData?.message || '未知错误')
+      return null
+    } catch (error: any) {
+      console.error('[Repository] 获取实验详情失败:', error?.message || error)
+      return null
+    }
   },
   async saveExperiment(payload: ExperimentEditPayload): Promise<ExperimentAdminItem> {
     await CommonUtil.sleep(120)
@@ -636,6 +684,125 @@ export const experimentRepository = {
       console.error('获取学生报告列表失败:', error)
       return []
     }
+  },
+
+  // ==================== 学生实验数据分析 ====================
+
+  /**
+   * 获取学生实验数据分析
+   */
+  async getStudentExperimentAnalysis(studentId: string): Promise<any> {
+    try {
+      console.log('[Repository] 获取学生实验数据分析:', studentId)
+
+      const response = await fetch(
+        `/api/experiment/analysis/student?studentId=${encodeURIComponent(studentId)}`,
+        {
+          method: 'GET',
+          credentials: 'include'
+        }
+      )
+
+      const responseText = await response.text()
+      let backendData
+      try {
+        backendData = JSON.parse(responseText)
+      } catch (e) {
+        console.error('[Repository] JSON 解析失败:', e)
+        return null
+      }
+
+      if (backendData?.code === 0 && backendData?.data) {
+        console.log('[Repository] 获取数据分析成功:', backendData.data)
+        return backendData.data
+      }
+
+      console.log('[Repository] 获取数据分析失败:', backendData?.message || '未知错误')
+      return null
+    } catch (error) {
+      console.error('获取学生实验数据分析失败:', error)
+      return null
+    }
+  },
+
+  // ==================== 教师实验数据分析 ====================
+
+  /**
+   * 获取指定实验关联的班级列表
+   * @param experimentId 实验ID
+   */
+  async getExperimentClasses(experimentId: string): Promise<string[]> {
+    try {
+      const response = await fetch(
+        `/api/experiment/eduExperiment/classes?experimentId=${encodeURIComponent(experimentId)}`,
+        {
+          method: 'GET',
+          credentials: 'include'
+        }
+      )
+
+      const responseText = await response.text()
+      let backendData
+      try {
+        backendData = JSON.parse(responseText)
+      } catch (e) {
+        console.error('[Repository] JSON 解析失败:', e)
+        return []
+      }
+
+      if (backendData?.code === 0 && Array.isArray(backendData?.data)) {
+        console.log('[Repository] 获取实验班级列表:', backendData.data)
+        return backendData.data
+      }
+
+      console.log('[Repository] 获取班级列表失败:', backendData?.message || '未知错误')
+      return []
+    } catch (error) {
+      console.error('获取实验班级列表失败:', error)
+      return []
+    }
+  },
+
+  /**
+   * 获取教师端实验数据分析
+   * @param experimentId 可选，传入则返回单个实验分析，不传则返回全局统计
+   * @param clazzNo 可选，班级编号
+   */
+  async getExperimentAnalysis(experimentId?: string, clazzNo?: string): Promise<any> {
+    try {
+      let url = '/api/experiment/analysis/experiment'
+      const params: string[] = []
+      if (experimentId) params.push(`experimentId=${encodeURIComponent(experimentId)}`)
+      if (clazzNo) params.push(`clazzNo=${encodeURIComponent(clazzNo)}`)
+      if (params.length > 0) url += '?' + params.join('&')
+
+      console.log('[Repository] 获取教师实验数据分析:', url)
+
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      const responseText = await response.text()
+      let backendData
+      try {
+        backendData = JSON.parse(responseText)
+      } catch (e) {
+        console.error('[Repository] JSON 解析失败:', e)
+        return null
+      }
+
+      if (backendData?.code === 0 && backendData?.data) {
+        console.log('[Repository] 获取教师数据分析成功:', backendData.data)
+        return backendData.data
+      }
+
+      console.log('[Repository] 获取教师数据分析失败:', backendData?.message || '未知错误')
+      return null
+    } catch (error) {
+      console.error('获取教师实验数据分析失败:', error)
+      return null
+    }
   }
 }
 
@@ -741,6 +908,29 @@ function getHighlights(status: string): string[] {
     case 'completed': return ['已完成', '等待批阅']
     case 'reviewed': return ['已批阅']
     default: return []
+  }
+}
+
+/**
+ * 将后端 EduExperimentVO 转换为前端 ExperimentAdminItem 格式（教师端）
+ */
+function transformToAdminItem(vo: any): ExperimentAdminItem {
+  const statusMap: Record<number, ExperimentAdminStatus> = {
+    0: 'draft',
+    1: 'published'
+  }
+  return {
+    id: String(vo.id),
+    title: vo.name || '未命名实验',
+    topicLabel: vo.categoryName || '待定',
+    status: statusMap[vo.publishStatus] || 'draft',
+    summary: vo.requirement || vo.contentDesc || '暂无描述',
+    schedule: vo.createdAt ? formatSchedule(vo.createdAt) : '待定',
+    scope: '待设置',
+    updatedAt: vo.updatedAt ? formatDate(vo.updatedAt) : '未知',
+    itemCount: 0,
+    resultCount: 0,
+    tags: [vo.categoryName || '实验']
   }
 }
 

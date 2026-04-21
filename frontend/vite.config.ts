@@ -9,18 +9,16 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8101/api",
+        target: "http://localhost:8101",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
   preview: {
     proxy: {
       "/api": {
-        target: "http://localhost:8101/api",
+        target: "http://localhost:8101",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
