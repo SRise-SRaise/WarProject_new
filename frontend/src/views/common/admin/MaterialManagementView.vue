@@ -147,6 +147,13 @@
                   </template>
                 </a-button>
               </a-tooltip>
+              <a-tooltip title="预览资料">
+                <a-button type="text" size="small" @click="handlePreview(record)">
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
               <a-tooltip title="编辑资料">
                 <a-button type="text" size="small" @click="openEditModal(record)">
                   <template #icon>
@@ -250,6 +257,29 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal
+      v-model:open="previewModalVisible"
+      :title="previewTitle"
+      width="960px"
+      :footer="null"
+      @cancel="closePreviewModal"
+    >
+      <div v-if="previewSupported" class="preview-container">
+        <iframe
+          :src="previewUrl"
+          class="preview-frame"
+          title="资料预览"
+        />
+      </div>
+      <div v-else class="preview-fallback">
+        <p>当前文件类型暂不支持内嵌预览，请使用下载或新窗口打开。</p>
+        <a-space :size="12" wrap>
+          <a-button type="primary" @click="openPreviewInNewTab">新窗口打开</a-button>
+          <a-button @click="downloadPreviewRow">下载文件</a-button>
+        </a-space>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -257,7 +287,7 @@
 import dayjs, { type Dayjs } from 'dayjs'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined, DownloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import MetricCard from '@/components/common/MetricCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -338,6 +368,8 @@ const uploadSubmitting = ref(false)
 const editSubmitting = ref(false)
 const uploadModalVisible = ref(false)
 const editModalVisible = ref(false)
+const previewModalVisible = ref(false)
+const previewRow = ref<LectureRow | null>(null)
 
 const categoryCount = computed(() => new Set(rows.value.map((item) => item.categoryId).filter((item) => item != null)).size)
 const downloadableCount = computed(() => displayRows.value.filter((item) => !!item.filePath).length)
@@ -381,6 +413,16 @@ const columns = [
   { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 180 },
   { title: '操作', key: 'actions', width: 140, fixed: 'right' as const }
 ]
+const previewTitle = computed(() => `预览资料：${previewRow.value?.lectureName || '--'}`)
+const previewUrl = computed(() => previewRow.value?.filePath || '')
+const previewSupported = computed(() => {
+  const row = previewRow.value
+  if (!row?.filePath) {
+    return false
+  }
+  const ext = (row.fileExtension || getFileExtension(row.filePath) || '').toLowerCase()
+  return ['pdf', 'txt', 'md', 'html', 'htm', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)
+})
 
 function formatFileSize(sizeBytes?: number): string {
   if (sizeBytes == null || sizeBytes < 0) {
@@ -486,7 +528,9 @@ async function uploadLectureFile(file: File): Promise<{ filePath: string; fileEx
     throw new Error('无法识别文件后缀')
   }
 
-  const response = await uploadFile({ biz: 'lecture_material' }, file)
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await uploadFile({ biz: 'lecture_material' }, formData)
   const filePath = response.data?.data
   if (!filePath) {
     throw new Error(response.data?.message || '文件上传失败')
@@ -894,6 +938,33 @@ function handleDownload(row: LectureRow): void {
   CommonUtil.downloadFile(row.filePath, buildDownloadName(row))
 }
 
+function handlePreview(row: LectureRow): void {
+  if (!row.filePath) {
+    message.warning('该资料缺少文件地址，无法预览')
+    return
+  }
+  previewRow.value = row
+  previewModalVisible.value = true
+}
+
+function closePreviewModal(): void {
+  previewModalVisible.value = false
+}
+
+function openPreviewInNewTab(): void {
+  if (!previewRow.value?.filePath) {
+    return
+  }
+  window.open(previewRow.value.filePath, '_blank', 'noopener,noreferrer')
+}
+
+function downloadPreviewRow(): void {
+  if (!previewRow.value) {
+    return
+  }
+  handleDownload(previewRow.value)
+}
+
 function handleDelete(row: LectureRow): void {
   Modal.confirm({
     title: '删除资料确认',
@@ -1015,6 +1086,25 @@ onMounted(async () => {
   margin: 8px 0 0;
   color: var(--color-text-tertiary);
   font-size: 12px;
+}
+
+.preview-container {
+  width: 100%;
+  min-height: 65vh;
+}
+
+.preview-frame {
+  width: 100%;
+  min-height: 65vh;
+  border: 1px solid var(--color-border-base);
+  border-radius: 8px;
+}
+
+.preview-fallback {
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 @media (max-width: 960px) {
