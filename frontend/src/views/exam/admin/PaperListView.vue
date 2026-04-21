@@ -183,7 +183,7 @@
               group="questions"
               item-key="id"
               handle=".drag-handle"
-              @end="handleDragEnd"
+              @change="handleDragEnd"
               class="question-list"
             >
               <template #item="{ element, index }">
@@ -281,7 +281,7 @@
 
           <div class="question-bank-list">
             <draggable
-              v-model="filteredQuestions"
+              :list="filteredQuestions"
               :group="{ name: 'questions', pull: 'clone', put: false }"
               item-key="id"
               :clone="cloneQuestion"
