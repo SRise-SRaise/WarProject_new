@@ -87,6 +87,12 @@ public class ResExamRecordController {
         return ResultUtils.success(resExamRecordService.getScoreStatistics(examId));
     }
 
+    @GetMapping("/grading/analytics")
+    public BaseResponse<Map<String, Object>> getGradingAnalytics(@RequestParam Long examId, HttpServletRequest request) {
+        assertTeacher(request);
+        return ResultUtils.success(resExamRecordService.getGradingAnalytics(examId));
+    }
+
     @PostMapping("/add")
     public BaseResponse<Boolean> addResExamRecord(@RequestBody ResExamRecordAddRequest addRequest) {
         if (addRequest == null) {

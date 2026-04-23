@@ -33,4 +33,6 @@ public interface ResExamRecordService extends IService<ResExamRecord> {
     boolean gradeAnswer(Long recordId, Long questionId, Integer score, String comment);
 
     Map<String, Object> getScoreStatistics(Long examId);
+
+    Map<String, Object> getGradingAnalytics(Long examId);
 }
