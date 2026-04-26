@@ -4,9 +4,11 @@ import {
   experimentResultFixtures,
   experimentStudentFixtures
 } from './fixtures'
+import {
+  dataTransformerFactory
+} from './DataTransformerFactory'
 import type {
   ExperimentAdminItem,
-  ExperimentAdminStatus,
   ExperimentEditPayload,
   ExperimentResultItem,
   ExperimentResultPayload,
@@ -20,19 +22,39 @@ import {
   addResExperimentResult
 } from '@/api/resExperimentResultController'
 
-// 本地 mock 数据缓存，用于降级展示
-let studentExperiments = CommonUtil.deepClone(experimentStudentFixtures)
-let adminExperiments = CommonUtil.deepClone(experimentAdminFixtures)
-let results = CommonUtil.deepClone(experimentResultFixtures)
+/**
+ * 实验模块数据仓库
+ *
+ * <p>单例模式（标准实现）：通过私有的静态实例字段 + 公开的 getInstance() 方法，
+ * 保证全局只有一个 {@code ExperimentRepository} 实例，所有 store 与 view
+ * 共享同一份数据缓存。</p>
+ *
+ * <p>使用时直接引用导出的 {@code experimentRepository} 对象，无需调用 getInstance()。</p>
+ */
+class ExperimentRepository {
+  // ==================== 私有实例字段（全局唯一状态） ====================
+  private static instance: ExperimentRepository | null = null
 
-// 后端 API 状态标记
-let useRealApi = true // 启用真实 API
+  private readonly studentExperiments = CommonUtil.deepClone(experimentStudentFixtures)
+  private readonly adminExperiments = CommonUtil.deepClone(experimentAdminFixtures)
+  private readonly results = CommonUtil.deepClone(experimentResultFixtures)
+  private useRealApi = true
 
-export const experimentRepository = {
+  private constructor() {}
+
+  static getInstance(): ExperimentRepository {
+    if (!ExperimentRepository.instance) {
+      ExperimentRepository.instance = new ExperimentRepository()
+    }
+    return ExperimentRepository.instance
+  }
+
+  // ==================== 学生端接口 ====================
+
   async listStudentExperiments(): Promise<ExperimentStudentItem[]> {
     try {
       // 优先尝试从后端获取数据
-      if (useRealApi) {
+      if (this.useRealApi) {
         // 直接使用 fetch 调试 API 调用
         const requestData = {
           current: 1,
@@ -74,7 +96,7 @@ export const experimentRepository = {
           )
           console.log('[Repository] 已发布实验:', publishedExperiments.length, '条')
 
-          return publishedExperiments.map((item: any) => transformToStudentItem(item))
+          return publishedExperiments.map((item: any) => dataTransformerFactory.toStudentItem(item))
         }
 
         console.log('[Repository] 后端返回错误:', backendData?.message || '未知错误')
@@ -86,7 +108,7 @@ export const experimentRepository = {
       console.error('[Repository] 从后端获取失败:', error?.message || error)
       return []
     }
-  },
+  }
 
   // 获取实验子项目并转换为步骤格式
   async getExperimentItemsAsSteps(experimentId: string): Promise<ExperimentStep[]> {
@@ -130,11 +152,11 @@ export const experimentRepository = {
       console.error('[Repository] 获取子项目失败:', error)
     }
     return []
-  },
+  }
 
   async getStudentExperimentById(id: string): Promise<ExperimentStudentItem | null> {
     try {
-      if (useRealApi) {
+      if (this.useRealApi) {
         console.log('[Repository] 发送 GET 请求到: /api/experiment/eduExperiment/get/vo?id=' + id)
 
         const response = await fetch(`/api/experiment/eduExperiment/get/vo?id=${encodeURIComponent(id)}`, {
@@ -156,7 +178,7 @@ export const experimentRepository = {
         if (backendData?.code === 0 && backendData?.data) {
           // 同时获取子项目作为步骤
           const steps = await this.getExperimentItemsAsSteps(id)
-          const experiment = transformToStudentItem(backendData.data)
+          const experiment = dataTransformerFactory.toStudentItem(backendData.data)
           // 如果后端没有 steps，则使用子项目
           if ((!experiment.steps || experiment.steps.length === 0) && steps.length > 0) {
             experiment.steps = steps
@@ -168,18 +190,19 @@ export const experimentRepository = {
       }
 
       await CommonUtil.sleep(70)
-      const matched = studentExperiments.find((item) => item.id === id)
+      const matched = this.studentExperiments.find((item) => item.id === id)
       return matched ? CommonUtil.deepClone(matched) : null
     } catch (error: any) {
       console.error('[Repository] 从后端获取详情失败:', error?.message || error)
       await CommonUtil.sleep(70)
-      const matched = studentExperiments.find((item) => item.id === id)
+      const matched = this.studentExperiments.find((item) => item.id === id)
       return matched ? CommonUtil.deepClone(matched) : null
     }
-  },
+  }
+
   async saveStudentWork(id: string, note: string, reportName: string): Promise<ExperimentStudentItem | null> {
     await CommonUtil.sleep(110)
-    const matched = studentExperiments.find((item) => item.id === id)
+      const matched = this.studentExperiments.find((item) => item.id === id)
     if (!matched) return null
     matched.status = 'completed'
     matched.work = {
@@ -190,17 +213,18 @@ export const experimentRepository = {
       reportName,
       highlights: ['实验结果已提交', '等待教师处理']
     }
-    const existing = results.find((item) => item.experimentId === id && item.studentName === '李明')
+    const existing = this.results.find((item) => item.experimentId === id && item.studentName === '李明')
     if (existing) {
       existing.status = 'submitted'
       existing.submittedAt = '刚刚'
       existing.summary = note
       existing.reportName = reportName
     } else {
-      results.unshift({ id: CommonUtil.generateId('exp-result'), experimentId: id, studentName: '李明', className: '前端 2401', status: 'submitted', submittedAt: '刚刚', summary: note, reportName })
+      this.results.unshift({ id: CommonUtil.generateId('exp-result'), experimentId: id, studentName: '李明', className: '前端 2401', status: 'submitted', submittedAt: '刚刚', summary: note, reportName })
     }
     return CommonUtil.deepClone(matched)
-  },
+  }
+
   async listAdminExperiments(): Promise<ExperimentAdminItem[]> {
     try {
       const requestData = {
@@ -223,22 +247,23 @@ export const experimentRepository = {
         backendData = JSON.parse(responseText)
       } catch (e) {
         console.error('[Repository] JSON 解析失败:', e)
-        return CommonUtil.deepClone(adminExperiments)
+        return CommonUtil.deepClone(this.adminExperiments)
       }
 
       if (backendData?.code === 0) {
         const records = Array.isArray(backendData?.data?.records) ? backendData.data.records : []
         console.log('[Repository] 教师端获取实验列表:', records.length, '条')
-        return records.map((item: any) => transformToAdminItem(item))
+        return records.map((item: any) => dataTransformerFactory.toAdminItem(item))
       }
 
       console.log('[Repository] 教师端获取实验列表失败:', backendData?.message || '未知错误')
-      return CommonUtil.deepClone(adminExperiments)
+      return CommonUtil.deepClone(this.adminExperiments)
     } catch (error: any) {
       console.error('[Repository] 教师端获取实验列表失败:', error?.message || error)
-      return CommonUtil.deepClone(adminExperiments)
+      return CommonUtil.deepClone(this.adminExperiments)
     }
-  },
+  }
+
   async getAdminExperimentById(id: string): Promise<ExperimentAdminItem | null> {
     try {
       const response = await fetch(`/api/experiment/eduExperiment/get/vo?id=${encodeURIComponent(id)}`, {
@@ -256,7 +281,7 @@ export const experimentRepository = {
       }
 
       if (backendData?.code === 0 && backendData?.data) {
-        return transformToAdminItem(backendData.data)
+        return dataTransformerFactory.toAdminItem(backendData.data)
       }
 
       console.log('[Repository] 获取实验详情失败:', backendData?.message || '未知错误')
@@ -265,11 +290,12 @@ export const experimentRepository = {
       console.error('[Repository] 获取实验详情失败:', error?.message || error)
       return null
     }
-  },
+  }
+
   async saveExperiment(payload: ExperimentEditPayload): Promise<ExperimentAdminItem> {
     await CommonUtil.sleep(120)
     if (payload.id) {
-      const matched = adminExperiments.find((item) => item.id === payload.id)
+      const matched = this.adminExperiments.find((item) => item.id === payload.id)
       if (matched) {
         matched.title = payload.title
         matched.topicLabel = payload.topicLabel
@@ -293,21 +319,24 @@ export const experimentRepository = {
       resultCount: 0,
       tags: [...payload.tags]
     }
-    adminExperiments.unshift(next)
+    this.adminExperiments.unshift(next)
     return CommonUtil.deepClone(next)
-  },
+  }
+
   async listExperimentResults(experimentId: string): Promise<ExperimentResultItem[]> {
     await CommonUtil.sleep(90)
-    return CommonUtil.deepClone(results.filter((item) => item.experimentId === experimentId))
-  },
+    return CommonUtil.deepClone(this.results.filter((item) => item.experimentId === experimentId))
+  }
+
   async getExperimentResult(experimentId: string, resultId: string): Promise<ExperimentResultItem | null> {
     await CommonUtil.sleep(70)
-    const matched = results.find((item) => item.experimentId === experimentId && item.id === resultId)
+    const matched = this.results.find((item) => item.experimentId === experimentId && item.id === resultId)
     return matched ? CommonUtil.deepClone(matched) : null
-  },
+  }
+
   async reviewExperimentResult(experimentId: string, resultId: string, payload: ExperimentResultPayload): Promise<ExperimentResultItem | null> {
     await CommonUtil.sleep(120)
-    const matched = results.find((item) => item.experimentId === experimentId && item.id === resultId)
+    const matched = this.results.find((item) => item.experimentId === experimentId && item.id === resultId)
     if (!matched) return null
     matched.status = 'reviewed'
     matched.score = payload.score
@@ -325,7 +354,7 @@ export const experimentRepository = {
       }
     }
     return CommonUtil.deepClone(matched)
-  },
+  }
 
   async getExperimentQuestions(experimentId: string): Promise<ExperimentQuestion[]> {
     try {
@@ -389,7 +418,21 @@ export const experimentRepository = {
 
             // 如果 optionsText 存在，也尝试合并
             if (item.optionsText && !options) {
-              options = parseOptionsText(item.optionsText)
+              options = dataTransformerFactory.parseOptionsText(item.optionsText)
+            }
+
+            // 编程题：从 content 末尾识别 [LANG:xxx] 并剥离
+            let language: string = 'text'
+            if (item.questionType === 3 || item.itemType === 3) {
+              const langMatch = content.match(/\[LANG:(\w+)\]\s*$/)
+              if (langMatch) {
+                language = langMatch[1]
+                content = content.substring(0, langMatch.index!).trimEnd()
+              } else if (item.language) {
+                language = item.language
+              }
+            } else if (item.language) {
+              language = item.language
             }
 
             return {
@@ -401,7 +444,7 @@ export const experimentRepository = {
               options: options,
               score: item.maxScore || item.itemScore || item.score || 10,
               allowPaste: item.allowPaste !== false,
-              language: item.language || 'text',
+              language: language,
               standardAnswer: item.standardAnswer || ''
             }
           })
@@ -416,7 +459,7 @@ export const experimentRepository = {
       console.error('获取实验题目失败:', error)
       return []
     }
-  },
+  }
 
   async saveAnswers(request: AnswerSaveRequest): Promise<boolean> {
     try {
@@ -451,7 +494,7 @@ export const experimentRepository = {
       console.error('保存答题记录失败:', error)
       return false
     }
-  },
+  }
 
   async submitAnswers(request: AnswerSaveRequest): Promise<boolean> {
     try {
@@ -486,7 +529,7 @@ export const experimentRepository = {
       console.error('提交答题记录失败:', error)
       return false
     }
-  },
+  }
 
   async getSavedAnswers(experimentId: string): Promise<Map<string, { questionId: string; answer: string; filledBlanks?: string[] }>> {
     const answersMap = new Map<string, { questionId: string; answer: string; filledBlanks?: string[] }>()
@@ -502,7 +545,7 @@ export const experimentRepository = {
       console.error('获取已保存答题记录失败:', error)
     }
     return answersMap
-  },
+  }
 
   // ==================== 实验报告相关 ====================
 
@@ -533,7 +576,7 @@ export const experimentRepository = {
       }
 
       if (backendData?.code === 0 && backendData?.data) {
-        return transformToExperimentReport(backendData.data)
+        return dataTransformerFactory.toExperimentReport(backendData.data)
       }
 
       console.log('[Repository] 获取报告失败:', backendData?.message || '未知错误')
@@ -542,7 +585,7 @@ export const experimentRepository = {
       console.error('获取实验报告失败:', error)
       return null
     }
-  },
+  }
 
   /**
    * 提交实验报告
@@ -601,7 +644,7 @@ export const experimentRepository = {
       console.error('提交实验报告失败:', error)
       return false
     }
-  },
+  }
 
   /**
    * 保存实验报告草稿
@@ -649,7 +692,7 @@ export const experimentRepository = {
       console.error('保存实验报告草稿失败:', error)
       return false
     }
-  },
+  }
 
   /**
    * 获取学生的报告列表
@@ -676,7 +719,7 @@ export const experimentRepository = {
       }
 
       if (backendData?.code === 0 && Array.isArray(backendData?.data)) {
-        return backendData.data.map((item: any) => transformToExperimentReport(item))
+        return backendData.data.map((item: any) => dataTransformerFactory.toExperimentReport(item))
       }
 
       return []
@@ -684,7 +727,7 @@ export const experimentRepository = {
       console.error('获取学生报告列表失败:', error)
       return []
     }
-  },
+  }
 
   // ==================== 学生实验数据分析 ====================
 
@@ -723,7 +766,7 @@ export const experimentRepository = {
       console.error('获取学生实验数据分析失败:', error)
       return null
     }
-  },
+  }
 
   // ==================== 教师实验数据分析 ====================
 
@@ -761,7 +804,7 @@ export const experimentRepository = {
       console.error('获取实验班级列表失败:', error)
       return []
     }
-  },
+  }
 
   /**
    * 获取教师端实验数据分析
@@ -806,173 +849,10 @@ export const experimentRepository = {
   }
 }
 
-function parseOptionsText(optionsText: string): Array<{ key: string; label: string }> {
-  if (!optionsText) return []
-  try {
-    return JSON.parse(optionsText)
-  } catch {
-    const options: Array<{ key: string; label: string }> = []
-    const lines = optionsText.split(/[;\n]/)
-    lines.forEach((line, index) => {
-      const match = line.match(/^([A-Z])[.、:：]\s*(.+)$/)
-      if (match) {
-        options.push({ key: match[1], label: match[2].trim() })
-      } else if (line.trim()) {
-        options.push({ key: String.fromCharCode(65 + index), label: line.trim() })
-      }
-    })
-    return options
-  }
-}
+// ==================== 以下函数已迁移至 DataTransformerFactory ====================
+// parseOptionsText / transformToStudentItem / formatDate / formatSchedule
+// getWorkNote / getHighlights / transformToAdminItem / transformToExperimentReport
+// 如需使用，请从 './DataTransformerFactory' 导入 dataTransformerFactory
 
-/**
- * 将后端 EduExperimentVO 转换为前端 ExperimentStudentItem 格式
- */
-function transformToStudentItem(vo: any): ExperimentStudentItem {
-  // 根据发布状态判断实验状态
-  let status: 'pending' | 'in_progress' | 'completed' | 'reviewed' = 'pending'
-  if (vo.publishStatus === 1) {
-    status = 'in_progress'
-  }
-
-  // 根据 categoryName 映射主题标签
-  const topicLabels: Record<string, string> = {
-    1: '编程实践',
-    2: '设计实现',
-    3: '数据库',
-    4: '前端开发',
-    5: '框架学习',
-    6: '综合实验'
-  }
-
-  return {
-    id: String(vo.id),
-    title: vo.name || '未命名实验',
-    topicLabel: vo.categoryName || topicLabels[vo.categoryId] || '待定',
-    teacher: vo.teacherName || vo.teacher || '待定教师',
-    status: status,
-    schedule: vo.schedule || formatSchedule(vo.createdAt),
-    summary: vo.requirement || vo.contentDesc || '暂无实验描述',
-    objective: vo.contentDesc || vo.requirement || '暂无实验目标',
-    tags: vo.tags || [vo.categoryName || '实验'],
-    materials: vo.materials || [],
-    steps: vo.steps || [],
-    work: {
-      status: status === 'in_progress' ? 'pending' : status,
-      startedAt: vo.createdAt ? formatDate(vo.createdAt) : '待开始',
-      updatedAt: vo.updatedAt ? formatDate(vo.updatedAt) : '待更新',
-      note: getWorkNote(status),
-      highlights: getHighlights(status)
-    }
-  }
-}
-
-/**
- * 格式化日期
- */
-function formatDate(date: string | Date): string {
-  if (!date) return ''
-  const d = new Date(date)
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-/**
- * 格式化日程安排
- */
-function formatSchedule(date: string | Date | undefined): string {
-  if (!date) return '待定'
-  const d = new Date(date)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 截止`
-}
-
-/**
- * 根据状态获取工作说明
- */
-function getWorkNote(status: string): string {
-  switch (status) {
-    case 'pending': return '实验尚未开始'
-    case 'in_progress': return '实验进行中'
-    case 'completed': return '已完成，等待批阅'
-    case 'reviewed': return '已批阅完成'
-    default: return '未知状态'
-  }
-}
-
-/**
- * 根据状态获取高亮信息
- */
-function getHighlights(status: string): string[] {
-  switch (status) {
-    case 'pending': return ['未开始']
-    case 'in_progress': return ['进行中']
-    case 'completed': return ['已完成', '等待批阅']
-    case 'reviewed': return ['已批阅']
-    default: return []
-  }
-}
-
-/**
- * 将后端 EduExperimentVO 转换为前端 ExperimentAdminItem 格式（教师端）
- */
-function transformToAdminItem(vo: any): ExperimentAdminItem {
-  const statusMap: Record<number, ExperimentAdminStatus> = {
-    0: 'draft',
-    1: 'published'
-  }
-  return {
-    id: String(vo.id),
-    title: vo.name || '未命名实验',
-    topicLabel: vo.categoryName || '待定',
-    status: statusMap[vo.publishStatus] || 'draft',
-    summary: vo.requirement || vo.contentDesc || '暂无描述',
-    schedule: vo.createdAt ? formatSchedule(vo.createdAt) : '待定',
-    scope: '待设置',
-    updatedAt: vo.updatedAt ? formatDate(vo.updatedAt) : '未知',
-    itemCount: 0,
-    resultCount: 0,
-    tags: [vo.categoryName || '实验']
-  }
-}
-
-/**
- * 将后端报告数据转换为前端 ExperimentReport 格式
- */
-function transformToExperimentReport(data: any): ExperimentReport {
-  return {
-    student: {
-      id: String(data.studentId || ''),
-      no: data.studentNo || '',
-      name: data.studentName || '',
-      clazzNo: data.clazzNo || ''
-    },
-    experiment: {
-      id: String(data.experimentId || ''),
-      name: data.experimentName || '',
-      courseName: data.courseName || '',
-      schedule: data.schedule || ''
-    },
-    summary: data.teacherScore || '',
-    objective: data.objective || '',
-    content: data.content || '',
-    steps: (data.questions || []).map((q: any, index: number) => ({
-      id: q.id || `q-${index}`,
-      experimentItemId: q.experimentItemId || q.id || '',
-      stepNo: q.stepNo || index + 1,
-      title: q.title || '',
-      type: q.type || 1,
-      content: q.content || '',
-      score: q.score || 0,
-      options: Array.isArray(q.options) ? q.options : (q.options ? parseOptionsText(q.options) : undefined),
-      correctAnswer: q.correctAnswer || q.standardAnswer || '',
-      studentAnswer: q.studentAnswer || '',
-      filledBlanks: q.filledBlanks ? q.filledBlanks.split(',') : undefined,
-      teacherScore: q.teacherScore,
-      teacherComment: q.teacherComment
-    })),
-    summaryNote: data.summaryNote || '',
-    teacherFeedback: data.teacherFeedback || '',
-    submittedAt: data.submittedAt || '',
-    reviewedAt: data.reviewedAt || '',
-    status: data.status || 'pending'
-  }
-}
+/** 单例导出（供外部使用，与原 API 保持兼容） */
+export const experimentRepository = ExperimentRepository.getInstance()

@@ -34,6 +34,21 @@ public class EduExperimentVO implements Serializable {
 
     private Date updatedAt;
 
+    /**
+     * 绑定的班级编号列表（发布时选择）
+     */
+    private List<String> classCodes;
+
+    /**
+     * 绑定的班级名称列表
+     */
+    private List<String> classNames;
+
+    /**
+     * 绑定的班级数量
+     */
+    private Integer classCount;
+
     public static EduExperimentVO objToVo(EduExperiment entity) {
         if (entity == null) {
             return null;

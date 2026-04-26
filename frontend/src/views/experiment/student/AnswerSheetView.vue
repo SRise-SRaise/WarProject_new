@@ -70,64 +70,58 @@
             :last-saved="getAnswerTime(question.id)"
           >
             <template #question>
-              <!-- 选择题 -->
+              <!-- 单选题 -->
               <SingleChoiceQuestion
                 v-if="question.type === 1"
                 :question-content="question.content"
-                :options="question.options || []"
+                :options="question.options ?? []"
                 :model-value="getSimpleAnswer(question.id)"
-                @update:model-value="(val) => handleSimpleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
               />
-
               <!-- 填空题 -->
               <FillBlankQuestion
                 v-else-if="question.type === 2"
                 :content="question.content"
                 :model-value="getFillBlanksAnswer(question.id)"
-                @update:model-value="(val) => handleFillBlanksChange(question.id, val)"
+                @update:model-value="(val: string[]) => handleFillBlanksChange(question.id, val)"
               />
-
               <!-- 编程题 -->
               <CodeQuestion
                 v-else-if="question.type === 3"
                 :question-content="question.content"
-                :language="question.language"
-                :allow-paste="question.allowPaste"
+                :language="(question.language as any) ?? 'text'"
+                :allow-paste="question.allowPaste ?? true"
                 :model-value="getSimpleAnswer(question.id)"
-                @update:model-value="(val) => handleSimpleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
               />
-
               <!-- 简答题 -->
               <ShortAnswerQuestion
-                v-else-if="question.type === 4"
+                v-else-if="question.type === 4 || question.type === 7"
                 :question-content="question.content"
                 :model-value="getSimpleAnswer(question.id)"
-                @update:model-value="(val) => handleSimpleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
               />
-
-              <!-- 多选题（类型 5） -->
+              <!-- 多选题 -->
               <MultipleChoiceQuestion
                 v-else-if="question.type === 5"
                 :question-content="question.content"
-                :options="question.options || []"
+                :options="question.options ?? []"
                 :model-value="getMultipleAnswer(question.id)"
-                @update:model-value="(val) => handleMultipleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleMultipleAnswerChange(question.id, val)"
               />
-
-              <!-- 判断题（类型 6） -->
+              <!-- 判断题 -->
               <JudgmentQuestion
                 v-else-if="question.type === 6"
                 :question-content="question.content"
                 :model-value="getSimpleAnswer(question.id)"
-                @update:model-value="(val) => handleSimpleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
               />
-
-              <!-- 其他题型（兜底） -->
+              <!-- 兜底 -->
               <ShortAnswerQuestion
                 v-else
                 :question-content="question.content"
                 :model-value="getSimpleAnswer(question.id)"
-                @update:model-value="(val) => handleSimpleAnswerChange(question.id, val)"
+                @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
               />
             </template>
           </ExperimentStepItem>
@@ -213,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -226,12 +220,12 @@ import {
   WarningOutlined
 } from '@ant-design/icons-vue'
 import ExperimentStepItem from '@/components/experiment/ExperimentStepItem.vue'
-import FillBlankQuestion from '@/components/experiment/question/FillBlankQuestion.vue'
 import SingleChoiceQuestion from '@/components/experiment/question/SingleChoiceQuestion.vue'
-import MultipleChoiceQuestion from '@/components/experiment/question/MultipleChoiceQuestion.vue'
+import FillBlankQuestion from '@/components/experiment/question/FillBlankQuestion.vue'
 import CodeQuestion from '@/components/experiment/question/CodeQuestion.vue'
-import JudgmentQuestion from '@/components/experiment/question/JudgmentQuestion.vue'
 import ShortAnswerQuestion from '@/components/experiment/question/ShortAnswerQuestion.vue'
+import MultipleChoiceQuestion from '@/components/experiment/question/MultipleChoiceQuestion.vue'
+import JudgmentQuestion from '@/components/experiment/question/JudgmentQuestion.vue'
 import { useExperimentStudentStore } from '@/stores/experiment/student'
 import type {
   ExperimentQuestion,
@@ -261,7 +255,7 @@ const experimentObjective = ref('')
 const questions = ref<ExperimentQuestion[]>([])
 
 // 答题记录 Map
-const answersMap = ref<Map<string, StudentAnswer>>(new Map())
+const answersMap = reactive<Record<string, StudentAnswer>>({})
 
 // 自动保存定时器
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -276,7 +270,7 @@ const totalScore = computed(() => {
 
 const answeredCount = computed(() => {
   let count = 0
-  answersMap.value.forEach((answer) => {
+  Object.values(answersMap).forEach((answer) => {
     if (answer.answer && answer.answer.trim() !== '') {
       count++
     } else if (answer.filledBlanks && answer.filledBlanks.length > 0 && answer.filledBlanks.some(b => b.trim() !== '')) {
@@ -302,7 +296,7 @@ const autoSaveStatus = computed(() => {
 
 // 方法
 function isQuestionAnswered(questionId: string): boolean {
-  const answer = answersMap.value.get(questionId)
+  const answer = answersMap[questionId]
   if (!answer) return false
   if (answer.answer && answer.answer.trim() !== '') return true
   if (answer.filledBlanks && answer.filledBlanks.length > 0 && answer.filledBlanks.some(b => b.trim() !== '')) {
@@ -312,28 +306,28 @@ function isQuestionAnswered(questionId: string): boolean {
 }
 
 function getAnswerTime(questionId: string): string {
-  const answer = answersMap.value.get(questionId)
+  const answer = answersMap[questionId]
   return answer?.answeredAt || ''
 }
 
 function getSimpleAnswer(questionId: string): string {
-  const answer = answersMap.value.get(questionId)
+  const answer = answersMap[questionId]
   return answer?.answer || ''
 }
 
 function getFillBlanksAnswer(questionId: string): string[] {
-  const answer = answersMap.value.get(questionId)
+  const answer = answersMap[questionId]
   return answer?.filledBlanks || []
 }
 
 function getMultipleAnswer(questionId: string): string[] {
-  const answer = answersMap.value.get(questionId)
+  const answer = answersMap[questionId]
   if (!answer?.answer) return []
   return answer.answer.split(',').filter(Boolean)
 }
 
-function handleSimpleAnswerChange(questionId: string, value: string) {
-  updateAnswer(questionId, value)
+function handleSimpleAnswerChange(questionId: string, value: unknown) {
+  updateAnswer(questionId, String(value ?? ''))
   scheduleAutoSave()
 }
 
@@ -348,22 +342,24 @@ function handleMultipleAnswerChange(questionId: string, values: string[]) {
 }
 
 function updateAnswer(questionId: string, answer: string) {
-  const existing = answersMap.value.get(questionId) || { questionId }
-  answersMap.value.set(questionId, {
+  const existing = answersMap[questionId] || { questionId }
+  answersMap[questionId] = {
     ...existing,
+    questionId,
     answer,
     answeredAt: new Date().toLocaleString()
-  })
+  }
 }
 
 function updateAnswerWithBlanks(questionId: string, answer: string, filledBlanks: string[]) {
-  const existing = answersMap.value.get(questionId) || { questionId }
-  answersMap.value.set(questionId, {
+  const existing = answersMap[questionId] || { questionId }
+  answersMap[questionId] = {
     ...existing,
+    questionId,
     answer,
     filledBlanks,
     answeredAt: new Date().toLocaleString()
-  })
+  }
 }
 
 function scrollToQuestion(index: number) {
@@ -415,12 +411,12 @@ async function loadSavedAnswers(): Promise<void> {
 
     if (savedAnswers && savedAnswers.size > 0) {
       savedAnswers.forEach((answer, questionId) => {
-        answersMap.value.set(questionId, {
+        answersMap[questionId] = {
           questionId,
           answer: answer.answer,
           filledBlanks: answer.filledBlanks,
           answeredAt: ''
-        })
+        }
       })
       lastSaved.value = '已加载草稿'
     }
@@ -431,13 +427,13 @@ async function loadSavedAnswers(): Promise<void> {
       try {
         const draft = JSON.parse(localDraft)
         draft.answers?.forEach((a: { questionId: string; answer: string; filledBlanks?: string[] }) => {
-          if (!answersMap.value.has(a.questionId)) {
-            answersMap.value.set(a.questionId, {
+          if (!answersMap[a.questionId]) {
+            answersMap[a.questionId] = {
               questionId: a.questionId,
               answer: a.answer,
               filledBlanks: a.filledBlanks,
               answeredAt: ''
-            })
+            }
           }
         })
         if (!lastSaved.value) {
@@ -465,7 +461,7 @@ async function handleSaveDraft() {
     // 同时保存到本地作为备份
     localStorage.setItem(`experiment-draft-${experimentId.value}`, JSON.stringify({
       experimentId: experimentId.value,
-      answers: Array.from(answersMap.value.values()),
+      answers: Object.values(answersMap),
       savedAt: new Date().toISOString()
     }))
 
@@ -488,7 +484,7 @@ function scheduleAutoSave() {
 }
 
 async function autoSave() {
-  if (isAutoSaving.value || answersMap.value.size === 0) return
+  if (isAutoSaving.value || Object.keys(answersMap).length === 0) return
 
   isAutoSaving.value = true
   try {
@@ -504,7 +500,7 @@ async function autoSave() {
 
 function buildSaveRequest(): AnswerSaveRequest {
   const answers: Array<{ questionId: string; answer: string; filledBlanks?: string[] }> = []
-  answersMap.value.forEach((answer, questionId) => {
+  Object.entries(answersMap).forEach(([questionId, answer]) => {
     answers.push({
       questionId,
       answer: answer.answer,
@@ -549,6 +545,17 @@ async function confirmSubmit() {
 }
 
 // 生命周期
+// 题目加载后初始化 answersMap（确保每个题目的答案记录存在，避免 v-model 访问 undefined）
+watch(questions, (newQuestions) => {
+  if (newQuestions && newQuestions.length > 0) {
+    for (const q of newQuestions) {
+      if (!answersMap[q.id]) {
+        answersMap[q.id] = { questionId: q.id, answer: '', filledBlanks: [] }
+      }
+    }
+  }
+}, { immediate: true })
+
 onMounted(() => {
   loadExperiment()
 

@@ -120,7 +120,7 @@ CREATE TABLE `t_experiment_item`
     `experiment_item_type`    INT          NOT NULL COMMENT '子项目类型',
     `experiment_item_content` TEXT COMMENT '题目要求',
     `experiment_id`           BIGINT       NOT NULL COMMENT '所属实验ID',
-    `experiment_item_answer`  VARCHAR(255)          DEFAULT NULL COMMENT '标准答案',
+    `experiment_item_answer`  TEXT                  DEFAULT NULL COMMENT '标准答案',
     `experiment_item_score`   TINYINT               DEFAULT NULL COMMENT '该项满分',
     `state`                   INT                   DEFAULT NULL COMMENT '状态',
     PRIMARY KEY (`experiment_item_id`),
@@ -129,6 +129,21 @@ CREATE TABLE `t_experiment_item`
     CONSTRAINT `fk_experiment_id` FOREIGN KEY (`experiment_id`) REFERENCES `t_experiment` (`experiment_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='实验子项目评分项表';
+
+DROP TABLE IF EXISTS `rel_experiment_class`;
+CREATE TABLE `rel_experiment_class`
+(
+    `id`             BIGINT      NOT NULL AUTO_INCREMENT COMMENT '关联主键ID',
+    `experiment_id`  BIGINT      NOT NULL COMMENT '实验ID',
+    `class_code`     VARCHAR(6)  NOT NULL COMMENT '班级编号',
+    `created_at`     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_experiment_class` (`experiment_id`, `class_code`),
+    KEY `idx_experiment_class_experiment` (`experiment_id`),
+    KEY `idx_experiment_class_class` (`class_code`),
+    CONSTRAINT `fk_rel_exp_class_exp` FOREIGN KEY (`experiment_id`) REFERENCES `t_experiment` (`experiment_id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_rel_exp_class_class` FOREIGN KEY (`class_code`) REFERENCES `auth_class` (`class_code`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='实验-班级关联表（控制实验按班级发布）';
 
 -- ==========================================
 -- 3. 课内练习模块 (Exercise Module)

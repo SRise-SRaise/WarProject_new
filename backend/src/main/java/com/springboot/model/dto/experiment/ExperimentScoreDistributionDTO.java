@@ -1,5 +1,9 @@
 package com.springboot.model.dto.experiment;
 
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasExperimentScore;
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasTypeCode;
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasTypeCodeAndScore;
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasTypeCodeEx;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,18 +12,19 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 
 /**
- * 实验得分分布 DTO（Mapper 查询结果）
+ * 实验得分分布 DTO（Mapper 查询结果）。
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExperimentScoreDistributionDTO implements Serializable {
+public class ExperimentScoreDistributionDTO
+        implements Serializable, HasExperimentScore {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * 学生得分（实验总分）
+     * 学生得分（实验总分）。
      */
     private Integer score;
 }

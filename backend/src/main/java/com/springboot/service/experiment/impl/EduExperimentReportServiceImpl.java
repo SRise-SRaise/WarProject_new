@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -47,7 +48,15 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
     @Resource
     private EduExperimentService eduExperimentService;
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private static final String DATE_PATTERN = "yyyy-MM-dd HH:mm";
+
+    /**
+     * 获取线程安全的日期格式化器（ThreadLocal 单例模式）。
+     * 每个线程拥有独立的 SimpleDateFormat 实例，避免多线程并发访问时的数据错乱。
+     */
+    private static ThreadLocal<DateFormat> getDateFormatter() {
+        return ThreadLocal.withInitial(() -> new SimpleDateFormat(DATE_PATTERN));
+    }
 
     @Override
     public EduExperimentReportVO getStudentReport(Long experimentId, Long studentId) {
@@ -65,7 +74,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
             vo.setExperimentName(experiment.getName());
             vo.setCourseName(experiment.getName());
             if (experiment.getCreatedAt() != null) {
-                vo.setSchedule(DATE_FORMAT.format(experiment.getCreatedAt()));
+                vo.setSchedule(getDateFormatter().get().format(experiment.getCreatedAt()));
             }
             vo.setObjective(experiment.getRequirement());
             vo.setContent(experiment.getContentDesc());
@@ -155,7 +164,7 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
 
         // 设置提交时间
         if (latestSubmitTime != null) {
-            vo.setSubmittedAt(DATE_FORMAT.format(latestSubmitTime));
+            vo.setSubmittedAt(getDateFormatter().get().format(latestSubmitTime));
         }
 
         // 设置总得分
@@ -502,8 +511,8 @@ public class EduExperimentReportServiceImpl implements EduExperimentReportServic
 
                 vo.setStatus(allReviewed ? "reviewed" : "submitted");
                 vo.setTotalScore(studentResults.stream().anyMatch(result -> result.getScore() != null) ? totalScore : null);
-                vo.setSubmittedAt(latestSubmitTime != null ? DATE_FORMAT.format(latestSubmitTime) : null);
-                vo.setReviewedAt(allReviewed && latestSubmitTime != null ? DATE_FORMAT.format(latestSubmitTime) : null);
+                vo.setSubmittedAt(latestSubmitTime != null ? getDateFormatter().get().format(latestSubmitTime) : null);
+                vo.setReviewedAt(allReviewed && latestSubmitTime != null ? getDateFormatter().get().format(latestSubmitTime) : null);
             }
 
             reportList.add(vo);

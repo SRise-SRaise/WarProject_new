@@ -54,6 +54,12 @@ export interface ExperimentAdminItem {
   itemCount: number
   resultCount: number
   tags: string[]
+  /** 绑定的班级编号列表 */
+  classCodes?: string[]
+  /** 绑定的班级名称列表 */
+  classNames?: string[]
+  /** 绑定的班级数量 */
+  classCount?: number
 }
 
 export interface ExperimentResultItem {
@@ -76,6 +82,8 @@ export interface ExperimentEditPayload {
   summary: string
   schedule: string
   tags: string[]
+  /** 绑定的班级编号列表 */
+  classCodes?: string[]
 }
 
 export interface ExperimentResultPayload {
@@ -218,6 +226,8 @@ export interface ReportQuestion {
   filledBlanks?: string[]
   teacherScore?: number
   teacherComment?: string
+  /** 编程题语言类型（type === 3 时有效） */
+  language?: ProgrammingLanguage
 }
 
 /** 实验报告完整数据 */

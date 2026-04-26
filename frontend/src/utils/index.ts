@@ -196,6 +196,21 @@ export const CommonUtil = {
       await this.sleep(delay)
       return this.retry(fn, retries - 1, delay)
     }
+  },
+
+  /**
+   * 渲染填空题题目内容（将 ____ 替换为带编号的视觉标记）
+   */
+  renderFillBlankPreview(content: string): string {
+    if (!content) return ''
+    let index = 0
+    return content.replace(/____/g, () => {
+      index++
+      return `<span class="preview-blank">
+        <span class="preview-blank-num">${index}</span>
+        <span class="preview-blank-line">________</span>
+      </span>`
+    })
   }
 }
 

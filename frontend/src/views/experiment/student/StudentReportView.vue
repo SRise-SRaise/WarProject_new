@@ -127,7 +127,16 @@
               </div>
               <div class="answer-content">
                 <div class="content-label">解答：</div>
-                <div class="answer-text" v-html="renderAnswerContent(step)"></div>
+                <!-- 编程题：使用深色代码块展示，带语言标签 -->
+                <div v-if="step.type === 3" class="answer-code-block">
+                  <div class="code-block-header">
+                    <span v-if="step.language" class="language-tag">{{ LANGUAGE_NAMES[step.language] || step.language }}</span>
+                    <span v-else class="language-tag">代码</span>
+                  </div>
+                  <pre class="answer-code-pre"><code>{{ step.studentAnswer || '（未作答）' }}</code></pre>
+                </div>
+                <!-- 其他题型 -->
+                <div v-else class="answer-text" v-html="renderAnswerContent(step)"></div>
               </div>
             </div>
             <!-- 已批改则显示得分 -->
@@ -205,71 +214,17 @@ import {
   MessageOutlined
 } from '@ant-design/icons-vue'
 import type { ExperimentReport, ReportQuestion } from '@/stores/experiment/types'
-import { QUESTION_TYPE_NAMES } from '@/stores/experiment/types'
+import { QUESTION_TYPE_NAMES, LANGUAGE_NAMES } from '@/stores/experiment/types'
 import { experimentRepository } from '@/stores/experiment/repository'
+import { userContextFactory } from '@/stores/experiment/UserContextFactory'
 
 const route = useRoute()
 const router = useRouter()
 
-// 获取当前用户信息
-function getCurrentUser() {
-  try {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      return JSON.parse(userStr)
-    }
-  } catch (e) {
-    console.error('获取用户信息失败:', e)
-  }
-  return { id: 1, studentCode: '2023001234', studentName: '张三', classCode: 'CS2301' }
-}
-
-// 获取当前登录用户（从正确的 session key 读取）
-function getLoginUser(): { id: string | number; studentCode?: string; studentName?: string; name?: string; classCode?: string } | null {
-  // 优先从 eduhub.auth.session 获取
-  try {
-    const sessionStr = localStorage.getItem('eduhub.auth.session')
-    if (sessionStr) {
-      console.log('[StudentReport] session原始数据:', sessionStr.substring(0, 200))
-      const session = JSON.parse(sessionStr)
-      console.log('[StudentReport] session解析后:', { id: session?.id, userId: session?.userId, account: session?.account, name: session?.name })
-      if (session && (session.id || session.userId)) {
-        return {
-          id: session.id || session.userId,
-          studentCode: session.account || '',
-          studentName: session.name || '',
-          name: session.name || '',
-          classCode: session.classCode || session.className || ''
-        }
-      }
-    }
-  } catch (e) {
-    console.error('获取登录用户失败:', e)
-  }
-
-  // 备用：从 user 获取
-  try {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      const user = JSON.parse(userStr)
-      console.log('[StudentReport] user数据:', user)
-      if (user && user.id) {
-        return {
-          id: user.id,
-          studentCode: user.studentCode || user.account || '',
-          studentName: user.studentName || user.name || '',
-          name: user.studentName || user.name || '',
-          classCode: user.classCode || ''
-        }
-      }
-    }
-  } catch (e) {
-    console.error('获取 user 失败:', e)
-  }
-
-  console.log('[StudentReport] 无法获取用户信息，返回null')
-  return null
-}
+// ==================== 用户信息已迁移至 userContextFactory（见顶部 import）===================
+// 旧 getCurrentUser() / getLoginUser() 已移除，请使用：
+//   import { userContextFactory } from '@/stores/experiment/UserContextFactory'
+//   userContextFactory.getCurrent() / userContextFactory.getUserIdStr()
 
 // 页面状态
 const showFeedbackModal = ref(false)
@@ -366,12 +321,9 @@ async function loadReport() {
   isLoading.value = true
   try {
     const experimentId = String(route.params.id)
-    // 优先从登录 session 获取用户信息
-    const loginUser = getLoginUser()
-    const currentUser = loginUser || getCurrentUser()
-    const studentId = String(currentUser.id || 1)
+    const studentId = userContextFactory.getUserIdStr()
 
-    console.log('[StudentReport] 加载报告:', { experimentId, studentId, loginUser: !!loginUser })
+    console.log('[StudentReport] 加载报告:', { experimentId, studentId })
 
     // 调用真实 API 获取报告数据
     const report = await experimentRepository.getStudentReport(experimentId, studentId)
@@ -413,20 +365,32 @@ async function loadReport() {
         // 获取题目并构建步骤
         const questions = await experimentRepository.getExperimentQuestions(experimentId)
         if (questions.length > 0) {
-          reportData.value.steps = questions.map((q, index) => ({
-            id: q.id,
-            experimentItemId: q.experimentItemId,
-            stepNo: index + 1,
-            title: q.title,
-            type: q.type,
-            content: q.content,
-            score: q.score,
-            options: q.options,
-            studentAnswer: '',
-            filledBlanks: [],
-            teacherScore: undefined,
-            teacherComment: undefined
-          }))
+          reportData.value.steps = questions.map((q, index) => {
+            let content = q.content || ''
+            let language: any = undefined
+            if (q.type === 3) {
+              const langMatch = content.match(/\[LANG:(\w+)\]\s*$/)
+              if (langMatch) {
+                language = langMatch[1]
+                content = content.substring(0, langMatch.index!).trimEnd()
+              }
+            }
+            return {
+              id: q.id,
+              experimentItemId: q.experimentItemId,
+              stepNo: index + 1,
+              title: q.title,
+              type: q.type,
+              content,
+              score: q.score,
+              options: q.options,
+              studentAnswer: '',
+              filledBlanks: [],
+              teacherScore: undefined,
+              teacherComment: undefined,
+              language
+            }
+          })
         }
       }
     }
@@ -702,6 +666,46 @@ onMounted(() => {
   line-height: 1.8;
   color: #262626;
   white-space: pre-wrap;
+}
+
+/* 编程题答案：深色代码块 */
+.answer-code-block {
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1e1e;
+  margin-top: 8px;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.answer-code-block .language-tag {
+  padding: 3px 10px;
+  background: #0066cc;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.answer-code-pre {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  overflow-x: auto;
+}
+
+.answer-code-pre code {
+  white-space: pre;
 }
 
 /* 步骤得分 */

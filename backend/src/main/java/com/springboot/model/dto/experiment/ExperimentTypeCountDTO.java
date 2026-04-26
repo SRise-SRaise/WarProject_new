@@ -1,5 +1,7 @@
 package com.springboot.model.dto.experiment;
 
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasTypeCode;
+import com.springboot.service.experiment.adapter.ScoreDataProvider.HasTypeCodeEx;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +16,8 @@ import java.io.Serializable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExperimentTypeCountDTO implements Serializable {
+public class ExperimentTypeCountDTO
+        implements Serializable, HasTypeCode, HasTypeCodeEx {
 
     private static final long serialVersionUID = 1L;
 

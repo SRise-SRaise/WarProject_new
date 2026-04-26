@@ -3,7 +3,7 @@
     <div class="question-content">
       {{ questionContent }}
     </div>
-    
+
     <div class="code-section">
       <div class="code-header">
         <div class="code-info">
@@ -18,27 +18,10 @@
           <a-button size="small" @click="resetCode">重置</a-button>
         </div>
       </div>
-      
-      <div class="editor-container" :style="{ height: editorHeight + 'px' }">
-        <textarea
-          v-if="!useMonaco"
-          ref="textareaRef"
-          v-model="codeContent"
-          class="code-textarea"
-          :placeholder="`在此输入 ${LANGUAGE_NAMES[language] || '代码'}...`"
-          :disabled="readOnly"
-          :style="{ imeMode: allowPaste ? 'auto' : 'disabled' }"
-          @input="handleInput"
-          @keydown="handleKeyDown"
-          @paste="handlePaste"
-        ></textarea>
-        <!-- 预留 Monaco Editor 集成位置 -->
-        <div v-else class="monaco-placeholder">
-          <span>Monaco Editor 集成区域</span>
-        </div>
-      </div>
+
+      <div class="editor-container" ref="containerRef" :style="{ height: editorHeight + 'px' }" />
     </div>
-    
+
     <div v-if="showAnswer && correctAnswer" class="answer-info">
       <div class="answer-header">
         <span class="correct-label">参考代码：</span>
@@ -49,10 +32,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons-vue'
 import type { ProgrammingLanguage } from '@/stores/experiment/types'
 import { LANGUAGE_NAMES } from '@/stores/experiment/types'
+import { createCodeEditor, type CodeEditorInstance } from './CodeEditor'
 
 interface Props {
   questionContent: string
@@ -63,7 +47,6 @@ interface Props {
   allowPaste?: boolean
   showAnswer?: boolean
   editorHeight?: number
-  useMonaco?: boolean   // 预留：是否使用 Monaco Editor
 }
 
 interface Emits {
@@ -78,66 +61,65 @@ const props = withDefaults(defineProps<Props>(), {
   allowPaste: true,
   showAnswer: false,
   editorHeight: 400,
-  useMonaco: false,
   language: 'text'
 })
 
 const emit = defineEmits<Emits>()
 
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
-const codeContent = ref(props.modelValue || '')
+const containerRef = ref<HTMLElement | null>(null)
+let editorInstance: CodeEditorInstance | null = null
+
+function initEditor() {
+  if (!containerRef.value) return
+  // 销毁旧实例（热更新场景）
+  if (editorInstance) {
+    editorInstance.destroy()
+    editorInstance = null
+  }
+  editorInstance = createCodeEditor({
+    container: containerRef.value,
+    value: props.modelValue || '',
+    language: props.language || 'text',
+    readOnly: props.readOnly || false,
+    onChange: (value: string) => {
+      emit('update:modelValue', value)
+      emit('answerChange', '', value)
+    }
+  })
+  if (!props.readOnly) {
+    editorInstance.focus()
+  }
+}
 
 watch(() => props.modelValue, (newVal) => {
-  codeContent.value = newVal || ''
+  if (editorInstance && newVal !== editorInstance.getValue()) {
+    editorInstance.setValue(newVal || '')
+  }
 })
 
-function handleInput(e: Event) {
-  const value = (e.target as HTMLTextAreaElement).value
-  codeContent.value = value
-  emit('update:modelValue', value)
-  emit('answerChange', '', value)
-}
-
-function handleKeyDown(e: KeyboardEvent) {
-  // 禁用粘贴快捷键（当禁止粘贴时）
-  if (!props.allowPaste && (e.ctrlKey || e.metaKey) && e.key === 'v') {
-    e.preventDefault()
+watch(() => props.language, (newLang) => {
+  if (editorInstance && newLang) {
+    editorInstance.setLanguage(newLang)
   }
-  
-  // Tab 键处理
-  if (e.key === 'Tab') {
-    e.preventDefault()
-    const target = e.target as HTMLTextAreaElement
-    const start = target.selectionStart
-    const end = target.selectionEnd
-    const value = target.value
-    codeContent.value = value.substring(0, start) + '  ' + value.substring(end)
-    emit('update:modelValue', codeContent.value)
-    emit('answerChange', '', codeContent.value)
-    // 恢复光标位置
-    setTimeout(() => {
-      target.selectionStart = target.selectionEnd = start + 2
-    }, 0)
-  }
-}
-
-function handlePaste(e: ClipboardEvent) {
-  if (!props.allowPaste) {
-    e.preventDefault()
-    return
-  }
-  // 允许粘贴，正常的 paste 事件会处理
-}
+})
 
 function resetCode() {
-  codeContent.value = ''
+  if (editorInstance) {
+    editorInstance.setValue('')
+  }
   emit('update:modelValue', '')
   emit('answerChange', '', '')
 }
 
 onMounted(() => {
-  // 聚焦到编辑器
-  textareaRef.value?.focus()
+  initEditor()
+})
+
+onBeforeUnmount(() => {
+  if (editorInstance) {
+    editorInstance.destroy()
+    editorInstance = null
+  }
 })
 </script>
 
@@ -154,7 +136,7 @@ onMounted(() => {
 }
 
 .code-section {
-  border: 1px solid #e8e8e8;
+  border: 1px solid #3c3c3c;
   border-radius: 8px;
   overflow: hidden;
   background: #1e1e1e;
@@ -203,37 +185,14 @@ onMounted(() => {
 
 .editor-container {
   width: 100%;
-  position: relative;
 }
 
-.code-textarea {
-  width: 100%;
+.editor-container :deep(.cm-editor) {
   height: 100%;
-  min-height: 300px;
-  padding: 16px;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  border: none;
-  resize: none;
-  outline: none;
 }
 
-.code-textarea::placeholder {
-  color: #6a6a6a;
-}
-
-.monaco-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #2d2d2d;
-  color: #888;
-  font-size: 14px;
+.editor-container :deep(.cm-scroller) {
+  overflow: auto;
 }
 
 .answer-info {

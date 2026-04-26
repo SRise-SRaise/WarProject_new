@@ -8,8 +8,8 @@ import com.springboot.exception.BusinessException;
 import com.springboot.exception.ThrowUtils;
 import com.springboot.mapper.experiment.EduExperimentItemMapper;
 import com.springboot.mapper.experiment.ResExperimentResultMapper;
-import com.springboot.mapper.user.AuthStudentMapper;
 import com.springboot.mapper.user.AuthClassMapper;
+import com.springboot.mapper.user.AuthStudentMapper;
 import com.springboot.model.dto.experiment.DocxImportRequest;
 import com.springboot.model.dto.experiment.EduExperimentAddRequest;
 import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
@@ -23,6 +23,7 @@ import com.springboot.model.vo.experiment.DocxImportResult;
 import com.springboot.model.vo.experiment.EduExperimentVO;
 import com.springboot.service.experiment.EduExperimentQuestionService;
 import com.springboot.service.experiment.EduExperimentService;
+import com.springboot.service.experiment.ExperimentClassService;
 import com.springboot.utils.DocxTemplateGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
@@ -67,6 +68,9 @@ public class EduExperimentController {
     @Resource
     private AuthClassMapper authClassMapper;
 
+    @Resource
+    private ExperimentClassService experimentClassService;
+
     @PostMapping("/add")
     public BaseResponse<Boolean> addEduExperiment(@RequestBody EduExperimentAddRequest addRequest) {
         log.info("[EduExperiment] 新增实验");
@@ -79,6 +83,11 @@ public class EduExperimentController {
         boolean result = eduExperimentService.save(entity);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         log.info("[EduExperiment] 新增实验成功: id={}", entity.getId());
+
+        // 绑定班级
+        if (addRequest.getClassCodes() != null && !addRequest.getClassCodes().isEmpty()) {
+            experimentClassService.bindClasses(entity.getId(), addRequest.getClassCodes());
+        }
         return ResultUtils.success(true);
     }
 
@@ -104,6 +113,11 @@ public class EduExperimentController {
         eduExperimentService.validEduExperiment(entity, false);
         boolean result = eduExperimentService.updateById(entity);
         log.info("[EduExperiment] 更新实验完成: id={}, success={}", updateRequest.getId(), result);
+
+        // 更新班级绑定
+        if (updateRequest.getClassCodes() != null) {
+            experimentClassService.bindClasses(updateRequest.getId(), updateRequest.getClassCodes());
+        }
         return ResultUtils.success(result);
     }
 
@@ -174,6 +188,29 @@ public class EduExperimentController {
                 .collect(Collectors.toList());
 
         return ResultUtils.success(classList);
+    }
+
+    /**
+     * 获取实验已绑定的班级编号列表（通过 rel_experiment_class 表）
+     */
+    @GetMapping("/bind/classes")
+    public BaseResponse<List<String>> getBindClasses(@RequestParam Long experimentId) {
+        log.debug("[EduExperiment] 获取实验绑定班级: experimentId={}", experimentId);
+        if (experimentId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<String> classCodes = experimentClassService.getClassCodesByExperiment(experimentId);
+        return ResultUtils.success(classCodes);
+    }
+
+    /**
+     * 获取全部可选班级列表（供前端下拉选择）
+     */
+    @GetMapping("/all/classes")
+    public BaseResponse<List<AuthClass>> getAllClasses() {
+        log.debug("[EduExperiment] 获取全部班级列表");
+        List<AuthClass> classes = authClassMapper.selectList(null);
+        return ResultUtils.success(classes);
     }
 
     @PostMapping("/list/page")

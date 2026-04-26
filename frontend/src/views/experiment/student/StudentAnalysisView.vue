@@ -202,6 +202,7 @@ import {
   LineChartOutlined
 } from '@ant-design/icons-vue'
 import { experimentRepository } from '@/stores/experiment/repository'
+import { userContextFactory } from '@/stores/experiment/UserContextFactory'
 import type { StudentExperimentAnalysisVO } from '@/stores/experiment/types'
 
 const router = useRouter()
@@ -210,42 +211,15 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const analysisData = ref<StudentExperimentAnalysisVO | null>(null)
 
-function getCurrentUser() {
-  try {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      return JSON.parse(userStr)
-    }
-  } catch (e) {
-    console.error('获取用户信息失败:', e)
-  }
-  return { id: 1, studentCode: '2023001234', studentName: '张三', classCode: 'CS2301' }
-}
-
-function getLoginUser(): { id: string | number } | null {
-  try {
-    const sessionStr = localStorage.getItem('eduhub.auth.session')
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr)
-      if (session && (session.id || session.userId)) {
-        return { id: session.id || session.userId }
-      }
-    }
-  } catch (e) {
-    console.error('获取登录用户失败:', e)
-  }
-  return null
-}
+// ==================== 用户信息已迁移至 userContextFactory ====================
+// 旧 getCurrentUser() / getLoginUser() 已移除
 
 async function loadData() {
   loading.value = true
   error.value = null
 
   try {
-    const loginUser = getLoginUser()
-    const currentUser = loginUser || getCurrentUser()
-    const studentId = String(currentUser.id || 1)
-
+    const studentId = userContextFactory.getUserIdStr()
     const data = await experimentRepository.getStudentExperimentAnalysis(studentId)
 
     if (data) {

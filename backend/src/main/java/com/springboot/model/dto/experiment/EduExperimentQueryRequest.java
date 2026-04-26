@@ -24,6 +24,11 @@ public class EduExperimentQueryRequest extends PageRequest implements Serializab
 
     private Integer publishStatus;
 
+    /**
+     * 按班级编号过滤（学生端使用，根据当前登录学生的班级返回可访问的实验）
+     */
+    private String classCode;
+
     private Date createdAt;
 
     private Date updatedAt;

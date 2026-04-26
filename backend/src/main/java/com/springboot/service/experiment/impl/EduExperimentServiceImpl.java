@@ -8,14 +8,22 @@ import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
 import com.springboot.model.vo.experiment.EduExperimentVO;
 import com.springboot.service.experiment.EduExperimentService;
+import com.springboot.service.experiment.ExperimentClassService;
 import com.springboot.service.support.ServiceMethodSupport;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.List;
+
 @Slf4j
 @Service
 public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, EduExperiment> implements EduExperimentService {
+
+    @Resource
+    private ExperimentClassService experimentClassService;
 
     @Override
     public void validEduExperiment(EduExperiment eduExperiment, boolean add) {
@@ -31,26 +39,67 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
         }
         queryRequest.setSortField(mapSortField(queryRequest.getSortField()));
         QueryWrapper<EduExperiment> queryWrapper = new QueryWrapper<>();
+
+        // 按班级过滤：只返回该班级绑定的已发布实验
+        String classCode = queryRequest.getClassCode();
+        if (classCode != null && !classCode.isBlank()) {
+            List<Long> allowedIds = experimentClassService.getExperimentIdsByClass(classCode);
+            if (allowedIds.isEmpty()) {
+                // 该班级没有任何绑定实验，返回空
+                queryWrapper.apply("1 = 0");
+            } else {
+                queryWrapper.in("experiment_id", allowedIds);
+            }
+        }
+
         String sortField = queryRequest.getSortField();
         String sortOrder = queryRequest.getSortOrder();
         if (sortField != null && !sortField.isEmpty()) {
             boolean isAsc = "ascend".equals(sortOrder);
             queryWrapper.orderBy(true, isAsc, sortField);
         }
-        log.debug("[EduExperiment] 构建查询Wrapper: sortField={}, sortOrder={}", sortField, sortOrder);
+        log.debug("[EduExperiment] 构建查询Wrapper: sortField={}, sortOrder={}, classCode={}", sortField, sortOrder, classCode);
         return queryWrapper;
     }
 
     @Override
     public EduExperimentVO getEduExperimentVO(EduExperiment eduExperiment, HttpServletRequest request) {
-        log.debug("[EduExperiment] 转换为VO: id={}", eduExperiment != null ? eduExperiment.getId() : "null");
-        return EduExperimentVO.objToVo(eduExperiment);
+        if (eduExperiment == null) {
+            return null;
+        }
+        log.debug("[EduExperiment] 转换为VO: id={}", eduExperiment.getId());
+        EduExperimentVO vo = EduExperimentVO.objToVo(eduExperiment);
+        enrichClassInfo(vo, eduExperiment.getId());
+        return vo;
     }
 
     @Override
     public Page<EduExperimentVO> getEduExperimentVOPage(Page<EduExperiment> entityPage, HttpServletRequest request) {
         log.debug("[EduExperiment] 分页转换为VO: current={}, size={}", entityPage.getCurrent(), entityPage.getSize());
-        return ServiceMethodSupport.toVOPage(entityPage, EduExperimentVO::objToVo);
+        Page<EduExperimentVO> voPage = ServiceMethodSupport.toVOPage(entityPage, entity -> {
+            EduExperimentVO vo = EduExperimentVO.objToVo(entity);
+            enrichClassInfo(vo, entity.getId());
+            return vo;
+        });
+        return voPage;
+    }
+
+    private void enrichClassInfo(EduExperimentVO vo, Long experimentId) {
+        if (vo == null || experimentId == null) {
+            return;
+        }
+        try {
+            List<String> classCodes = experimentClassService.getClassCodesByExperiment(experimentId);
+            List<String> classNames = experimentClassService.getClassNamesByExperiment(experimentId);
+            vo.setClassCodes(classCodes);
+            vo.setClassNames(classNames);
+            vo.setClassCount(classCodes.size());
+        } catch (Exception e) {
+            log.warn("[EduExperiment] 补全班级信息失败: experimentId={}, error={}", experimentId, e.getMessage());
+            vo.setClassCodes(Collections.emptyList());
+            vo.setClassNames(Collections.emptyList());
+            vo.setClassCount(0);
+        }
     }
 
     private String mapSortField(String sortField) {

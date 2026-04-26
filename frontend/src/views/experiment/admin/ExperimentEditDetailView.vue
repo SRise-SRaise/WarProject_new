@@ -97,6 +97,33 @@
             <p class="form-help-text">支持 PDF、DOC、DOCX 格式文件上传</p>
           </a-form-item>
 
+          <!-- 第六行：发布班级（多选） -->
+          <a-form-item label="发布班级" name="classCodes">
+            <div class="class-selector-tip">
+              <span v-if="!allClasses.length && !loadingClasses" class="no-classes-hint">
+                暂无可用班级，请先在班级管理中添加班级
+              </span>
+              <a-select
+                v-model:value="formState.classCodes"
+                mode="multiple"
+                placeholder="请选择允许访问此实验的班级（必选，支持多选）"
+                :loading="loadingClasses"
+                :disabled="loadingClasses"
+                allow-clear
+                style="width: 100%"
+                size="large"
+              >
+                <a-select-option v-for="cls in allClasses" :key="cls.classCode" :value="cls.classCode">
+                  <div class="class-option">
+                    <span class="class-code">{{ cls.classCode }}</span>
+                    <span class="class-name">{{ cls.headmasterName || '暂无备注' }}</span>
+                  </div>
+                </a-select-option>
+              </a-select>
+            </div>
+            <p class="form-help-text">选择允许访问此实验的班级，支持多选；不选择则实验仅创建者可见</p>
+          </a-form-item>
+
           <!-- 提交按钮 -->
           <a-form-item class="form-actions">
             <a-space :size="16">
@@ -137,6 +164,13 @@ interface ExperimentFormState {
   instructionType: string
   instructionFileName: string
   instructionFile: File | null
+  /** 发布的班级编号列表 */
+  classCodes: string[]
+}
+
+interface ClassOption {
+  classCode: string
+  headmasterName?: string
 }
 
 const router = useRouter()
@@ -144,6 +178,8 @@ const route = useRoute()
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const isEdit = ref(false)
+const allClasses = ref<ClassOption[]>([])
+const loadingClasses = ref(false)
 
 // 实验类型列表
 const experimentTypes = [
@@ -165,14 +201,18 @@ const formState = reactive<ExperimentFormState>({
   content: '',
   instructionType: '',
   instructionFileName: '',
-  instructionFile: null
+  instructionFile: null,
+  classCodes: []
 })
 
 // 表单验证规则
 const rules: Record<string, Rule[]> = {
   name: [{ required: true, message: '请输入实验名称', trigger: 'blur' }],
   no: [{ required: true, message: '请输入实验次序', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择实验类型', trigger: 'change' }]
+  type: [{ required: true, message: '请选择实验类型', trigger: 'change' }],
+  classCodes: [
+    { required: true, message: '请至少选择一个发布班级', trigger: 'change', type: 'array', min: 1 }
+  ]
 }
 
 // 页面标题
@@ -211,6 +251,13 @@ async function onFinish(): Promise<void> {
 
   saving.value = true
   try {
+    // 必填校验：班级必须选
+    if (!formState.classCodes || formState.classCodes.length === 0) {
+      message.error('请至少选择一个发布班级')
+      saving.value = false
+      return
+    }
+
     // 构建请求数据
     const requestData: any = {
       sortOrder: formState.no,
@@ -218,7 +265,8 @@ async function onFinish(): Promise<void> {
       categoryId: formState.type,
       requirement: formState.requirement,
       contentDesc: formState.content,
-      fileType: formState.instructionType || null
+      fileType: formState.instructionType || null,
+      classCodes: formState.classCodes
     }
 
     if (isEdit.value) {
@@ -258,13 +306,37 @@ async function loadExperimentData(id: string): Promise<void> {
       formState.instructionType = res.data.fileType || ''
       formState.instructionFileName = ''
       formState.instructionFile = null
+      // 回显已绑定的班级
+      formState.classCodes = res.data.classCodes || []
     }
   } catch (error) {
     message.error('加载实验数据失败')
   }
 }
 
+// 加载全部可选班级
+async function loadAllClasses(): Promise<void> {
+  loadingClasses.value = true
+  try {
+    const response = await fetch('/api/experiment/eduExperiment/all/classes', {
+      credentials: 'include'
+    })
+    const text = await response.text()
+    const data = JSON.parse(text)
+    if (data?.code === 0) {
+      allClasses.value = data.data || []
+    }
+  } catch (error) {
+    console.error('加载班级列表失败:', error)
+  } finally {
+    loadingClasses.value = false
+  }
+}
+
 onMounted(() => {
+  // 加载全部班级供选择
+  loadAllClasses()
+
   const experimentId = route.params.id
   if (experimentId && experimentId !== '0') {
     isEdit.value = true
@@ -404,6 +476,32 @@ onMounted(() => {
 .form-help-text {
   margin-top: 8px;
   color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.class-selector-tip {
+  width: 100%;
+}
+
+.no-classes-hint {
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.class-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.class-code {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.class-name {
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 

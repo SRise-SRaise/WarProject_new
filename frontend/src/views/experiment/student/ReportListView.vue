@@ -140,6 +140,7 @@ import {
 } from '@ant-design/icons-vue'
 import type { StudentReportInfo } from '@/stores/experiment/types'
 import { experimentRepository } from '@/stores/experiment/repository'
+import { userContextFactory } from '@/stores/experiment/UserContextFactory'
 
 const router = useRouter()
 
@@ -232,39 +233,8 @@ function showFeedbackModal(record: StudentReportInfo) {
   feedbackModalVisible.value = true
 }
 
-// 获取当前用户信息
-function getCurrentUser() {
-  try {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      return JSON.parse(userStr)
-    }
-  } catch (e) {
-    console.error('获取用户信息失败:', e)
-  }
-  return { id: 1, studentCode: '2023001234', studentName: '张三', classCode: 'CS2301' }
-}
-
-// 获取当前登录用户（从正确的 session key 读取）
-function getLoginUser(): { id: string | number; studentCode?: string; studentName?: string; name?: string; classCode?: string } | null {
-  try {
-    const sessionStr = localStorage.getItem('eduhub.auth.session')
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr)
-      // 转换为统一格式
-      return {
-        id: session.id || session.userId,
-        studentCode: session.account || '',
-        studentName: session.name || '',
-        name: session.name || '',
-        classCode: session.classCode || ''
-      }
-    }
-  } catch (e) {
-    console.error('获取登录用户失败:', e)
-  }
-  return null
-}
+// ==================== 用户信息已迁移至 userContextFactory ====================
+// 旧 getCurrentUser() / getLoginUser() 已移除
 
 // 加载数据
 async function loadData() {
@@ -278,8 +248,8 @@ async function loadData() {
     }))
 
     // 获取学生报告列表
-    const currentUser = getLoginUser() || getCurrentUser()
-    const studentId = String(currentUser.id || 1)
+    const studentId = userContextFactory.getUserIdStr()
+    const currentUser = userContextFactory.getCurrent()
 
     const reportList = await experimentRepository.getStudentReportList(studentId)
 
@@ -292,9 +262,9 @@ async function loadData() {
 
       return {
         studentId: report.student?.id || studentId,
-        studentNo: report.student?.no || currentUser.studentCode || '',
-        studentName: report.student?.name || currentUser.studentName || '',
-        clazzNo: report.student?.clazzNo || currentUser.classCode || '',
+        studentNo: report.student?.no || currentUser.account,
+        studentName: report.student?.name || currentUser.name,
+        clazzNo: report.student?.clazzNo || currentUser.classCode,
         experimentId: String(report.experiment?.id || ''),
         experimentName: report.experiment?.name || '',
         submittedAt: report.submittedAt || '',

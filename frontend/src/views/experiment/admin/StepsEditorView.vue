@@ -121,11 +121,11 @@
                 <span class="unit">分</span>
               </div>
 
-              <!-- 题目内容 -->
-              <div class="form-row form-row--vertical">
+              <!-- 题目内容（自适应宽度） -->
+              <div class="form-row form-row--vertical form-row--wide">
                 <label class="form-label">
                   题目内容
-                  <span v-if="step.type === 1" class="label-tip">（使用 ____ 标记填空位置）</span>
+                  <span v-if="step.type === 2" class="label-tip">（使用 ____ 标记填空位置）</span>
                 </label>
                 <a-textarea
                   v-model:value="step.content"
@@ -135,9 +135,9 @@
                   @click.stop
                 />
                 <!-- 填空题预览 -->
-                <div v-if="step.type === 1 && step.content" class="fill-preview">
+                <div v-if="step.type === 2 && step.content" class="fill-preview">
                   <span class="preview-label">预览：</span>
-                  <span class="preview-content" v-html="renderFillBlankPreview(step.content)"></span>
+                  <span class="preview-content" v-html="CommonUtil.renderFillBlankPreview(step.content)"></span>
                 </div>
               </div>
 
@@ -199,14 +199,14 @@
               <!-- 正确答案 -->
               <div class="form-row form-row--vertical">
                 <label class="form-label">标准答案</label>
-                
+
                 <!-- 单选题答案（类型1） -->
                 <a-radio-group v-if="step.type === 1" v-model:value="step.correctAnswer">
                   <a-radio v-for="opt in step.options" :key="opt.key" :value="opt.key">
                     {{ opt.key }}
                   </a-radio>
                 </a-radio-group>
-                
+
                 <!-- 多选题答案（类型5） -->
                 <a-checkbox-group v-else-if="step.type === 5" v-model:value="multiAnswersMap[step.id]">
                   <a-checkbox v-for="opt in step.options" :key="opt.key" :value="opt.key">
@@ -219,6 +219,57 @@
                   <a-radio value="正确">正确</a-radio>
                   <a-radio value="错误">错误</a-radio>
                 </a-radio-group>
+
+                <!-- 填空题答案（类型2）：动态多个输入框 -->
+                <div v-else-if="step.type === 2" class="fill-blank-answers-editor">
+                  <div v-if="getFillBlankCount(step) === 0" class="fill-blank-hint">
+                    <InfoCircleOutlined />
+                    请先在"题目内容"中输入 ____ 标记填空位置
+                  </div>
+                  <div v-else class="fill-blank-inputs-list">
+                    <div class="fill-blank-input-header">
+                      <span class="fill-blank-label">请为每个空填写标准答案</span>
+                      <span class="fill-blank-count">共 {{ getFillBlankCount(step) }} 个空</span>
+                    </div>
+                    <div
+                      v-for="n in getFillBlankCount(step)"
+                      :key="n"
+                      class="fill-blank-input-row"
+                    >
+                      <span class="fill-blank-num">{{ n }}</span>
+                      <a-input
+                        :value="(fillBlankAnswerMap[step.id] || [])[n - 1] || ''"
+                        :placeholder="`第 ${n} 空标准答案`"
+                        @update:value="(val: string) => {
+                          if (!fillBlankAnswerMap[step.id]) {
+                            fillBlankAnswerMap[step.id] = Array(getFillBlankCount(step)).fill('')
+                          }
+                          fillBlankAnswerMap[step.id][n - 1] = val
+                          fillBlankAnswerMap[step.id] = [...fillBlankAnswerMap[step.id]]
+                        }"
+                        @click.stop
+                      />
+                    </div>
+                    <div class="fill-blank-preview-box">
+                      <span class="fill-blank-preview-label">预览效果：</span>
+                      <span class="fill-blank-preview-content" v-html="CommonUtil.renderFillBlankPreview(step.content)"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 编程题答案（类型3）：代码编辑器样式 -->
+                <div v-else-if="step.type === 3" class="code-editor-block">
+                  <div class="code-editor-header">
+                    <span class="language-tag-sm">{{ getLanguageLabel(step.language) }}</span>
+                    <span class="editor-hint-sm">标准答案代码</span>
+                  </div>
+                  <textarea
+                    v-model="step.correctAnswer"
+                    class="code-editor-textarea"
+                    :placeholder="`在此输入 ${getLanguageLabel(step.language)} 参考代码...`"
+                    @click.stop
+                  ></textarea>
+                </div>
 
                 <!-- 其他题型答案 -->
                 <a-textarea
@@ -339,6 +390,7 @@ import {
   DeleteOutlined,
   MinusCircleOutlined,
   TagOutlined,
+  InfoCircleOutlined,
   LockOutlined,
   UnlockOutlined,
   UnorderedListOutlined,
@@ -373,6 +425,35 @@ const steps = ref<ExperimentStepEditItem[]>([])
 // 多选题答案映射
 const multiAnswersMap = reactive<Record<string, string[]>>({})
 
+// 填空题答案映射（每个步骤的答案数组，key 为 step.id）
+const fillBlankAnswerMap = reactive<Record<string, string[]>>({})
+
+// 填空题最大数量（与 FillBlankQuestion.vue 保持一致）
+const FILL_BLANK_MAX = 5
+
+// 获取步骤的填空数量
+function getFillBlankCount(step: ExperimentStepEditItem): number {
+  if (!step.content) return 0
+  const matches = step.content.match(/____/g)
+  return matches ? Math.min(matches.length, FILL_BLANK_MAX) : 0
+}
+
+// 获取步骤的标准答案数组（用于渲染）
+function getStepAnswerList(step: ExperimentStepEditItem): string[] {
+  if (fillBlankAnswerMap[step.id]) return fillBlankAnswerMap[step.id]
+  // 兼容旧数据：从 correctAnswer 解析（按逗号分隔，与学生端 getAnswers().join(',') 对应）
+  if (step.correctAnswer) {
+    return step.correctAnswer.split(',')
+  }
+  return []
+}
+
+// 同步填空答案到 step.correctAnswer
+function syncFillBlankAnswer(step: ExperimentStepEditItem) {
+  const list = fillBlankAnswerMap[step.id] || []
+  step.correctAnswer = list.join(',')
+}
+
 // 计算属性
 const totalSteps = computed(() => steps.value.length)
 
@@ -402,15 +483,31 @@ function setActiveStep(index: number) {
 
 function getContentPlaceholder(type: QuestionType): string {
   if (type === 1) {
+    return '请输入题目内容'
+  }
+  if (type === 2) {
     return '请输入题目内容，使用 ____ 标记填空位置。例如：声明一个整型变量 x = ____'
   }
-  if (type === 2 || type === 3) {
+  if (type === 3) {
     return '请输入题目内容'
   }
   if (type === 4) {
     return '请输入判断题内容（正确/错误）'
   }
   return '请输入题目内容'
+}
+
+function getLanguageLabel(lang: string | undefined): string {
+  const labels: Record<string, string> = {
+    java: 'Java',
+    javascript: 'JavaScript',
+    python: 'Python',
+    sql: 'SQL',
+    html: 'HTML',
+    css: 'CSS',
+    text: '纯文本'
+  }
+  return labels[lang || 'java'] || lang || 'Java'
 }
 
 function addOption(step: ExperimentStepEditItem) {
@@ -430,6 +527,7 @@ function addStep() {
   const newStep = createEmptyStep(steps.value.length + 1)
   steps.value.push(newStep)
   multiAnswersMap[newStep.id] = []
+  fillBlankAnswerMap[newStep.id] = []
   activeStepIndex.value = steps.value.length - 1
   scrollToBottom()
 }
@@ -440,6 +538,7 @@ function addStepAfter(index: number) {
   steps.value.splice(index + 1, 0, newStep)
   reindexSteps()
   multiAnswersMap[newStep.id] = []
+  fillBlankAnswerMap[newStep.id] = []
   activeStepIndex.value = index + 1
   scrollToBottom()
 }
@@ -447,6 +546,7 @@ function addStepAfter(index: number) {
 async function deleteStep(index: number) {
   const step = steps.value[index]
   delete multiAnswersMap[step.id]
+  delete fillBlankAnswerMap[step.id]
 
   // 如果步骤已保存到后端，则删除
   if (step.id && !step.id.startsWith('step-')) {
@@ -510,18 +610,6 @@ function createEmptyStep(stepNo: number): ExperimentStepEditItem {
   }
 }
 
-function renderFillBlankPreview(content: string): string {
-  if (!content) return ''
-  let index = 0
-  return content.replace(/____/g, () => {
-    index++
-    return `<span class="preview-blank">
-      <span class="preview-blank-num">${index}</span>
-      <span class="preview-blank-line">________</span>
-    </span>`
-  })
-}
-
 function getBarWidth(count: number): number {
   if (totalSteps.value === 0) return 0
   return Math.round((count / totalSteps.value) * 100)
@@ -532,6 +620,15 @@ watch(multiAnswersMap, (newMap) => {
   steps.value.forEach(step => {
     if (step.type === 5 && newMap[step.id]) {
       step.correctAnswer = newMap[step.id].sort().join(',')
+    }
+  })
+}, { deep: true })
+
+// 监听填空题答案变化，同步到 step.correctAnswer
+watch(fillBlankAnswerMap, () => {
+  steps.value.forEach(step => {
+    if (step.type === 2) {
+      syncFillBlankAnswer(step)
     }
   })
 }, { deep: true })
@@ -639,6 +736,13 @@ async function loadExperiment() {
         multiAnswersMap[step.id] = step.correctAnswer.split(',').filter(Boolean)
       }
 
+      // 填空题答案初始化（兼容旧数据）
+      if (step.type === 2 && step.correctAnswer) {
+        fillBlankAnswerMap[step.id] = step.correctAnswer.split(',')
+      } else if (step.type === 2) {
+        fillBlankAnswerMap[step.id] = []
+      }
+
       return step
     })
 
@@ -694,6 +798,10 @@ async function handleSave() {
         if (optionsStr) {
           questionContent = step.content + '\n\n' + optionsStr
         }
+      }
+      // 编程题：将语言标识追加到末尾
+      if (step.type === 3 && step.language) {
+        questionContent = questionContent + '\n[LANG:' + step.language + ']'
       }
 
       const requestData: any = {
@@ -941,6 +1049,16 @@ onMounted(() => {
   gap: 8px;
 }
 
+.form-row--wide {
+  width: 100%;
+}
+
+.form-row--wide :deep(.ant-input-textarea),
+.form-row--wide :deep(.ant-input-textarea textarea) {
+  width: 100%;
+  max-width: 100%;
+}
+
 .form-label {
   font-size: 14px;
   font-weight: 500;
@@ -1023,6 +1141,88 @@ onMounted(() => {
   border-bottom: 2px solid #1890ff;
   color: transparent;
   letter-spacing: 2px;
+}
+
+/* 填空题答案编辑器 */
+.fill-blank-answers-editor {
+  width: 100%;
+}
+
+.fill-blank-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #fa8c16;
+}
+
+.fill-blank-inputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fill-blank-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fill-blank-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.fill-blank-count {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.fill-blank-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fill-blank-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e6f7ff;
+  color: #1890ff;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.fill-blank-preview-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.8;
+  margin-top: 4px;
+}
+
+.fill-blank-preview-label {
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+
+.fill-blank-preview-content {
+  flex: 1;
 }
 
 /* 选项编辑器 */
@@ -1313,5 +1513,63 @@ onMounted(() => {
   .sidebar-card {
     min-width: 200px;
   }
+}
+
+/* 代码编辑器样式（教师端编程题题目内容） */
+.code-label-tip {
+  color: #fa541c;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.code-editor-block {
+  width: 100%;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.code-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.language-tag-sm {
+  padding: 3px 8px;
+  background: #0066cc;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.editor-hint-sm {
+  font-size: 12px;
+  color: #888;
+}
+
+.code-editor-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  border: none;
+  resize: vertical;
+  outline: none;
+  display: block;
+}
+
+.code-editor-textarea::placeholder {
+  color: #6a6a6a;
 }
 </style>

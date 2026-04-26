@@ -71,6 +71,15 @@
               <template v-if="step.type === 2 || step.type === 5">
                 <a-tag :color="isCorrect(step) ? 'success' : 'error'">{{ step.studentAnswer || '（未作答）' }}</a-tag>
               </template>
+              <template v-else-if="step.type === 3">
+                <!-- 编程题：深色代码块 -->
+                <div class="teacher-code-block">
+                  <div class="code-block-header">
+                    <span class="language-tag">{{ step.language ? (LANGUAGE_NAMES[step.language] || step.language) : '代码' }}</span>
+                  </div>
+                  <pre class="teacher-code-pre">{{ step.studentAnswer || '（未作答）' }}</pre>
+                </div>
+              </template>
               <template v-else>
                 <pre class="code-answer">{{ step.studentAnswer || '（未作答）' }}</pre>
               </template>
@@ -112,7 +121,7 @@ import { AlertOutlined, BookOutlined, DownOutlined, LeftOutlined, SaveOutlined, 
 import { gradeReport, getTeacherReportListPage } from '@/api/eduExperimentReportController'
 import { experimentRepository } from '@/stores/experiment/repository'
 import type { ExperimentReport, ReportQuestion } from '@/stores/experiment/types'
-import { QUESTION_TYPE_NAMES } from '@/stores/experiment/types'
+import { QUESTION_TYPE_NAMES, LANGUAGE_NAMES } from '@/stores/experiment/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -287,6 +296,41 @@ watch(
 .label { margin-bottom: 8px; color: #666; font-weight: 600; }
 .answer-box, .summary-box, .code-answer { padding: 12px; background: #fafafa; border-radius: 6px; }
 .code-answer { margin: 0; white-space: pre-wrap; word-break: break-word; }
+
+/* 教师端编程题答案：深色代码块 */
+.teacher-code-block {
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.teacher-code-block .code-block-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.teacher-code-block .language-tag {
+  padding: 3px 10px;
+  background: #0066cc;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.teacher-code-pre {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  overflow-x: auto;
+}
 .grade-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px dashed #e8e8e8; }
 .tips { margin-top: 8px; color: #888; }
 :deep(.blank-line) { display: inline-block; min-width: 72px; border-bottom: 1px solid #888; }
