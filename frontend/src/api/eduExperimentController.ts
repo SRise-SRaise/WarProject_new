@@ -123,9 +123,23 @@ export async function importExperimentFromDocx(
   })
 }
 
-/** 触发实验文档导入模板下载（通过浏览器原生下载，绕过 axios 拦截器） */
-export function downloadExperimentTemplate(): void {
-  window.open('/api/experiment/eduExperiment/template/download', '_blank')
+/** 触发实验文档导入模板下载（通过 axios blob 方式接收二进制流，再构造 a 标签下载） */
+export async function downloadExperimentTemplate(): Promise<void> {
+  const response = await request('/experiment/eduExperiment/template/download', {
+    method: 'GET',
+    responseType: 'blob',
+  } as any)
+  const blob = new Blob([(response as any).data], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '实验文档导入模板.docx'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 /** 此处后端没有提供注释 POST /experiment/eduExperiment/update */

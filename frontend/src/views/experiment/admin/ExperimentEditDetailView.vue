@@ -160,7 +160,7 @@
           </p>
         </div>
         <!-- 下载模板按钮 -->
-        <button type="button" class="template-download-btn" @click="downloadExperimentTemplate()">
+        <button type="button" class="template-download-btn" @click="handleTemplateDownload()">
           <DownloadOutlined />
           下载参考模板
         </button>
@@ -427,7 +427,7 @@ async function onFinish(): Promise<void> {
       const res: any = await updateEduExperiment(requestData)
       if (res.data !== false) {
         savedId = formState.id
-        message.success(`实验"${formState.name}"已更新`)
+        message.success(`实验"${formState.name}"已更��`)
       }
     } else {
       const res: any = await addEduExperiment(requestData)
@@ -489,6 +489,15 @@ async function uploadInstructionIfNeeded(experimentId: string | undefined): Prom
     message.warning('指导书上传失败，可稍后重新选择并保存')
   } finally {
     uploadingInstruction.value = false
+  }
+}
+
+// 下载模板
+async function handleTemplateDownload(): Promise<void> {
+  try {
+    await downloadExperimentTemplate()
+  } catch (err: any) {
+    message.error('模板下载失败，请稍后重试')
   }
 }
 
