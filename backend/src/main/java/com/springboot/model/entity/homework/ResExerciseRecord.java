@@ -64,13 +64,25 @@ public class ResExerciseRecord implements Serializable {
     private Date submittedAt;
 
     /**
-     * 
+     * 批改状态：0未批改,1自动判分,2教师已批改
+     */
+    @TableField(value = "grading_status")
+    private Integer gradingStatus;
+
+    /**
+     * 教师评语
+     */
+    @TableField(value = "comment")
+    private String comment;
+
+    /**
+     *
      */
     @TableField(value = "created_at")
     private Date createdAt;
 
     /**
-     * 
+     *
      */
     @TableField(value = "updated_at")
     private Date updatedAt;

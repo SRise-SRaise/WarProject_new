@@ -234,7 +234,7 @@ function handleFillBlankInput(event: Event): void {
 onMounted(async () => {
   const examId = parseInt(route.params.id as string)
   await examStore.ensureLoaded()
-  const submitted = examStore.loadSubmissionResult(examId)
+  const submitted = await examStore.loadSubmissionResult(examId)
   if (submitted) {
     router.replace(`/exams/${examId}/result`)
     return

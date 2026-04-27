@@ -34,11 +34,11 @@ const commonRoutes: RouteRecordRaw[] = [
         name: 'MaterialList',
         component: MaterialListView,
         meta: {
-          title: '资料s',
+          title: '资料',
           requiresAuth: true,
           audience: 'student',
           shell: 'student',
-          navLabel: '资料s',
+          navLabel: '资料',
           summary: '按主题与资料类型查看学习资源，并进入详情页。'
         }
       },

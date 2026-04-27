@@ -172,20 +172,37 @@ DROP TABLE IF EXISTS `edu_exercise_item`;
 CREATE TABLE `edu_exercise_item`
 (
     `id`              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '练习题目主键ID',
-    `exercise_id`     BIGINT        NOT NULL COMMENT '所属练习ID',
     `question`        VARCHAR(255)           DEFAULT NULL COMMENT '题目题干',
     `options_text`    VARCHAR(255)           DEFAULT NULL COMMENT '选项',
     `standard_answer` VARCHAR(255)           DEFAULT NULL COMMENT '标准答案',
     `question_type`   INT                    DEFAULT NULL COMMENT '题目类型',
     `max_score`       TINYINT                DEFAULT NULL COMMENT '该题满分分值',
     `question_bank_id` BIGINT               DEFAULT NULL COMMENT '来源题库ID，关联 edu_question_bank.id',
+    `analysis`        TEXT COMMENT '题目解析说明',
+    `difficulty`      TINYINT                DEFAULT NULL COMMENT '难度系数：1-5',
     `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `fk_exe_item_exe` (`exercise_id`),
-    CONSTRAINT `fk_exe_item_exe` FOREIGN KEY (`exercise_id`) REFERENCES `edu_exercise` (`id`)
+    PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='练习题目表';
+
+DROP TABLE IF EXISTS `rel_exercise_item`;
+CREATE TABLE `rel_exercise_item`
+(
+    `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '关联主键ID',
+    `exercise_id` BIGINT      NOT NULL COMMENT '作业ID',
+    `item_id`     BIGINT      NOT NULL COMMENT '题目ID（edu_exercise_item.id）',
+    `item_order`  INT                  DEFAULT NULL COMMENT '题目顺序',
+    `item_score`  TINYINT              DEFAULT NULL COMMENT '作业内该题分值（为空时使用题目默认分值）',
+    `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_exercise_item` (`exercise_id`, `item_id`),
+    KEY `idx_item_id` (`item_id`),
+    CONSTRAINT `fk_rel_exe_item_exercise` FOREIGN KEY (`exercise_id`) REFERENCES `edu_exercise` (`id`),
+    CONSTRAINT `fk_rel_exe_item_item` FOREIGN KEY (`item_id`) REFERENCES `edu_exercise_item` (`id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='作业-题目关联表';
 
 DROP TABLE IF EXISTS `rel_exercise_class`;
 CREATE TABLE `rel_exercise_class`
@@ -281,9 +298,11 @@ CREATE TABLE `res_exercise_record`
     `exercise_id`   BIGINT            DEFAULT NULL COMMENT '所属练习ID',
     `item_id`       BIGINT            DEFAULT NULL COMMENT '练习题目ID',
     `student_id`    BIGINT            DEFAULT NULL COMMENT '学生ID',
-    `choice_answer` VARCHAR(30)       DEFAULT NULL COMMENT '选择/判断题答案',
+    `choice_answer` VARCHAR(500)       DEFAULT NULL COMMENT '选择/判断题答案',
     `text_content`  TEXT COMMENT '编程/简答作答内容',
     `score`         INT               DEFAULT NULL COMMENT '得分',
+    `grading_status` INT              DEFAULT 0 COMMENT '批改状态：0未批改,1自动判分,2教师已批改',
+    `comment`       VARCHAR(500)      DEFAULT NULL COMMENT '教师评语',
     `submitted_at`  DATETIME          DEFAULT NULL COMMENT '提交时间',
     `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -291,6 +310,7 @@ CREATE TABLE `res_exercise_record`
     UNIQUE KEY `uk_res_exe_record` (`student_id`, `item_id`),
     KEY `fk_res_exe_item` (`item_id`),
     KEY `fk_res_exe_student` (`student_id`),
+    KEY `idx_grading_status` (`grading_status`),
     CONSTRAINT `fk_res_exe_item` FOREIGN KEY (`item_id`) REFERENCES `edu_exercise_item` (`id`),
     CONSTRAINT `fk_res_exe_student` FOREIGN KEY (`student_id`) REFERENCES `auth_student` (`id`)
 ) ENGINE = InnoDB

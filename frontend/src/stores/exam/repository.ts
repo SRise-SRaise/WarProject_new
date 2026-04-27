@@ -664,13 +664,36 @@ export const examRepository = {
     }
   },
 
-  async getStudentExamResult(examId: number): Promise<{ record: StudentAnswerRecord; exam: Exam } | null> {
-    const response = await request.get('/exam/resExamRecord/student/result', { params: { examId } })
-    const raw = unwrapMap(response, '获取学生考试结果')
+  async getStudentExamResult(examId: number): Promise<{ record: StudentAnswerRecord; exam: Exam; paper?: PaperDetail } | null> {
+    let response: AxiosResponse<ApiEnvelope<Record<string, any>>>
+    try {
+      response = await request.get<ApiEnvelope<Record<string, any>>>('/exam/resExamRecord/student/result', { params: { examId } })
+    } catch (error: any) {
+      const code = error?.response?.data?.code
+      if (code === 40400) {
+        return null
+      }
+      throw error
+    }
+    const envelope = response.data
+    if (!envelope) {
+      throw new Error('获取学生考试结果响应为空')
+    }
+    if (envelope.code === 40400) {
+      return null
+    }
+    if (envelope.code !== undefined && !SUCCESS_CODES.has(envelope.code)) {
+      throw new Error(envelope.message || '获取学生考试结果失败')
+    }
+    if (!isRecord(envelope.data)) {
+      return null
+    }
+    const raw = envelope.data
     const record = isRecord(raw.record) ? mapStudentAnswerRecord(raw.record) : null
     const exam = isRecord(raw.exam) ? mapExam(raw.exam) : null
+    const paper = isRecord(raw.paper) ? mapPaperDetail(raw.paper) : undefined
     if (!record || !exam) return null
-    return { record, exam }
+    return { record, exam, paper }
   },
 
   async getStudentAnswerRecords(examId: number): Promise<StudentAnswerRecord[]> {

@@ -20,3 +20,7 @@ frontend/coverage/
 # Backend artifacts
 backend/target/
 backend/out/
+
+docs/my
+
+.claude/

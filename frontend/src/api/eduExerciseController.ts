@@ -100,3 +100,48 @@ export async function updateEduExercise(
     ...(options || {}),
   });
 }
+
+/** 发布作业到指定班级 POST /homework/eduExercise/publish */
+export async function publishExercise(
+  body: API.ExercisePublishRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/homework/eduExercise/publish", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 关闭作业 POST /homework/eduExercise/close */
+export async function closeExercise(
+  params: { exerciseId: number },
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/homework/eduExercise/close", {
+    method: "POST",
+    params,
+    ...(options || {}),
+  });
+}
+
+/** 学生查询可见作业列表 POST /homework/eduExercise/listForStudent */
+export async function listExerciseForStudent(
+  body: API.StudentExerciseQueryRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseListStudentExerciseVO>(
+    "/homework/eduExercise/listForStudent",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}

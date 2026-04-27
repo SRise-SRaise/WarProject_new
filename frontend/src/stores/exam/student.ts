@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { examRepository } from './repository'
-import type { Exam, PaperDetail, QuestionType, StudentExamResult } from './types'
+import type { Exam, PaperDetail, QuestionItem, QuestionType, StudentExamResult } from './types'
 
 const EXAM_SUBMISSION_STORAGE_KEY = 'eduhub.exam.student.submissions'
 const AUTH_SESSION_STORAGE_KEY = 'eduhub.auth.session'
@@ -110,6 +110,8 @@ export const useExamStudentStore = defineStore('exam-student', () => {
   const answers = ref<Record<number, string | string[]>>({})
   const examResult = ref<StudentExamResult | null>(null)
   const currentSubmission = ref<StoredExamSubmission | null>(null)
+  // 用于查看成绩时获取试卷详情（包含参考答案）
+  const resultPaperDetail = ref<PaperDetail | null>(null)
   const loading = ref(false)
   const hydrated = ref(false)
   const submissionLedger = ref<SubmissionLedger>(readLedger())
@@ -155,9 +157,17 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     if (!existing) return null
     try {
       const backend = await examRepository.getStudentExamResult(examId)
+
+      if (backend?.paper) {
+        resultPaperDetail.value = backend.paper
+      }
+
       if (!backend) {
-        currentSubmission.value = existing
-        return existing
+        removeSubmission(examId)
+        if (currentSubmission.value?.examId === examId) {
+          currentSubmission.value = null
+        }
+        return null
       }
       const releaseMode: ReleaseMode = backend.record.status === 'graded' ? 'immediate' : 'pending_teacher'
       const updated: StoredExamSubmission = {
@@ -194,10 +204,10 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     try {
       publishedExams.value = await examRepository.getPublishedExamsForStudent()
       hydrated.value = true
-      const pendingIds = publishedExams.value
-        .filter((exam) => getSubmissionState(exam.id) === 'pending_teacher')
+      const submittedIds = publishedExams.value
+        .filter((exam) => hasSubmittedExam(exam.id))
         .map((exam) => exam.id)
-      for (const examId of pendingIds) {
+      for (const examId of submittedIds) {
         await syncSubmissionResult(examId)
       }
     } finally {
@@ -264,6 +274,17 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     writeLedger(submissionLedger.value)
   }
 
+  function removeSubmission(examId: number): void {
+    const scope = getCurrentStudentScope()
+    if (!scope) return
+    const key = buildLedgerKey(scope, examId)
+    if (!(key in submissionLedger.value)) return
+    const next = { ...submissionLedger.value }
+    delete next[key]
+    submissionLedger.value = next
+    writeLedger(submissionLedger.value)
+  }
+
   async function submitExam(): Promise<StudentExamResult | null> {
     if (!currentExam.value || !currentPaper.value) return null
     loading.value = true
@@ -322,6 +343,7 @@ export const useExamStudentStore = defineStore('exam-student', () => {
     answers,
     examResult,
     currentSubmission,
+    resultPaperDetail,
     loading,
     hydrated,
     availableCount,

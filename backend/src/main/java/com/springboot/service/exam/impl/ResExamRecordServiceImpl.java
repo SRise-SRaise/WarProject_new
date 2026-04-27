@@ -170,12 +170,33 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
                 break;
             }
         }
+        // 获取考试信息
+        Map<String, Object> examCard = eduExamService.getAdminExamCard(examId);
+
         if (studentRecord == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到学生考试结果");
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("record", null);
+            result.put("exam", examCard);
+            result.put("paper", null);
+            return result;
         }
+
+        // 从 res_exam_summary 查 paper_id，获取试卷详情（含标准答案）
+        Map<String, Object> paperDetail = null;
+        List<Map<String, Object>> summaries = jdbcTemplate.queryForList(
+                "SELECT paper_id FROM res_exam_summary WHERE exam_id = ? AND student_id = ? LIMIT 1",
+                examId, studentId);
+        if (!summaries.isEmpty()) {
+            Long paperId = toLong(summaries.get(0).get("paper_id"));
+            if (paperId != null) {
+                paperDetail = eduPaperService.getPaperDetail(paperId);
+            }
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("record", studentRecord);
-        result.put("exam", eduExamService.getAdminExamCard(examId));
+        result.put("exam", examCard);
+        result.put("paper", paperDetail);
         return result;
     }
 
@@ -367,6 +388,31 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
         return result;
     }
 
+    @Override
+    public Map<String, Object> getGradingAnalytics(Long examId) {
+        if (examId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "考试不能为空");
+        }
+        List<Map<String, Object>> examRows = jdbcTemplate.queryForList(
+                "SELECT id, exam_name, paper_id FROM edu_exam WHERE id = ? LIMIT 1",
+                examId);
+        if (examRows.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "考试不存在");
+        }
+        Map<String, Object> examRow = examRows.get(0);
+        Long paperId = toLong(examRow.get("paper_id"));
+        int totalScore = computePaperTotalScore(paperId);
+        List<Map<String, Object>> records = listStudentAnswerRecords(examId);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("examId", examId);
+        result.put("examName", examRow.get("exam_name"));
+        result.put("gradingProgress", buildGradingProgress(records));
+        result.put("scoreBands", buildScoreBands(examId, totalScore));
+        result.put("questionAccuracy", buildQuestionAccuracy(examId));
+        return result;
+    }
+
     private Map<String, Object> createStudentRecordSkeleton(Long examId, Map<String, Object> row, Map<String, Object> summaryRow) {
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("id", summaryRow == null ? toLong(row.get("student_id")) : toLong(summaryRow.get("id")));
@@ -383,6 +429,102 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
         return record;
     }
 
+    private Map<String, Object> buildGradingProgress(List<Map<String, Object>> records) {
+        int submitted = 0;
+        int pending = 0;
+        int graded = 0;
+        for (Map<String, Object> record : records) {
+            String status = String.valueOf(record.get("status"));
+            if ("graded".equals(status)) {
+                graded++;
+            } else if ("grading".equals(status)) {
+                pending++;
+            } else {
+                submitted++;
+            }
+        }
+        Map<String, Object> progress = new LinkedHashMap<>();
+        progress.put("totalStudents", records.size());
+        progress.put("submittedCount", submitted);
+        progress.put("pendingCount", pending);
+        progress.put("gradedCount", graded);
+        return progress;
+    }
+
+    private Map<String, Object> buildScoreBands(Long examId, int totalScore) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT total_score FROM res_exam_summary WHERE exam_id = ?",
+                examId);
+        int[] counts = new int[5];
+        for (Map<String, Object> row : rows) {
+            int studentScore = toInteger(row.get("total_score")) == null ? 0 : toInteger(row.get("total_score"));
+            double percent = totalScore <= 0 ? 0 : (studentScore * 100.0 / totalScore);
+            if (percent < 60) {
+                counts[0]++;
+            } else if (percent < 70) {
+                counts[1]++;
+            } else if (percent < 80) {
+                counts[2]++;
+            } else if (percent < 90) {
+                counts[3]++;
+            } else {
+                counts[4]++;
+            }
+        }
+        List<Map<String, Object>> bands = new ArrayList<>();
+        String[] labels = {"0-59", "60-69", "70-79", "80-89", "90-100"};
+        for (int i = 0; i < labels.length; i++) {
+            Map<String, Object> band = new LinkedHashMap<>();
+            band.put("label", labels[i]);
+            band.put("count", counts[i]);
+            bands.add(band);
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalScore", totalScore);
+        result.put("bands", bands);
+        return result;
+    }
+
+    private List<Map<String, Object>> buildQuestionAccuracy(Long examId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT r.question_id AS questionId, COALESCE(r.paper_question_id, rpq.id) AS paperQuestionId, "
+                        + "COALESCE(rpq.question_order, 0) AS questionOrder, COALESCE(rpq.section_name, '未分组') AS sectionName, "
+                        + "COALESCE(qb.question_content, '') AS questionContent, COALESCE(qb.question_type, 0) AS questionType, "
+                        + "COALESCE(rpq.score, 0) AS maxScore, COUNT(DISTINCT r.student_id) AS submittedCount, "
+                        + "SUM(CASE WHEN r.score IS NOT NULL THEN 1 ELSE 0 END) AS gradedCount, "
+                        + "AVG(CASE WHEN r.score IS NOT NULL THEN r.score ELSE NULL END) AS averageScore "
+                        + "FROM res_exam_record r "
+                        + "LEFT JOIN rel_paper_question rpq ON r.paper_question_id = rpq.id "
+                        + "LEFT JOIN edu_question_bank qb ON r.question_id = qb.id "
+                        + "WHERE r.exam_id = ? "
+                        + "GROUP BY r.question_id, COALESCE(r.paper_question_id, rpq.id), COALESCE(rpq.question_order, 0), "
+                        + "COALESCE(rpq.section_name, '未分组'), COALESCE(qb.question_content, ''), COALESCE(qb.question_type, 0), COALESCE(rpq.score, 0) "
+                        + "ORDER BY questionOrder ASC, questionId ASC",
+                examId);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            int maxScore = toInteger(row.get("maxScore")) == null ? 0 : toInteger(row.get("maxScore"));
+            int gradedCount = toInteger(row.get("gradedCount")) == null ? 0 : toInteger(row.get("gradedCount"));
+            double averageScore = toDouble(row.get("averageScore"));
+            double accuracyRate = maxScore > 0 && gradedCount > 0 ? averageScore / maxScore : 0D;
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("questionId", toLong(row.get("questionId")));
+            item.put("paperQuestionId", toLong(row.get("paperQuestionId")));
+            item.put("questionOrder", toInteger(row.get("questionOrder")));
+            item.put("sectionName", row.get("sectionName"));
+            item.put("questionContent", row.get("questionContent"));
+            item.put("questionType", toInteger(row.get("questionType")));
+            item.put("maxScore", maxScore);
+            item.put("submittedCount", toInteger(row.get("submittedCount")) == null ? 0 : toInteger(row.get("submittedCount")));
+            item.put("gradedCount", gradedCount);
+            item.put("averageScore", Double.parseDouble(String.format("%.2f", averageScore)));
+            item.put("accuracyRate", Double.parseDouble(String.format("%.4f", accuracyRate)));
+            result.add(item);
+        }
+        return result;
+    }
+
     private int computeFullScoreBySummary(Map<String, Object> summaryRow, Object paperIdValue) {
         Long paperId = summaryRow == null ? toLong(paperIdValue) : toLong(summaryRow.get("paper_id"));
         if (paperId == null) {
@@ -391,6 +533,17 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
         List<RelPaperQuestion> questions = relPaperQuestionService.listByPaperId(paperId);
         int total = 0;
         for (RelPaperQuestion question : questions) {
+            total += question.getScore() == null ? 0 : question.getScore();
+        }
+        return total;
+    }
+
+    private int computePaperTotalScore(Long paperId) {
+        if (paperId == null) {
+            return 0;
+        }
+        int total = 0;
+        for (RelPaperQuestion question : relPaperQuestionService.listByPaperId(paperId)) {
             total += question.getScore() == null ? 0 : question.getScore();
         }
         return total;
@@ -546,6 +699,16 @@ public class ResExamRecordServiceImpl extends ServiceImpl<ResExamRecordMapper, R
             return number.intValue();
         }
         return Integer.parseInt(String.valueOf(value));
+    }
+
+    private double toDouble(Object value) {
+        if (value == null) {
+            return 0D;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return Double.parseDouble(String.valueOf(value));
     }
 
     private boolean toBoolean(Object value) {
