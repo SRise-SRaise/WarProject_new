@@ -123,23 +123,42 @@ export async function importExperimentFromDocx(
   })
 }
 
-/** 触发实验文档导入模板下载（通过 axios blob 方式接收二进制流，再构造 a 标签下载） */
+/** 触发实验文档导入模板下载（使用原生 axios 绕过拦截器，避免 blob 响应被误处理） */
 export async function downloadExperimentTemplate(): Promise<void> {
-  const response = await request('/experiment/eduExperiment/template/download', {
-    method: 'GET',
-    responseType: 'blob',
-  } as any)
-  const blob = new Blob([(response as any).data], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '实验文档导入模板.docx'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  const axios = (await import('axios')).default
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+  
+  try {
+    const response = await axios.get(`${baseURL}/experiment/eduExperiment/template/download`, {
+      responseType: 'blob',
+      timeout: 30000,
+    })
+    
+    // 检查响应是否为有效的 blob
+    if (response.data instanceof Blob && response.data.size > 0) {
+      const url = URL.createObjectURL(response.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '实验文档导入模板.docx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } else {
+      // 如果返回的不是有效 blob，尝试读取错误信息
+      const text = await response.data.text?.() || '未知错误'
+      console.error('[v0] 模板下载失败，响应内容:', text)
+      throw new Error('下载失败: ' + text)
+    }
+  } catch (error: any) {
+    console.error('[v0] 模板下载异常:', error)
+    // 如果是 axios 错误，尝试读取响应体中的错误信息
+    if (error.response?.data instanceof Blob) {
+      const text = await error.response.data.text()
+      console.error('[v0] 后端错误信息:', text)
+    }
+    throw error
+  }
 }
 
 /** 此处后端没有提供注释 POST /experiment/eduExperiment/update */
