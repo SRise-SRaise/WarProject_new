@@ -55,6 +55,9 @@ public class EduExperimentController {
     private com.springboot.service.cloud.ObsUploadService obsUploadService;
 
     @Resource
+    private com.springboot.mapper.experiment.EduExperimentMapper eduExperimentMapper;
+
+    @Resource
     private EduExperimentService eduExperimentService;
 
     @Resource
@@ -278,14 +281,10 @@ public class EduExperimentController {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "文件上传失败");
         }
 
-        // 将 URL 和文件类型回写到实验记录
+        // 将 URL 和文件类型通过原生 SQL 写入（绕过实体字段 exist=false 的限制）
         String fileUrl = uploadResult.getObsUrl();
-        EduExperiment entity = new EduExperiment();
-        entity.setId(experimentId);
-        entity.setInstructionUrl(fileUrl);
-        entity.setFileType(fileSuffix.toUpperCase());
-        boolean updated = eduExperimentService.updateById(entity);
-        ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新指导书路径失败");
+        int rows = eduExperimentMapper.updateInstructionUrl(experimentId, fileUrl, fileSuffix.toUpperCase());
+        ThrowUtils.throwIf(rows == 0, ErrorCode.OPERATION_ERROR, "更新指导书路径失败，请确认实验ID是否正确");
 
         log.info("[EduExperiment] 指导书上传成功: experimentId={}, url={}", experimentId, fileUrl);
         return ResultUtils.success(fileUrl);

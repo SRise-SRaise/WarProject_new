@@ -3,6 +3,7 @@ package com.springboot.service.experiment.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.springboot.mapper.experiment.EduExperimentMapper;
 import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
@@ -17,10 +18,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
 public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, EduExperiment> implements EduExperimentService {
+
+    @Resource
+    private EduExperimentMapper eduExperimentMapper;
 
     @Resource
     private ExperimentClassService experimentClassService;
@@ -77,9 +82,19 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
     public Page<EduExperimentVO> getEduExperimentVOPage(Page<EduExperiment> entityPage, HttpServletRequest request) {
         log.debug("[EduExperiment] 分页转换为VO: current={}, size={}", entityPage.getCurrent(), entityPage.getSize());
         Page<EduExperimentVO> voPage = ServiceMethodSupport.toVOPage(entityPage, entity -> {
-            EduExperimentVO vo = EduExperimentVO.objToVo(entity);
-            enrichClassInfo(vo, entity.getId());
-            return vo;
+            try {
+                EduExperimentVO vo = EduExperimentVO.objToVo(entity);
+                enrichClassInfo(vo, entity.getId());
+                return vo;
+            } catch (Exception e) {
+                log.error("[EduExperiment] VO转换失败: id={}, error={}", entity.getId(), e.getMessage(), e);
+                // 转换失败时返回基础VO，不影响整体分页结果
+                EduExperimentVO fallback = EduExperimentVO.objToVo(entity);
+                fallback.setClassCodes(Collections.emptyList());
+                fallback.setClassNames(Collections.emptyList());
+                fallback.setClassCount(0);
+                return fallback;
+            }
         });
         return voPage;
     }
@@ -95,10 +110,25 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
             vo.setClassNames(classNames);
             vo.setClassCount(classCodes.size());
         } catch (Exception e) {
-            log.warn("[EduExperiment] 补全班级信息失败: experimentId={}, error={}", experimentId, e.getMessage());
+            log.warn("[EduExperiment] 补全班级信息失败: experimentId={}, error={}", experimentId, e.getMessage(), e);
             vo.setClassCodes(Collections.emptyList());
             vo.setClassNames(Collections.emptyList());
             vo.setClassCount(0);
+        }
+        // 单独从数据库读取 instruction_url（因实体字段标记为 exist=false，BeanUtils.copyProperties 无法自动填充）
+        try {
+            List<Map<String, Object>> rows = eduExperimentMapper.selectMaps(
+                Wrappers.<EduExperiment>query()
+                    .select("instruction_url")
+                    .eq("experiment_id", experimentId)
+            );
+            if (!rows.isEmpty()) {
+                Object url = rows.get(0).get("instruction_url");
+                vo.setInstructionUrl(url != null ? url.toString() : null);
+            }
+        } catch (Exception e) {
+            // instruction_url 列不存在时安静跳过，不影响其他数据返回
+            log.debug("[EduExperiment] 读取 instruction_url 失败（列可能不存在）: experimentId={}, error={}", experimentId, e.getMessage());
         }
     }
 

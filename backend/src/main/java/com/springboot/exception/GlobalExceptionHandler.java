@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
-        log.error("RuntimeException", e);
+        log.error("RuntimeException type={} message={}", e.getClass().getName(), e.getMessage(), e);
         return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
     }
 }
