@@ -37,8 +37,18 @@
     <section class="app-surface-card table-card">
       <a-table :columns="columns" :data-source="experiments" :loading="loading" row-key="id" :pagination="paginationConfig" @change="handleTableChange">
         <!-- 实验信息 -->
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'experiment'">
+        <template #bodyCell="{ column, record, index }">
+          <!-- 序号：从 1 开始的行号 -->
+          <template v-if="column.key === 'index'">
+            <span class="row-index">{{ (paginationConfig.current - 1) * paginationConfig.pageSize + index + 1 }}</span>
+          </template>
+
+          <!-- 实验次序：创建时的 sortOrder，显示为"实验N" -->
+          <template v-else-if="column.key === 'experimentNo'">
+            <span class="experiment-order">实验{{ record.sortOrder }}</span>
+          </template>
+
+          <template v-else-if="column.key === 'experiment'">
             <div class="experiment-info">
               <div class="experiment-info__header">
                 <span class="experiment-info__no">实验{{ record.sortOrder }}</span>
@@ -379,6 +389,32 @@ onMounted(() => {
   margin: 0;
   color: var(--color-text-tertiary);
   font-size: 13px;
+}
+
+/* 行序号 */
+.row-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 实验次序 */
+.experiment-order {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--color-primary-light, #e6f7ff);
+  border-radius: 4px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* 下载链接 */
