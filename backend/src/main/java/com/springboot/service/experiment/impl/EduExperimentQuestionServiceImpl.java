@@ -202,17 +202,26 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
 
     @Override
     public DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment) {
+        return importExperimentFromDocx(importRequest, experiment, null);
+    }
+
+    @Override
+    public DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment, org.springframework.web.multipart.MultipartFile file) {
         log.info("[EduExperimentQuestion] 开始从DOCX导入实验");
         if (importRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "导入请求不能为空");
         }
 
-        // 解析docx文档
+        // 解析docx文档：优先使用上传的文件，其次使用fileUrl
         DocxParserUtil.ParseResult parseResult;
-        if (importRequest.getFileUrl() != null && !importRequest.getFileUrl().trim().isEmpty()) {
+        if (file != null && !file.isEmpty()) {
+            log.info("[EduExperimentQuestion] 从上传的MultipartFile解析");
+            parseResult = DocxParserUtil.parseFromMultipartFile(file);
+        } else if (importRequest.getFileUrl() != null && !importRequest.getFileUrl().trim().isEmpty()) {
+            log.info("[EduExperimentQuestion] 从fileUrl解析: {}", importRequest.getFileUrl());
             parseResult = DocxParserUtil.parseFromUrl(importRequest.getFileUrl());
         } else {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件地址不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请上传docx文件或提供文件URL");
         }
 
         // 使用文档中的实验名称（如果请求中指定了实验名称，则使用请求中的）

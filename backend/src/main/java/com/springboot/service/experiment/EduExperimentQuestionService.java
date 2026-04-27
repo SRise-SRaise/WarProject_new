@@ -79,4 +79,14 @@ public interface EduExperimentQuestionService extends IService<EduExperimentQues
      * @return 导入结果
      */
     DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment);
+
+    /**
+     * 从docx文档导入实验（支持直接上传文件）
+     *
+     * @param importRequest 导入请求
+     * @param experiment    实验实体（如果需要创建）
+     * @param file          上传的docx文件（优先于fileUrl）
+     * @return 导入结果
+     */
+    DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment, org.springframework.web.multipart.MultipartFile file);
 }
