@@ -200,12 +200,15 @@ public class DocxParserUtil {
             if (trimmed.isEmpty()) continue;
 
             boolean isNewQuestion = false;
-            // 支持多种题目分隔格式：## 题目1、## 题 1、## 1、题目1、题 1 等
-            if (trimmed.matches("^##\\s*题目\\d+.*") || trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?.*")) {
+            // 严格匹配题目分隔格式，避免将附录说明误识别为题目
+            // 优先匹配 ## 题目N 格式（模板标准格式）
+            if (trimmed.matches("^##\\s*题目\\s*\\d+.*") || trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?\\s*$")) {
                 isNewQuestion = true;
-            } else if (trimmed.matches("^题目\\d+[.、:]?.*") || trimmed.matches("^[题Q]\\s*\\d+[.、:]?.*") && !trimmed.startsWith("【")) {
+            } else if (trimmed.matches("^题目\\s*\\d+\\s*$") || trimmed.matches("^[题Q]\\s*\\d+\\s*$")) {
+                // 仅当整行只有"题目N"或"题 N"时才识别（避免将"选择题（类型码：1）"等误判）
                 isNewQuestion = true;
-            } else if (trimmed.matches("^[一二三四五六七八九十]+[、.、:].*")) {
+            } else if (trimmed.matches("^[一二三四五六七八九十]+[、.]\\s*题目?.*")) {
+                // 匹配"一、题目..."格式
                 isNewQuestion = true;
             }
 

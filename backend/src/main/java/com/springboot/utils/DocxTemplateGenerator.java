@@ -139,10 +139,10 @@ public class DocxTemplateGenerator {
             appRun.setBold(true);
             appRun.setFontSize(14);
 
-            addLabelLine(document, "选择题（类型码：1）", "适用于客观题，有明确选项的题目");
-            addLabelLine(document, "填空题（类型码：2）", "适用于需要填写具体数值或表达式的题目");
-            addLabelLine(document, "编程题（类型码：3）", "适用于需要编写代码的题目，可提供参考代码");
-            addLabelLine(document, "简答题（类型码：4）", "适用于开放性题目，需要文字描述答案");
+            addPlainLine(document, "• 选择题（类型码：1）- 适用于客观题，有明确选项的题目");
+            addPlainLine(document, "• 填空题（类型码：2）- 适用于需要填写具体数值或表达式的题目");
+            addPlainLine(document, "• 编程题（类型码：3）- 适用于需要编写代码的题目，可提供参考代码");
+            addPlainLine(document, "• 简答题（类型码：4）- 适用于开放性题目，需要文字描述答案");
 
             document.createParagraph();
 
@@ -152,9 +152,9 @@ public class DocxTemplateGenerator {
             diffRun.setBold(true);
             diffRun.setFontSize(14);
 
-            addLabelLine(document, "简单（难度码：1）", "基础知识点的直接应用");
-            addLabelLine(document, "中等（难度码：2）", "需要一定理解和综合应用");
-            addLabelLine(document, "困难（难度码：3）", "需要深入理解和创新应用");
+            addPlainLine(document, "• 简单（难度码：1）- 基础知识点的直接应用");
+            addPlainLine(document, "• 中等（难度码：2）- 需要一定理解和综合应用");
+            addPlainLine(document, "• 困难（难度码：3）- 需要深入理解和创新应用");
 
             // 保存到输出流
             document.write(out);
@@ -186,5 +186,15 @@ public class DocxTemplateGenerator {
         XWPFRun contentRun = para.createRun();
         contentRun.setText(content);
         contentRun.setFontSize(11);
+    }
+
+    /**
+     * 添加普通文本行（不加粗，不使用【】格式，避免被解析器误识别）
+     */
+    private static void addPlainLine(XWPFDocument document, String content) {
+        XWPFParagraph para = document.createParagraph();
+        XWPFRun run = para.createRun();
+        run.setText(content);
+        run.setFontSize(11);
     }
 }
