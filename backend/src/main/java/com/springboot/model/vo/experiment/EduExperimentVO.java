@@ -28,6 +28,11 @@ public class EduExperimentVO implements Serializable {
 
     private Integer publishStatus;
 
+    /**
+     * 指导书文件访问路径
+     */
+    private String instructionUrl;
+
     private String categoryName;
 
     private Date createdAt;

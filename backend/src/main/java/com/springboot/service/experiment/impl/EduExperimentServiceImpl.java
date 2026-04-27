@@ -77,9 +77,19 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
     public Page<EduExperimentVO> getEduExperimentVOPage(Page<EduExperiment> entityPage, HttpServletRequest request) {
         log.debug("[EduExperiment] 分页转换为VO: current={}, size={}", entityPage.getCurrent(), entityPage.getSize());
         Page<EduExperimentVO> voPage = ServiceMethodSupport.toVOPage(entityPage, entity -> {
-            EduExperimentVO vo = EduExperimentVO.objToVo(entity);
-            enrichClassInfo(vo, entity.getId());
-            return vo;
+            try {
+                EduExperimentVO vo = EduExperimentVO.objToVo(entity);
+                enrichClassInfo(vo, entity.getId());
+                return vo;
+            } catch (Exception e) {
+                log.error("[EduExperiment] VO转换失败: id={}, error={}", entity.getId(), e.getMessage(), e);
+                // 转换失败时返回基础VO，不影响整体分页结果
+                EduExperimentVO fallback = EduExperimentVO.objToVo(entity);
+                fallback.setClassCodes(Collections.emptyList());
+                fallback.setClassNames(Collections.emptyList());
+                fallback.setClassCount(0);
+                return fallback;
+            }
         });
         return voPage;
     }
@@ -95,7 +105,7 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
             vo.setClassNames(classNames);
             vo.setClassCount(classCodes.size());
         } catch (Exception e) {
-            log.warn("[EduExperiment] 补全班级信息失败: experimentId={}, error={}", experimentId, e.getMessage());
+            log.warn("[EduExperiment] 补全班级信息失败: experimentId={}, error={}", experimentId, e.getMessage(), e);
             vo.setClassCodes(Collections.emptyList());
             vo.setClassNames(Collections.emptyList());
             vo.setClassCount(0);

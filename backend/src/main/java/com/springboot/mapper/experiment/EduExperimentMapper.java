@@ -2,6 +2,7 @@ package com.springboot.mapper.experiment;
 
 import com.springboot.model.entity.experiment.EduExperiment;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
 * @author l1577
@@ -9,6 +10,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @createDate 2026-04-07 11:33:51
 * @Entity com.springboot.model.entity.EduExperiment
 */
+@Mapper
 public interface EduExperimentMapper extends BaseMapper<EduExperiment> {
 
 }

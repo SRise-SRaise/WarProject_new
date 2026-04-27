@@ -6,7 +6,7 @@
         <a-breadcrumb-item>
           <a href="#" @click.prevent="router.push('/admin/experiments/list')">上机实验</a>
         </a-breadcrumb-item>
-        <a-breadcrumb-item>修改</a-breadcrumb-item>
+        <a-breadcrumb-item>{{ isEdit ? '编辑实验' : '新建实验' }}</a-breadcrumb-item>
       </a-breadcrumb>
     </div>
 
@@ -77,9 +77,15 @@
           <a-form-item label="实验指导">
             <div class="file-upload-row">
               <div class="file-info">
-                <template v-if="formState.instructionType">
-                  <a-tag color="blue">{{ formState.instructionType }}</a-tag>
-                  <span class="file-name">{{ formState.instructionFileName }}</span>
+                <template v-if="formState.instructionType || formState.instructionFileName">
+                  <a-tag color="blue">{{ formState.instructionType || 'FILE' }}</a-tag>
+                  <span class="file-name">{{ formState.instructionFileName || '已上传文件' }}</span>
+                  <a
+                    v-if="formState.instructionUrl"
+                    :href="formState.instructionUrl"
+                    target="_blank"
+                    class="view-link"
+                  >查看</a>
                 </template>
                 <span v-else class="no-file">暂无指导文件</span>
               </div>
@@ -88,13 +94,13 @@
                 :show-upload-list="false"
                 accept=".pdf,.doc,.docx"
               >
-                <a-button>
+                <a-button :loading="uploadingInstruction">
                   <template #icon><UploadOutlined /></template>
-                  选择文件
+                  {{ uploadingInstruction ? '上传中...' : '选择文件' }}
                 </a-button>
               </a-upload>
             </div>
-            <p class="form-help-text">支持 PDF、DOC、DOCX 格式文件上传</p>
+            <p class="form-help-text">支持 PDF、DOC、DOCX 格式，最大 10MB。保存实验后文件将自动上传。</p>
           </a-form-item>
 
           <!-- 第六行：发布班级（多选） -->
@@ -139,6 +145,106 @@
         </a-form>
       </div>
     </section>
+
+    <!-- 导入实验步骤区域（发布班级下方，独立卡片） -->
+    <section class="app-surface-card import-card">
+      <div class="import-card__header">
+        <div class="import-card__title-group">
+          <h2 class="import-card__title">导入实验步骤</h2>
+          <p class="import-card__desc">
+            通过上传 .docx 文件，自动解析并导入选择题、填空题、编程题、简答题等步骤内容。
+            <template v-if="!isEdit">
+              <br>
+              <span class="hint-warning">请先保存实验基本信息，保存后即可在此处导入步骤。</span>
+            </template>
+          </p>
+        </div>
+        <!-- 下载模板按钮 -->
+        <button type="button" class="template-download-btn" @click="downloadExperimentTemplate()">
+          <DownloadOutlined />
+          下载参考模板
+        </button>
+      </div>
+
+      <!-- 格式说明 -->
+      <div class="import-format-hint">
+        <div class="format-hint__item">
+          <span class="format-badge">1</span>选择题
+        </div>
+        <div class="format-hint__item">
+          <span class="format-badge">2</span>填空题
+        </div>
+        <div class="format-hint__item">
+          <span class="format-badge">3</span>编程题
+        </div>
+        <div class="format-hint__item">
+          <span class="format-badge">4</span>简答题
+        </div>
+        <span class="format-hint__note">按照模板格式填写后上传，系统自动识别题型</span>
+      </div>
+
+      <!-- 上传区域 -->
+      <div class="import-upload-area" :class="{ 'import-upload-area--disabled': !isEdit }">
+        <a-upload-dragger
+          v-if="isEdit"
+          :before-upload="beforeImportUpload"
+          :show-upload-list="false"
+          accept=".docx"
+          :disabled="importing"
+        >
+          <div class="upload-dragger-content">
+            <InboxOutlined class="upload-dragger-icon" />
+            <p class="upload-dragger-title">点击或拖拽 .docx 文件到此处上传</p>
+            <p class="upload-dragger-hint">仅支持 .docx 格式，文件大小不超过 20MB</p>
+          </div>
+        </a-upload-dragger>
+        <div v-else class="upload-disabled-placeholder">
+          <LockOutlined class="upload-disabled-icon" />
+          <p>请先保存实验基本信息后，再导入实验步骤</p>
+        </div>
+      </div>
+
+      <!-- 导入进度/结果 -->
+      <div v-if="importing" class="import-progress">
+        <a-spin tip="正在解析文档并导入题目，请稍候..." />
+      </div>
+
+      <div v-if="importResult" class="import-result">
+        <a-alert
+          :type="importResult.success ? 'success' : 'error'"
+          :message="importResult.success ? `导入完成：成功 ${importResult.successCount} 题` : '导入失败'"
+          :description="importResult.message"
+          show-icon
+          class="import-result__alert"
+        />
+        <!-- 导入题目预览 -->
+        <div v-if="importResult.questionPreviews && importResult.questionPreviews.length" class="import-preview">
+          <h4 class="import-preview__title">已导入题目预览</h4>
+          <div
+            v-for="q in importResult.questionPreviews"
+            :key="q.index"
+            class="import-preview__item"
+          >
+            <span class="preview-index">{{ q.index }}</span>
+            <span class="preview-type">{{ q.questionTypeName }}</span>
+            <span class="preview-name">{{ q.questionName }}</span>
+            <span class="preview-content">{{ q.contentSummary }}</span>
+          </div>
+        </div>
+        <!-- 失败详情 -->
+        <div v-if="importResult.failCount > 0" class="import-fail-detail">
+          <p class="import-fail-detail__title">失败 {{ importResult.failCount }} 题：</p>
+          <p
+            v-for="(reason, idx) in importResult.failDetails"
+            :key="idx"
+            class="import-fail-detail__item"
+          >
+            第 {{ idx }} 题：{{ reason }}
+          </p>
+        </div>
+        <a-button type="link" class="import-result__clear" @click="importResult = null">清除结果</a-button>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -150,9 +256,19 @@ import type { FormInstance, Rule } from 'ant-design-vue/es/form'
 import {
   RollbackOutlined,
   UploadOutlined,
-  SaveOutlined
+  SaveOutlined,
+  DownloadOutlined,
+  InboxOutlined,
+  LockOutlined
 } from '@ant-design/icons-vue'
-import { addEduExperiment, updateEduExperiment, getEduExperimentVoById } from '@/api/eduExperimentController'
+import {
+  addEduExperiment,
+  updateEduExperiment,
+  getEduExperimentVoById,
+  uploadExperimentInstruction,
+  importExperimentFromDocx,
+  downloadExperimentTemplate
+} from '@/api/eduExperimentController'
 
 interface ExperimentFormState {
   id?: string
@@ -164,7 +280,7 @@ interface ExperimentFormState {
   instructionType: string
   instructionFileName: string
   instructionFile: File | null
-  /** 发布的班级编号列表 */
+  instructionUrl: string
   classCodes: string[]
 }
 
@@ -180,6 +296,9 @@ const saving = ref(false)
 const isEdit = ref(false)
 const allClasses = ref<ClassOption[]>([])
 const loadingClasses = ref(false)
+const uploadingInstruction = ref(false)
+const importing = ref(false)
+const importResult = ref<any>(null)
 
 // 实验类型列表
 const experimentTypes = [
@@ -202,6 +321,7 @@ const formState = reactive<ExperimentFormState>({
   instructionType: '',
   instructionFileName: '',
   instructionFile: null,
+  instructionUrl: '',
   classCodes: []
 })
 
@@ -220,10 +340,11 @@ const pageTitle = computed(() => {
   return isEdit.value ? `编辑实验 - ${formState.name}` : '新建实验'
 })
 
-// 文件上传前处理
+// 指导书文件选择（不立即上传，等保存成功后再上传）
 function beforeUpload(file: File): boolean {
   const isValidType = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)
-  if (!isValidType) {
+  const suffix = file.name.split('.').pop()?.toLowerCase()
+  if (!isValidType && !['pdf', 'doc', 'docx'].includes(suffix || '')) {
     message.error('只支持 PDF、DOC、DOCX 格式文件！')
     return false
   }
@@ -232,12 +353,45 @@ function beforeUpload(file: File): boolean {
     message.error('文件大小不能超过 10MB！')
     return false
   }
-
   formState.instructionFile = file
   formState.instructionType = file.name.split('.').pop()?.toUpperCase() || ''
   formState.instructionFileName = file.name
+  message.info('文件已选择，保存实验后将自动上传')
+  return false
+}
 
-  return false // 阻止自动上传
+// 导入步骤 docx 文件
+async function beforeImportUpload(file: File): Promise<boolean> {
+  if (!file.name.endsWith('.docx')) {
+    message.error('仅支持 .docx 格式文件')
+    return false
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    message.error('文件大小不能超过 20MB')
+    return false
+  }
+  if (!formState.id) {
+    message.warning('请先保存实验基本信息')
+    return false
+  }
+
+  importing.value = true
+  importResult.value = null
+  try {
+    const res: any = await importExperimentFromDocx(formState.id, file)
+    const data = res?.data?.data ?? res?.data
+    importResult.value = data
+    if (data?.success) {
+      message.success(`导入成功：${data.successCount} 道题目`)
+    } else {
+      message.error(data?.message || '导入失败，请检查文档格式')
+    }
+  } catch (err: any) {
+    message.error(err?.message || '导入过程中发生错误')
+  } finally {
+    importing.value = false
+  }
+  return false
 }
 
 // 表单提交
@@ -249,16 +403,13 @@ async function onFinish(): Promise<void> {
     return
   }
 
+  if (!formState.classCodes || formState.classCodes.length === 0) {
+    message.error('请至少选择一个发布班级')
+    return
+  }
+
   saving.value = true
   try {
-    // 必填校验：班级必须选
-    if (!formState.classCodes || formState.classCodes.length === 0) {
-      message.error('请至少选择一个发布班级')
-      saving.value = false
-      return
-    }
-
-    // 构建请求数据
     const requestData: any = {
       sortOrder: formState.no,
       name: formState.name,
@@ -269,21 +420,43 @@ async function onFinish(): Promise<void> {
       classCodes: formState.classCodes
     }
 
+    let savedId: string | undefined
+
     if (isEdit.value) {
-      // 更新实验
       requestData.id = Number(formState.id)
       const res: any = await updateEduExperiment(requestData)
-      if (res.data) {
+      if (res.data !== false) {
+        savedId = formState.id
         message.success(`实验"${formState.name}"已更新`)
-        router.push('/admin/experiments/list')
       }
     } else {
-      // 新建实验
       const res: any = await addEduExperiment(requestData)
-      if (res.data) {
+      const newId = res?.data?.data ?? res?.data
+      if (newId) {
+        savedId = String(newId)
+        formState.id = savedId
+        isEdit.value = true
         message.success(`实验"${formState.name}"已创建`)
+      } else {
+        // 部分后端成功时只返回 true
+        message.success(`实验"${formState.name}"已创建，正在跳转...`)
+        // 上传文件后跳列表
+        await uploadInstructionIfNeeded(undefined)
         router.push('/admin/experiments/list')
+        return
       }
+    }
+
+    // 若有待上传的指导书文件，立即上传
+    if (savedId) {
+      await uploadInstructionIfNeeded(savedId)
+    }
+
+    // 新建成功后跳转列表；编辑停留当前页
+    if (!isEdit.value || !savedId) {
+      router.push('/admin/experiments/list')
+    } else {
+      message.info('可继续在下方导入实验步骤')
     }
   } catch (error: any) {
     message.error(error.message || (isEdit.value ? '更新失败' : '创建失败'))
@@ -292,11 +465,37 @@ async function onFinish(): Promise<void> {
   }
 }
 
+// 上传指导书（如果用户选择了文件）
+async function uploadInstructionIfNeeded(experimentId: string | undefined): Promise<void> {
+  if (!formState.instructionFile) return
+  const id = experimentId || formState.id
+  if (!id) return
+
+  uploadingInstruction.value = true
+  try {
+    const res: any = await uploadExperimentInstruction(id, formState.instructionFile)
+    // attachment 接口返回 EduExperimentAttachmentVO，obsUrl 是访问地址
+    const vo = res?.data?.data ?? res?.data
+    const url = vo?.obsUrl ?? (typeof vo === 'string' ? vo : null)
+    if (url) {
+      formState.instructionUrl = url
+      formState.instructionFileName = formState.instructionFile.name
+      formState.instructionFile = null
+      message.success('指导书上传成功')
+    } else {
+      message.warning('指导书上传失败，请稍后重试')
+    }
+  } catch (err: any) {
+    message.warning('指导书上传失败，可稍后重新选择并保存')
+  } finally {
+    uploadingInstruction.value = false
+  }
+}
+
 // 加载实验数据（编辑模式）
 async function loadExperimentData(id: string): Promise<void> {
   try {
     const res: any = await getEduExperimentVoById({ id } as any)
-    // 兼容 res.data 和 res.data.data 两种后端返回结构
     const detail = res?.data?.data ?? res?.data
     if (detail && detail.id) {
       formState.id = String(detail.id)
@@ -306,9 +505,9 @@ async function loadExperimentData(id: string): Promise<void> {
       formState.requirement = detail.requirement || ''
       formState.content = detail.contentDesc || ''
       formState.instructionType = detail.fileType || ''
-      formState.instructionFileName = ''
+      formState.instructionFileName = detail.instructionUrl ? '已上传文件' : ''
       formState.instructionFile = null
-      // 回显已绑定的班级
+      formState.instructionUrl = detail.instructionUrl || ''
       formState.classCodes = detail.classCodes || []
     } else {
       message.error('未找到实验数据，请确认实验是否存在')
@@ -338,9 +537,7 @@ async function loadAllClasses(): Promise<void> {
 }
 
 onMounted(() => {
-  // 加载全部班级供选择
   loadAllClasses()
-
   const experimentId = route.params.id
   if (experimentId && experimentId !== '0') {
     isEdit.value = true
@@ -359,33 +556,21 @@ onMounted(() => {
 .breadcrumb-nav {
   margin-bottom: var(--space-5);
 }
-
-.breadcrumb-nav :deep(.ant-breadcrumb) {
-  font-size: 14px;
-}
-
-.breadcrumb-nav :deep(.ant-breadcrumb a) {
-  color: var(--color-primary);
-  transition: color 0.2s;
-}
-
-.breadcrumb-nav :deep(.ant-breadcrumb a:hover) {
-  color: var(--color-primary-hover);
-}
+.breadcrumb-nav :deep(.ant-breadcrumb) { font-size: 14px; }
+.breadcrumb-nav :deep(.ant-breadcrumb a) { color: var(--color-primary); transition: color 0.2s; }
+.breadcrumb-nav :deep(.ant-breadcrumb a:hover) { color: var(--color-primary-hover); }
 
 /* 页面头部卡片 */
 .page-header-card {
   padding: var(--space-5);
   margin-bottom: var(--space-5);
 }
-
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-5);
 }
-
 .page-header__eyebrow {
   margin: 0 0 8px;
   color: var(--color-primary);
@@ -394,7 +579,6 @@ onMounted(() => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-
 .page-header__title {
   margin: 0;
   color: var(--color-text-main);
@@ -402,7 +586,6 @@ onMounted(() => {
   font-weight: 700;
   line-height: 1.25;
 }
-
 .page-header__description {
   max-width: 600px;
   margin: 12px 0 0;
@@ -410,129 +593,249 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.65;
 }
-
-.page-header__actions {
-  flex-shrink: 0;
-}
+.page-header__actions { flex-shrink: 0; }
 
 /* 表单卡片 */
 .form-card {
   padding: var(--space-5);
+  margin-bottom: var(--space-5);
 }
+.form-container { max-width: 800px; }
+.experiment-form :deep(.ant-form-item-label > label) { font-weight: 600; color: var(--color-text-main); }
+.experiment-form :deep(.ant-form-item) { margin-bottom: var(--space-5); }
+.experiment-form :deep(.ant-input-textarea textarea) { font-size: 14px; line-height: 1.8; }
 
-.form-container {
-  max-width: 800px;
+.form-row { display: flex; gap: var(--space-5); }
+.form-row__item { flex: 1; }
+.form-row__item--small { flex: 0 0 140px; }
+
+/* 文件上传行 */
+.file-upload-row { display: flex; align-items: center; gap: var(--space-4); }
+.file-info { display: flex; align-items: center; gap: var(--space-3); }
+.file-name { color: var(--color-text-secondary); font-size: 14px; }
+.no-file { color: var(--color-text-tertiary); font-size: 14px; font-style: italic; }
+.view-link {
+  color: var(--color-primary);
+  font-size: 13px;
+  text-decoration: none;
 }
+.view-link:hover { text-decoration: underline; }
 
-/* 表单样式 */
-.experiment-form :deep(.ant-form-item-label > label) {
-  font-weight: 600;
-  color: var(--color-text-main);
-}
+.form-help-text { margin-top: 8px; color: var(--color-text-tertiary); font-size: 12px; }
+.class-selector-tip { width: 100%; }
+.no-classes-hint { color: var(--color-text-tertiary); font-size: 14px; font-style: italic; }
+.class-option { display: flex; align-items: center; gap: 8px; }
+.class-code { font-weight: 600; color: var(--color-primary); }
+.class-name { color: var(--color-text-secondary); font-size: 12px; }
 
-.experiment-form :deep(.ant-form-item) {
+.form-actions { margin-top: var(--space-6); margin-bottom: 0; }
+
+/* ====== 导入步骤卡片 ====== */
+.import-card {
+  padding: var(--space-5);
   margin-bottom: var(--space-5);
 }
 
-.experiment-form :deep(.ant-input-textarea textarea) {
-  font-size: 14px;
-  line-height: 1.8;
-}
-
-/* 表单行布局 */
-.form-row {
+.import-card__header {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
-.form-row__item {
-  flex: 1;
+.import-card__title-group { flex: 1; }
+
+.import-card__title {
+  margin: 0 0 8px;
+  color: var(--color-text-main);
+  font-size: 20px;
+  font-weight: 700;
 }
 
-.form-row__item--small {
-  flex: 0 0 140px;
-}
-
-/* 文件上传行 */
-.file-upload-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.file-name {
+.import-card__desc {
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: 14px;
+  line-height: 1.65;
 }
 
-.no-file {
-  color: var(--color-text-tertiary);
-  font-size: 14px;
-  font-style: italic;
+.hint-warning {
+  color: var(--color-warning, #fa8c16);
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.form-help-text {
-  margin-top: 8px;
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-}
-
-.class-selector-tip {
-  width: 100%;
-}
-
-.no-classes-hint {
-  color: var(--color-text-tertiary);
-  font-size: 14px;
-  font-style: italic;
-}
-
-.class-option {
-  display: flex;
+/* 模板下载按钮 */
+.template-download-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.class-code {
-  font-weight: 600;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 18px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 6px;
   color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.template-download-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
 }
 
-.class-name {
+/* 格式说明条 */
+.import-format-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-bg-muted);
+  border-radius: 8px;
+  margin-bottom: var(--space-5);
+}
+.format-hint__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   color: var(--color-text-secondary);
+}
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.format-hint__note {
+  margin-left: auto;
   font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
-/* 提交按钮 */
-.form-actions {
-  margin-top: var(--space-6);
-  margin-bottom: 0;
+/* 上传区域 */
+.import-upload-area {
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
 }
+.import-upload-area--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.upload-dragger-content {
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+.upload-dragger-icon {
+  font-size: 40px;
+  color: var(--color-primary);
+  margin-bottom: var(--space-3);
+}
+.upload-dragger-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+.upload-dragger-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+/* 禁用占位符 */
+.upload-disabled-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: var(--space-6);
+  border: 2px dashed var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-tertiary);
+}
+.upload-disabled-icon { font-size: 32px; }
+.upload-disabled-placeholder p { margin: 0; font-size: 14px; }
+
+/* 导入进度 */
+.import-progress {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-5);
+}
+
+/* 导入结果 */
+.import-result { margin-top: var(--space-4); }
+.import-result__alert { margin-bottom: var(--space-4); }
+.import-result__clear { padding: 0; font-size: 13px; }
+
+.import-preview { margin-bottom: var(--space-4); }
+.import-preview__title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+.import-preview__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--color-bg-muted);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.preview-index {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.preview-type {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--color-primary-light, #e6f7ff);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.preview-name { font-weight: 600; color: var(--color-text-main); }
+.preview-content { color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.import-fail-detail { padding: 12px 16px; background: #fff2f0; border-radius: 6px; }
+.import-fail-detail__title { margin: 0 0 8px; color: var(--color-danger, #ff4d4f); font-weight: 600; font-size: 13px; }
+.import-fail-detail__item { margin: 0 0 4px; font-size: 13px; color: var(--color-text-secondary); }
 
 /* 响应式 */
 @media (max-width: 768px) {
-  .app-page-shell {
-    padding: var(--space-4);
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .form-row {
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .form-row__item--small {
-    flex: 1;
-  }
+  .app-page-shell { padding: var(--space-4); }
+  .page-header { flex-direction: column; gap: var(--space-4); }
+  .form-row { flex-direction: column; gap: 0; }
+  .form-row__item--small { flex: 1; }
+  .import-card__header { flex-direction: column; }
+  .template-download-btn { width: 100%; justify-content: center; }
+  .format-hint__note { display: none; }
 }
 </style>

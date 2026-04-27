@@ -60,9 +60,16 @@
 
           <!-- 指导书下载 -->
           <template v-else-if="column.key === 'instruction'">
-            <a :href="record.instructionUrl" target="_blank" class="download-link" title="下载指导书">
+            <a
+              v-if="record.instructionUrl"
+              :href="record.instructionUrl"
+              target="_blank"
+              class="download-link"
+              title="下载指导书"
+            >
               <DownloadOutlined />
             </a>
+            <span v-else class="no-instruction" title="暂无指导书">—</span>
           </template>
 
           <!-- 详情 -->
@@ -241,8 +248,8 @@ async function loadExperiments(): Promise<void> {
       categoryId: item.categoryId,
       categoryName: item.categoryName || getCategoryName(item.categoryId),
       fileType: item.fileType,
-      instructionType: item.fileType || 'PDF',
-      instructionUrl: '#',
+      instructionType: item.fileType || '',
+      instructionUrl: item.instructionUrl || '',
       publishStatus: item.publishStatus,
       requirement: item.requirement,
       contentDesc: item.contentDesc,
@@ -412,6 +419,19 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* 无指导书占位 */
+.no-instruction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-tertiary);
+  font-size: 16px;
+  border-radius: 6px;
+  background: var(--color-bg-muted);
 }
 
 /* 下载链接 */

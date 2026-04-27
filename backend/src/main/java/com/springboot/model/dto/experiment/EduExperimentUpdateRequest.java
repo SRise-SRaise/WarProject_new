@@ -17,6 +17,8 @@ public class EduExperimentUpdateRequest implements Serializable {
 
     private String fileType;
 
+    private String instructionUrl;
+
     private String requirement;
 
     private String contentDesc;

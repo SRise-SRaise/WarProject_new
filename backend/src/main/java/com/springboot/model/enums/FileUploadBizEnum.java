@@ -16,7 +16,12 @@ public enum FileUploadBizEnum {
     /**
      * 资料/课件上传文件（用于教学资料管理、学生资料下载等）
      */
-    LECTURE_MATERIAL("资料文件", "lecture_material");
+    LECTURE_MATERIAL("资料文件", "lecture_material"),
+
+    /**
+     * 实验指导书文件（PDF/DOC/DOCX）
+     */
+    EXPERIMENT_INSTRUCTION("实验指导书", "experiment_instruction");
 
     private final String text;
 

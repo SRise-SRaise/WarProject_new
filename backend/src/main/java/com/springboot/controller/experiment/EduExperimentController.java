@@ -168,7 +168,7 @@ public class EduExperimentController {
             return ResultUtils.success(Collections.emptyList());
         }
 
-        // 查询学生及其班级信息
+        // ���询学生及其班级信息
         List<AuthStudent> students = authStudentMapper.selectBatchIds(studentIds);
         Set<String> classCodes = students.stream()
                 .map(AuthStudent::getClassCode)
