@@ -200,9 +200,10 @@ public class DocxParserUtil {
             if (trimmed.isEmpty()) continue;
 
             boolean isNewQuestion = false;
-            if (trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?.*")) {
+            // 支持多种题目分隔格式：## 题目1、## 题 1、## 1、题目1、题 1 等
+            if (trimmed.matches("^##\\s*题目\\d+.*") || trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?.*")) {
                 isNewQuestion = true;
-            } else if (trimmed.matches("^[题Q]\\s*\\d+[.、:]?.*") && !trimmed.startsWith("【")) {
+            } else if (trimmed.matches("^题目\\d+[.、:]?.*") || trimmed.matches("^[题Q]\\s*\\d+[.、:]?.*") && !trimmed.startsWith("【")) {
                 isNewQuestion = true;
             } else if (trimmed.matches("^[一二三四五六七八九十]+[、.、:].*")) {
                 isNewQuestion = true;
@@ -211,8 +212,11 @@ public class DocxParserUtil {
             if (isNewQuestion) {
                 if (currentQuestion != null) { questions.add(currentQuestion); }
                 currentQuestion = new QuestionInfo();
+                // 提取题目名称：移除 ##、题目N、题 N 等前缀
                 String qName = trimmed.replaceFirst("^##\\s*", "")
+                        .replaceFirst("^题目\\d+[.、:]?\\s*", "")
                         .replaceFirst("^[题Q]\\s*\\d+[.、:]?\\s*", "")
+                        .replaceFirst("^\\d+[.、:]?\\s*", "")
                         .replaceFirst("^[一二三四五六七八九十]+[、.、:、\\s]*", "");
                 if (!qName.trim().isEmpty()) { currentQuestion.setQuestionName(qName.trim()); }
                 continue;
