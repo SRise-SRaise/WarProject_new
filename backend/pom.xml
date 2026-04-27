@@ -89,7 +89,7 @@
             <artifactId>easyexcel</artifactId>
             <version>3.1.1</version>
             <exclusions>
-                <!-- 排除 easyexcel 内置的旧版 poi，统一使用下方声明的 5.2.5 版本 -->
+                <!-- 排除 easyexcel 内置的旧版 poi 和 xmlbeans，统一使用下方声明的版本 -->
                 <exclusion>
                     <groupId>org.apache.poi</groupId>
                     <artifactId>poi</artifactId>
@@ -97,6 +97,14 @@
                 <exclusion>
                     <groupId>org.apache.poi</groupId>
                     <artifactId>poi-ooxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml-schemas</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.xmlbeans</groupId>
+                    <artifactId>xmlbeans</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -109,6 +117,18 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <!-- xmlbeans 必须与 poi-ooxml 5.2.5 配套使用，显式声明避免旧版冲突 -->
+        <dependency>
+            <groupId>org.apache.xmlbeans</groupId>
+            <artifactId>xmlbeans</artifactId>
+            <version>5.1.1</version>
+        </dependency>
+        <!-- poi-ooxml-full 包含完整的 OOXML schemas，避免 CTDocument1 等类缺失 -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-full</artifactId>
             <version>5.2.5</version>
         </dependency>
         <!-- https://hutool.cn/docs/index.html#/-->
