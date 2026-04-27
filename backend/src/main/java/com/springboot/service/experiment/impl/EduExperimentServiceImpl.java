@@ -3,7 +3,6 @@ package com.springboot.service.experiment.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.springboot.mapper.experiment.EduExperimentMapper;
 import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
@@ -18,14 +17,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, EduExperiment> implements EduExperimentService {
-
-    @Resource
-    private EduExperimentMapper eduExperimentMapper;
 
     @Resource
     private ExperimentClassService experimentClassService;
@@ -114,21 +109,6 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
             vo.setClassCodes(Collections.emptyList());
             vo.setClassNames(Collections.emptyList());
             vo.setClassCount(0);
-        }
-        // 单独从数据库读取 instruction_url（因实体字段标记为 exist=false，BeanUtils.copyProperties 无法自动填充）
-        try {
-            List<Map<String, Object>> rows = eduExperimentMapper.selectMaps(
-                Wrappers.<EduExperiment>query()
-                    .select("instruction_url")
-                    .eq("experiment_id", experimentId)
-            );
-            if (!rows.isEmpty()) {
-                Object url = rows.get(0).get("instruction_url");
-                vo.setInstructionUrl(url != null ? url.toString() : null);
-            }
-        } catch (Exception e) {
-            // instruction_url 列不存在时安静跳过，不影响其他数据返回
-            log.debug("[EduExperiment] 读取 instruction_url 失败（列可能不存在）: experimentId={}, error={}", experimentId, e.getMessage());
         }
     }
 

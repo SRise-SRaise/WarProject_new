@@ -86,7 +86,10 @@ export async function listEduExperimentVoByPage(
   );
 }
 
-/** 上传实验指导书文件 POST /experiment/eduExperiment/upload/instruction */
+/**
+ * 上传实验指导书文件（复用 attachment 上传接口，resultId=0/studentId=0 标识教师端上传）
+ * POST /experiment/attachment/upload
+ */
 export async function uploadExperimentInstruction(
   experimentId: number | string,
   file: File,
@@ -94,8 +97,10 @@ export async function uploadExperimentInstruction(
 ) {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('experimentId', String(experimentId))
-  return request<API.BaseResponseString>('/experiment/eduExperiment/upload/instruction', {
+  // 教师端指导书：用 experimentId 作为 resultId，studentId=0 标识非学生上传
+  formData.append('resultId', String(experimentId))
+  formData.append('studentId', '0')
+  return request<any>('/experiment/attachment/upload', {
     method: 'POST',
     data: formData,
     ...(options || {})
@@ -118,9 +123,9 @@ export async function importExperimentFromDocx(
   })
 }
 
-/** 获取实验文档导入模板下载地址（直接返回完整URL供下载使用） */
-export function getExperimentTemplateDownloadUrl(): string {
-  return '/api/experiment/eduExperiment/template/download'
+/** 触发实验文档导入模板下载（通过浏览器原生下载，绕过 axios 拦截器） */
+export function downloadExperimentTemplate(): void {
+  window.open('/api/experiment/eduExperiment/template/download', '_blank')
 }
 
 /** 此处后端没有提供注释 POST /experiment/eduExperiment/update */

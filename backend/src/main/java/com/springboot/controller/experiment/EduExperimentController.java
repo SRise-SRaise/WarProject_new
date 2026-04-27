@@ -41,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import cn.hutool.core.io.FileUtil;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,12 +49,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/experiment/eduExperiment")
 public class EduExperimentController {
-
-    @Resource
-    private com.springboot.service.cloud.ObsUploadService obsUploadService;
-
-    @Resource
-    private com.springboot.mapper.experiment.EduExperimentMapper eduExperimentMapper;
 
     @Resource
     private EduExperimentService eduExperimentService;
@@ -175,7 +168,7 @@ public class EduExperimentController {
             return ResultUtils.success(Collections.emptyList());
         }
 
-        // 查询学生及其班级信息
+        // ���询学生及其班级信息
         List<AuthStudent> students = authStudentMapper.selectBatchIds(studentIds);
         Set<String> classCodes = students.stream()
                 .map(AuthStudent::getClassCode)
@@ -247,47 +240,6 @@ public class EduExperimentController {
         ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR, "每页数量不能超过200");
         Page<EduExperiment> page = eduExperimentService.page(new Page<>(current, size), eduExperimentService.getQueryWrapper(queryRequest));
         return ResultUtils.success(eduExperimentService.getEduExperimentVOPage(page, null));
-    }
-
-    /**
-     * 上传实验指导书文件，并将访问路径保存到实验记录
-     */
-    @PostMapping("/upload/instruction")
-    public BaseResponse<String> uploadInstruction(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("experimentId") Long experimentId) {
-
-        log.info("[EduExperiment] 上传指导书: experimentId={}, fileName={}",
-                experimentId, file != null ? file.getOriginalFilename() : "null");
-
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件不能为空");
-        }
-        if (experimentId == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "实验ID不能为空");
-        }
-
-        // 校验文件类型
-        String fileSuffix = FileUtil.getSuffix(file.getOriginalFilename());
-        if (!java.util.Arrays.asList("pdf", "doc", "docx").contains(fileSuffix)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "指导书只支持 PDF、DOC、DOCX 格式");
-        }
-
-        // 通过 ObsUploadService 上传（自动走 OBS 或本地降级）
-        com.springboot.service.cloud.ObsUploadService.ObsUploadResult uploadResult =
-                obsUploadService.uploadFile(file, "experiment_instruction", experimentId);
-
-        if (!uploadResult.isSuccess()) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "文件上传失败");
-        }
-
-        // 将 URL 和文件类型通过原生 SQL 写入（绕过实体字段 exist=false 的限制）
-        String fileUrl = uploadResult.getObsUrl();
-        int rows = eduExperimentMapper.updateInstructionUrl(experimentId, fileUrl, fileSuffix.toUpperCase());
-        ThrowUtils.throwIf(rows == 0, ErrorCode.OPERATION_ERROR, "更新指导书路径失败，请确认实验ID是否正确");
-
-        log.info("[EduExperiment] 指导书上传成功: experimentId={}, url={}", experimentId, fileUrl);
-        return ResultUtils.success(fileUrl);
     }
 
     /**

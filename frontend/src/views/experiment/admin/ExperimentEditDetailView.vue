@@ -160,14 +160,10 @@
           </p>
         </div>
         <!-- 下载模板按钮 -->
-        <a
-          :href="templateDownloadUrl"
-          download="实验文档导入模板.docx"
-          class="template-download-btn"
-        >
+        <button type="button" class="template-download-btn" @click="downloadExperimentTemplate()">
           <DownloadOutlined />
           下载参考模板
-        </a>
+        </button>
       </div>
 
       <!-- 格式说明 -->
@@ -271,7 +267,7 @@ import {
   getEduExperimentVoById,
   uploadExperimentInstruction,
   importExperimentFromDocx,
-  getExperimentTemplateDownloadUrl
+  downloadExperimentTemplate
 } from '@/api/eduExperimentController'
 
 interface ExperimentFormState {
@@ -303,8 +299,6 @@ const loadingClasses = ref(false)
 const uploadingInstruction = ref(false)
 const importing = ref(false)
 const importResult = ref<any>(null)
-
-const templateDownloadUrl = getExperimentTemplateDownloadUrl()
 
 // 实验类型列表
 const experimentTypes = [
@@ -480,11 +474,16 @@ async function uploadInstructionIfNeeded(experimentId: string | undefined): Prom
   uploadingInstruction.value = true
   try {
     const res: any = await uploadExperimentInstruction(id, formState.instructionFile)
-    const url = res?.data?.data ?? res?.data
+    // attachment 接口返回 EduExperimentAttachmentVO，obsUrl 是访问地址
+    const vo = res?.data?.data ?? res?.data
+    const url = vo?.obsUrl ?? (typeof vo === 'string' ? vo : null)
     if (url) {
       formState.instructionUrl = url
+      formState.instructionFileName = formState.instructionFile.name
       formState.instructionFile = null
       message.success('指导书上传成功')
+    } else {
+      message.warning('指导书上传失败，请稍后重试')
     }
   } catch (err: any) {
     message.warning('指导书上传失败，可稍后重新选择并保存')
