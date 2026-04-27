@@ -1,61 +1,21 @@
 <template>
   <div class="fill-blank-question">
-    <div class="question-content" v-html="renderedContent"></div>
-
-    <div class="answer-section">
-      <div class="blank-hint">请在下方填写答案：</div>
-      <div class="blanks-inputs">
-        <div class="blank-item" v-if="blankCount >= 1">
-          <span class="blank-number">1</span>
+    <!-- 题目内容：将 ____ 替换为内联输入框 -->
+    <div class="question-content">
+      <template v-for="(part, i) in contentParts" :key="i">
+        <span v-if="part.type === 'text'" class="content-text" v-html="part.value"></span>
+        <span v-else class="blank-wrapper">
+          <span class="blank-index">{{ part.index }}</span>
           <input
+            class="blank-inline-input"
             type="text"
-            class="blank-input"
-            v-model="answer1"
-            placeholder="第 1 空答案"
+            :value="answers[part.index! - 1]"
+            :placeholder="`第 ${part.index} 空`"
             :disabled="readOnly"
+            @input="onInput(part.index! - 1, ($event.target as HTMLInputElement).value)"
           />
-        </div>
-        <div class="blank-item" v-if="blankCount >= 2">
-          <span class="blank-number">2</span>
-          <input
-            type="text"
-            class="blank-input"
-            v-model="answer2"
-            placeholder="第 2 空答案"
-            :disabled="readOnly"
-          />
-        </div>
-        <div class="blank-item" v-if="blankCount >= 3">
-          <span class="blank-number">3</span>
-          <input
-            type="text"
-            class="blank-input"
-            v-model="answer3"
-            placeholder="第 3 空答案"
-            :disabled="readOnly"
-          />
-        </div>
-        <div class="blank-item" v-if="blankCount >= 4">
-          <span class="blank-number">4</span>
-          <input
-            type="text"
-            class="blank-input"
-            v-model="answer4"
-            placeholder="第 4 空答案"
-            :disabled="readOnly"
-          />
-        </div>
-        <div class="blank-item" v-if="blankCount >= 5">
-          <span class="blank-number">5</span>
-          <input
-            type="text"
-            class="blank-input"
-            v-model="answer5"
-            placeholder="第 5 空答案"
-            :disabled="readOnly"
-          />
-        </div>
-      </div>
+        </span>
+      </template>
     </div>
   </div>
 </template>
@@ -83,185 +43,133 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// 使用独立的 ref 变量
-const answer1 = ref('')
-const answer2 = ref('')
-const answer3 = ref('')
-const answer4 = ref('')
-const answer5 = ref('')
+// 内部答案数组
+const answers = ref<string[]>([])
 
-// 计算填空数量
+// 将题目内容按 ____ 分割为文字段和填空段
+interface ContentPart {
+  type: 'text' | 'blank'
+  value?: string
+  index?: number
+}
+
+const contentParts = computed((): ContentPart[] => {
+  if (!props.content) return []
+  const segments = props.content.split(/____/)
+  const parts: ContentPart[] = []
+  segments.forEach((seg, i) => {
+    if (seg) {
+      parts.push({ type: 'text', value: seg })
+    }
+    if (i < segments.length - 1) {
+      parts.push({ type: 'blank', index: i + 1 })
+    }
+  })
+  return parts
+})
+
+// 填空数量
 const blankCount = computed(() => {
   if (!props.content) return 0
   const matches = props.content.match(/____/g)
   return matches ? matches.length : 0
 })
 
-// 渲染后的内容
-const renderedContent = computed(() => {
-  if (!props.content) return ''
-  let index = 0
-  return props.content.replace(/____/g, () => {
-    index++
-    return `<span class="blank-marker">
-      <span class="blank-circle">${index}</span>
-      <span class="blank-underline"></span>
-    </span>`
-  })
-})
+// 初始化答案数组长度
+watch(blankCount, (n) => {
+  while (answers.value.length < n) answers.value.push('')
+}, { immediate: true })
 
-// 获取所有答案
-function getAnswers(): string[] {
-  const answers: string[] = []
-  answers.push(answer1.value)
-  answers.push(answer2.value)
-  answers.push(answer3.value)
-  answers.push(answer4.value)
-  answers.push(answer5.value)
-  return answers.slice(0, blankCount.value)
-}
-
-// 监听每个答案的变化
-function onAnswerChange() {
-  const answers = getAnswers()
-  emit('update:modelValue', answers)
-  emit('answerChange', '', answers.join(','))
-}
-
-watch(answer1, onAnswerChange)
-watch(answer2, onAnswerChange)
-watch(answer3, onAnswerChange)
-watch(answer4, onAnswerChange)
-watch(answer5, onAnswerChange)
-
-// 监听 props.modelValue 变化，初始化答案
-watch(() => props.modelValue, (newVal) => {
-  if (newVal && newVal.length > 0) {
-    answer1.value = newVal[0] || ''
-    answer2.value = newVal[1] || ''
-    answer3.value = newVal[2] || ''
-    answer4.value = newVal[3] || ''
-    answer5.value = newVal[4] || ''
+// 当外部传入 modelValue 时同步
+watch(() => props.modelValue, (val) => {
+  if (val && val.length > 0) {
+    answers.value = [...val]
+    while (answers.value.length < blankCount.value) answers.value.push('')
   }
 }, { immediate: true, deep: true })
+
+function onInput(index: number, value: string) {
+  answers.value[index] = value
+  emit('update:modelValue', [...answers.value])
+  emit('answerChange', '', answers.value.join(','))
+}
 </script>
 
 <style scoped>
 .fill-blank-question {
-  padding: 16px 0;
+  padding: 12px 0;
 }
 
 .question-content {
   font-size: 16px;
-  line-height: 2;
+  line-height: 2.4;
   color: var(--color-text-main, #262626);
-  margin-bottom: 20px;
+  word-break: break-word;
 }
 
-:deep(.blank-marker) {
+.content-text {
+  white-space: pre-wrap;
+}
+
+/* 填空单元：序号 + 下划线输入框，全部内联 */
+.blank-wrapper {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   margin: 0 4px;
-  vertical-align: baseline;
+  vertical-align: middle;
 }
 
-:deep(.blank-circle) {
+.blank-index {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--color-primary, #1890ff);
   color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
-:deep(.blank-underline) {
+.blank-inline-input {
   display: inline-block;
-  width: 80px;
-  border-bottom: 2px solid var(--color-primary, #1890ff);
-  color: transparent;
-  letter-spacing: 2px;
-}
-
-.answer-section {
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #e8e8e8;
-}
-
-.blank-hint {
-  font-size: 14px;
-  color: var(--color-text-secondary, #8c8c8c);
-  margin-bottom: 12px;
-}
-
-.blanks-inputs {
-  display: grid;
-  gap: 12px;
-}
-
-.blank-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.blank-number {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--color-primary-light, #e6f7ff);
-  color: var(--color-primary, #1890ff);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.blank-input {
-  flex: 1;
-  padding: 8px 12px;
+  width: 140px;
+  padding: 0 6px 2px;
   font-size: 15px;
-  line-height: 1.5;
-  color: #262626;
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
+  color: var(--color-text-main, #262626);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--color-primary, #1890ff);
+  border-radius: 0;
   outline: none;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  vertical-align: middle;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  line-height: 1.6;
 }
 
-.blank-input:focus {
-  border-color: var(--color-primary, #1890ff);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+.blank-inline-input:focus {
+  border-bottom-color: var(--color-primary-hover, #096dd9);
+  box-shadow: 0 2px 0 0 rgba(24, 144, 255, 0.2);
 }
 
-.blank-input:disabled {
-  background: #f5f5f5;
-  color: #bfbfbf;
+.blank-inline-input:disabled {
+  color: var(--color-text-tertiary, #bfbfbf);
+  border-bottom-color: #d9d9d9;
   cursor: not-allowed;
 }
 
-.blank-input::placeholder {
+.blank-inline-input::placeholder {
   color: #bfbfbf;
+  font-size: 13px;
 }
 
 @media (max-width: 576px) {
-  :deep(.blank-underline) {
-    width: 60px;
-  }
-
-  .blank-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+  .blank-inline-input {
+    width: 100px;
   }
 }
 </style>
