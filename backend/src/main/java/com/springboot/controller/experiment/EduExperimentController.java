@@ -330,17 +330,25 @@ public class EduExperimentController {
      */
     @GetMapping("/template/download")
     public ResponseEntity<byte[]> downloadTemplate() {
-        log.debug("[EduExperiment] 下载实验导入模板");
+        log.info("[EduExperiment] 下载实验导入模板");
         try {
             byte[] templateBytes = DocxTemplateGenerator.generateTemplate();
 
+            // 中文文件名需要 RFC 5987 编码，避免部分容器抛 IllegalArgumentException
+            String encodedFilename = java.net.URLEncoder
+                    .encode("实验文档导入模板.docx", java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("+", "%20");
+
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-            headers.setContentDispositionFormData("attachment", "实验文档导入模板.docx");
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"template.docx\"; filename*=UTF-8''" + encodedFilename);
             headers.setContentLength(templateBytes.length);
 
             return new ResponseEntity<>(templateBytes, headers, HttpStatus.OK);
         } catch (Exception e) {
+            log.error("[EduExperiment] 生成模板失败", e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成模板文件失败: " + e.getMessage());
         }
     }
