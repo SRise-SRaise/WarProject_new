@@ -50,11 +50,8 @@
 
           <template v-else-if="column.key === 'experiment'">
             <div class="experiment-info">
-              <div class="experiment-info__header">
-                <span class="experiment-info__no">实验{{ record.sortOrder }}</span>
-                <div class="experiment-info__tags">
-                  <a-tag v-for="tag in record.tags" :key="tag" color="blue">{{ tag }}</a-tag>
-                </div>
+              <div v-if="record.tags && record.tags.length" class="experiment-info__tags">
+                <a-tag v-for="tag in record.tags" :key="tag" color="blue">{{ tag }}</a-tag>
               </div>
               <h3 class="experiment-info__name">{{ record.name }}</h3>
               <p class="experiment-info__type">{{ record.categoryName }}</p>

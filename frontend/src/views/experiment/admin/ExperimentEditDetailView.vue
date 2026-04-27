@@ -296,18 +296,22 @@ async function onFinish(): Promise<void> {
 async function loadExperimentData(id: string): Promise<void> {
   try {
     const res: any = await getEduExperimentVoById({ id } as any)
-    if (res.data) {
-      formState.id = String(res.data.id)
-      formState.no = res.data.sortOrder || 1
-      formState.name = res.data.name || ''
-      formState.type = res.data.categoryId || null
-      formState.requirement = res.data.requirement || ''
-      formState.content = res.data.contentDesc || ''
-      formState.instructionType = res.data.fileType || ''
+    // 兼容 res.data 和 res.data.data 两种后端返回结构
+    const detail = res?.data?.data ?? res?.data
+    if (detail && detail.id) {
+      formState.id = String(detail.id)
+      formState.no = detail.sortOrder || 1
+      formState.name = detail.name || ''
+      formState.type = detail.categoryId || null
+      formState.requirement = detail.requirement || ''
+      formState.content = detail.contentDesc || ''
+      formState.instructionType = detail.fileType || ''
       formState.instructionFileName = ''
       formState.instructionFile = null
       // 回显已绑定的班级
-      formState.classCodes = res.data.classCodes || []
+      formState.classCodes = detail.classCodes || []
+    } else {
+      message.error('未找到实验数据，请确认实验是否存在')
     }
   } catch (error) {
     message.error('加载实验数据失败')
