@@ -28,10 +28,8 @@ import com.springboot.utils.DocxTemplateGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -44,12 +42,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import cn.hutool.core.io.FileUtil;
-import com.springboot.constant.FileConstant;
-import com.springboot.utils.FileUrlBuilder;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -59,8 +51,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/experiment/eduExperiment")
 public class EduExperimentController {
 
-    @Value("${spring.file.upload.path}")
-    private String uploadPath;
+    @Resource
+    private com.springboot.service.cloud.ObsUploadService obsUploadService;
 
     @Resource
     private EduExperimentService eduExperimentService;
@@ -272,38 +264,22 @@ public class EduExperimentController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "实验ID不能为空");
         }
 
-        // 校验文件类型和大小
+        // 校验文件类型
         String fileSuffix = FileUtil.getSuffix(file.getOriginalFilename());
         if (!java.util.Arrays.asList("pdf", "doc", "docx").contains(fileSuffix)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "指导书只支持 PDF、DOC、DOCX 格式");
         }
-        if (file.getSize() > 10 * 1024 * 1024L) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 10MB");
-        }
 
-        // 保存文件到本地
-        String uuid = RandomStringUtils.randomAlphanumeric(8);
-        String filename = uuid + "-" + file.getOriginalFilename();
-        String filepath = "experiment_instruction/" + filename;
-        File targetFile = new File(uploadPath, filepath);
-        File dir = targetFile.getParentFile();
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        try (InputStream inputStream = file.getInputStream();
-             FileOutputStream outputStream = new FileOutputStream(targetFile)) {
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-        } catch (Exception e) {
-            log.error("[EduExperiment] 指导书上传失败: experimentId={}", experimentId, e);
+        // 通过 ObsUploadService 上传（自动走 OBS 或本地降级）
+        com.springboot.service.cloud.ObsUploadService.ObsUploadResult uploadResult =
+                obsUploadService.uploadFile(file, "experiment_instruction", experimentId);
+
+        if (!uploadResult.isSuccess()) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "文件上传失败");
         }
 
-        // 构建访问 URL 并更新实验记录
-        String fileUrl = FileUrlBuilder.build(FileConstant.LOCAL_HOST, filepath);
+        // 将 URL 和文件类型回写到实验记录
+        String fileUrl = uploadResult.getObsUrl();
         EduExperiment entity = new EduExperiment();
         entity.setId(experimentId);
         entity.setInstructionUrl(fileUrl);
