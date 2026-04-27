@@ -93,6 +93,15 @@ public class FileController {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
             }
         }
+        if (FileUploadBizEnum.EXPERIMENT_INSTRUCTION.equals(fileUploadBizEnum)) {
+            final long TEN_M = 10 * ONE_M;
+            if (fileSize > TEN_M) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 10MB");
+            }
+            if (!Arrays.asList("pdf", "doc", "docx").contains(fileSuffix)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "指导书只支持 PDF、DOC、DOCX 格式");
+            }
+        }
     }
 
     /**

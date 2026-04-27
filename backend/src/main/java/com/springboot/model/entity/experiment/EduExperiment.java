@@ -64,6 +64,12 @@ public class EduExperiment implements Serializable {
     private Integer publishStatus;
 
     /**
+     * 指导书文件访问路径
+     */
+    @TableField(value = "instruction_url")
+    private String instructionUrl;
+
+    /**
      * 
      */
     @TableField(exist = false)

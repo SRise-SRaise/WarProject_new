@@ -86,6 +86,43 @@ export async function listEduExperimentVoByPage(
   );
 }
 
+/** 上传实验指导书文件 POST /experiment/eduExperiment/upload/instruction */
+export async function uploadExperimentInstruction(
+  experimentId: number | string,
+  file: File,
+  options?: { [key: string]: any }
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('experimentId', String(experimentId))
+  return request<API.BaseResponseString>('/experiment/eduExperiment/upload/instruction', {
+    method: 'POST',
+    data: formData,
+    ...(options || {})
+  })
+}
+
+/** 从 docx 文件导入实验步骤题目 POST /experiment/eduExperiment/import/docx */
+export async function importExperimentFromDocx(
+  experimentId: number | string,
+  file: File,
+  options?: { [key: string]: any }
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('experimentId', String(experimentId))
+  return request<any>('/experiment/eduExperiment/import/docx', {
+    method: 'POST',
+    data: formData,
+    ...(options || {})
+  })
+}
+
+/** 获取实验文档导入模板下载地址（直接返回完整URL供下载使用） */
+export function getExperimentTemplateDownloadUrl(): string {
+  return '/api/experiment/eduExperiment/template/download'
+}
+
 /** 此处后端没有提供注释 POST /experiment/eduExperiment/update */
 export async function updateEduExperiment(
   body: API.EduExperimentUpdateRequest,
