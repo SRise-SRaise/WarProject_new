@@ -229,7 +229,7 @@ class ExperimentRepository {
     try {
       const requestData = {
         current: 1,
-        pageSize: 100
+        pageSize: 200
       }
 
       const response = await fetch('/api/experiment/eduExperiment/list/page/vo', {
@@ -247,7 +247,7 @@ class ExperimentRepository {
         backendData = JSON.parse(responseText)
       } catch (e) {
         console.error('[Repository] JSON 解析失败:', e)
-        return CommonUtil.deepClone(this.adminExperiments)
+        return []
       }
 
       if (backendData?.code === 0) {
@@ -256,11 +256,11 @@ class ExperimentRepository {
         return records.map((item: any) => dataTransformerFactory.toAdminItem(item))
       }
 
-      console.log('[Repository] 教师端获取实验列表失败:', backendData?.message || '未知错误')
-      return CommonUtil.deepClone(this.adminExperiments)
+      console.error('[Repository] 教师端获取实验列表失败:', backendData?.message || '未知错误')
+      return []
     } catch (error: any) {
       console.error('[Repository] 教师端获取实验列表失败:', error?.message || error)
-      return CommonUtil.deepClone(this.adminExperiments)
+      return []
     }
   }
 
@@ -284,7 +284,7 @@ class ExperimentRepository {
         return dataTransformerFactory.toAdminItem(backendData.data)
       }
 
-      console.log('[Repository] 获取实验详情失败:', backendData?.message || '未知错误')
+      console.error('[Repository] 获取实验详情失败:', backendData?.message || '未知错误')
       return null
     } catch (error: any) {
       console.error('[Repository] 获取实验详情失败:', error?.message || error)

@@ -200,19 +200,24 @@ public class DocxParserUtil {
             if (trimmed.isEmpty()) continue;
 
             boolean isNewQuestion = false;
-            if (trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?.*")) {
+            // 严格匹配题目分隔格式，避免将附录说明（如"二、题目列表"、"三、题目类型参考"）误识别为题目
+            // 只匹配 ## 题目N 格式（模板标准格式）
+            if (trimmed.matches("^##\\s*题目\\s*\\d+.*") || trimmed.matches("^##\\s*[题Q]\\s*\\d+.*") || trimmed.matches("^##\\s*\\d+[.、:]?\\s*$")) {
                 isNewQuestion = true;
-            } else if (trimmed.matches("^[题Q]\\s*\\d+[.、:]?.*") && !trimmed.startsWith("【")) {
-                isNewQuestion = true;
-            } else if (trimmed.matches("^[一二三四五六七八九十]+[、.、:].*")) {
+            } else if (trimmed.matches("^题目\\s*\\d+\\s*$") || trimmed.matches("^[题Q]\\s*\\d+\\s*$")) {
+                // 仅当整行只有"题目N"或"题 N"时才识别
                 isNewQuestion = true;
             }
+            // 注意：不再匹配 "一、题目..."、"二、题目列表" 等格式，避免将章节标题误判为题目
 
             if (isNewQuestion) {
                 if (currentQuestion != null) { questions.add(currentQuestion); }
                 currentQuestion = new QuestionInfo();
+                // 提取题目名称：移除 ##、题目N、题 N 等前缀
                 String qName = trimmed.replaceFirst("^##\\s*", "")
+                        .replaceFirst("^题目\\d+[.、:]?\\s*", "")
                         .replaceFirst("^[题Q]\\s*\\d+[.、:]?\\s*", "")
+                        .replaceFirst("^\\d+[.、:]?\\s*", "")
                         .replaceFirst("^[一二三四五六七八九十]+[、.、:、\\s]*", "");
                 if (!qName.trim().isEmpty()) { currentQuestion.setQuestionName(qName.trim()); }
                 continue;

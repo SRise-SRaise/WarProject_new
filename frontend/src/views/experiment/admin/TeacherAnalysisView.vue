@@ -31,10 +31,18 @@
     <section class="app-surface-card filter-card">
       <a-form layout="inline" :model="filterForm">
         <a-form-item label="选择实验">
-          <a-select v-model:value="filterForm.experimentId" placeholder="全部实验（全局统计）" style="width: 260px" allow-clear @change="handleExperimentChange">
+          <a-select
+            v-model:value="filterForm.experimentId"
+            placeholder="全部实验（全局统计）"
+            style="width: 280px"
+            allow-clear
+            :loading="adminStore.loading"
+            :not-found-content="adminStore.loading ? '加载中...' : '暂无实验数据'"
+            @change="handleExperimentChange"
+          >
             <a-select-option value="">全部实验（全局统计）</a-select-option>
             <a-select-option v-for="exp in experiments" :key="exp.id" :value="exp.id">
-              实验{{ exp.sortOrder ?? exp.id }} - {{ exp.title }}
+              {{ exp.sortOrder ? `步骤${exp.sortOrder} - ` : '' }}{{ exp.title }}
             </a-select-option>
           </a-select>
         </a-form-item>
@@ -66,11 +74,29 @@
       </a-spin>
     </section>
 
-    <!-- 无数据提示 -->
-    <section v-else-if="!hasData" class="empty-section">
-      <a-result status="info" title="暂无数据" sub-title="请选择实验后点击「查询」，或暂无学生提交记录。">
+    <!-- 查询出错 -->
+    <section v-else-if="queryError" class="empty-section">
+      <a-result status="error" title="查询失败" :sub-title="queryError">
         <template #extra>
-          <a-button type="primary" @click="loadData">刷新</a-button>
+          <a-button type="primary" @click="loadData">重试</a-button>
+        </template>
+      </a-result>
+    </section>
+
+    <!-- 未查询过（初始状态） -->
+    <section v-else-if="!queried" class="empty-section">
+      <a-result status="info" title="请选择筛选条件并查询" sub-title="选择具体实验可查看该实验的完成情况和步骤得分分析；不选择实验则显示全局统计。">
+        <template #extra>
+          <a-button type="primary" @click="loadData" :loading="loading">立即查询</a-button>
+        </template>
+      </a-result>
+    </section>
+
+    <!-- 查询无数据 -->
+    <section v-else-if="queryEmpty" class="empty-section">
+      <a-result status="info" title="暂无数据" sub-title="该实验暂无学生提交记录，或实验尚未开始。">
+        <template #extra>
+          <a-button @click="loadData">刷新</a-button>
         </template>
       </a-result>
     </section>
@@ -172,12 +198,84 @@
       <!-- 得分分布图 -->
       <section class="app-surface-card chart-section">
         <h3 class="section-title">得分分布</h3>
-        <div class="chart-wrapper">
-          <div ref="barChartRef" class="chart-container"></div>
-        </div>
-        <div v-if="!analysisData.scoreDistribution || analysisData.scoreDistribution.length === 0" class="chart-empty">
+        <!-- 容器始终渲染，v-show 控制显隐，确保 ECharts ref 始终可获取真实尺寸 -->
+        <div
+          ref="barChartRef"
+          class="chart-container"
+          :style="{ display: analysisData.scoreDistribution && analysisData.scoreDistribution.length > 0 ? 'block' : 'none' }"
+        ></div>
+        <div
+          v-if="!analysisData.scoreDistribution || analysisData.scoreDistribution.length === 0"
+          class="chart-empty"
+        >
           <a-empty description="暂无批改数据" />
         </div>
+      </section>
+
+      <!-- 步骤得分分析 -->
+      <section class="app-surface-card step-score-section">
+        <div class="step-score-header">
+          <h3 class="section-title" style="margin-bottom:0">各步骤得分分析</h3>
+          <span class="step-score-subtitle">按题目统计平均分、得分率及作答情况</span>
+        </div>
+
+        <!-- 步骤图表容器始终渲染 -->
+        <div
+          ref="stepChartRef"
+          class="step-chart-container"
+          :style="{
+            display: analysisData.stepScoreAnalysis && analysisData.stepScoreAnalysis.length > 0 ? 'block' : 'none',
+            height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 46 + 60) + 'px'
+          }"
+        ></div>
+
+        <div
+          v-if="!analysisData.stepScoreAnalysis || analysisData.stepScoreAnalysis.length === 0"
+          class="chart-empty"
+        >
+          <a-empty description="暂无步骤批改数据" />
+        </div>
+
+        <template v-if="analysisData.stepScoreAnalysis && analysisData.stepScoreAnalysis.length > 0">
+          <!-- 明细表格 -->
+          <a-table
+            :columns="stepColumns"
+            :data-source="analysisData.stepScoreAnalysis"
+            :pagination="false"
+            row-key="sortOrder"
+            class="step-table"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'itemName'">
+                <div class="step-name-cell">
+                  <span class="step-index">{{ record.sortOrder }}</span>
+                  <span class="step-name">{{ record.itemName || '未命名步骤' }}</span>
+                  <a-tag v-if="record.questionType === 7" color="purple" style="margin-left:4px;font-size:11px">小结</a-tag>
+                </div>
+              </template>
+              <template v-else-if="column.key === 'avgScore'">
+                <span :class="getStepScoreClass(record.scoreRate)">
+                  {{ record.avgScore ?? 0 }} / {{ record.maxScore ?? 0 }}
+                </span>
+              </template>
+              <template v-else-if="column.key === 'scoreRate'">
+                <div class="rate-cell">
+                  <a-progress
+                    :percent="record.scoreRate ?? 0"
+                    :stroke-color="getStepRateColor(record.scoreRate)"
+                    size="small"
+                    :show-info="false"
+                    style="flex:1;min-width:80px"
+                  />
+                  <span class="rate-text" :class="getStepScoreClass(record.scoreRate)">
+                    {{ record.scoreRate ?? 0 }}%
+                  </span>
+                </div>
+              </template>
+            </template>
+          </a-table>
+        </template>
       </section>
     </template>
 
@@ -279,21 +377,37 @@ const adminStore = useExperimentAdminStore()
 const { experiments } = storeToRefs(adminStore)
 
 const loading = ref(false)
+const queryError = ref('')
 const filterForm = ref({
   experimentId: '' as string,
   clazzNo: '' as string
 })
 const analysisData = ref<any>(null)
+// 是否已进行过至少一次查询
+const queried = ref(false)
 const experimentClasses = ref<string[]>([])
 
 const barChartRef = ref<HTMLElement>()
 let barChart: ECharts | null = null
 
+const stepChartRef = ref<HTMLElement>()
+let stepChart: ECharts | null = null
+
+const stepColumns = [
+  { title: '步骤', key: 'itemName', ellipsis: true },
+  { title: '平均分 / 满分', key: 'avgScore', width: 130, align: 'center' as const },
+  { title: '最高分', dataIndex: 'highScore', key: 'highScore', width: 90, align: 'center' as const },
+  { title: '最低分', dataIndex: 'lowScore', key: 'lowScore', width: 90, align: 'center' as const },
+  { title: '作答人数', dataIndex: 'answeredCount', key: 'answeredCount', width: 100, align: 'center' as const },
+  { title: '得分率', key: 'scoreRate', width: 180 }
+]
+
 const classes = computed(() => experimentClasses.value)
 
-const hasData = computed(() => {
-  return analysisData.value !== null
-})
+// 已查询过且有数据
+const hasData = computed(() => queried.value && analysisData.value !== null)
+// 已查询过但无数据
+const queryEmpty = computed(() => queried.value && analysisData.value === null)
 
 const typeColumns = [
   { title: '实验类型', key: 'typeCode', width: 140 },
@@ -338,18 +452,28 @@ function getProgressColor(record: any): string {
 
 async function loadData() {
   loading.value = true
-  analysisData.value = null
+  queryError.value = ''
   try {
     await adminStore.ensureLoaded()
     const experimentId = filterForm.value.experimentId || undefined
-    const data = await experimentRepository.getExperimentAnalysis(experimentId, filterForm.value.clazzNo || undefined)
+    const clazzNo = filterForm.value.clazzNo || undefined
+    const data = await experimentRepository.getExperimentAnalysis(experimentId, clazzNo)
     analysisData.value = data
-    if (experimentId) {
+    queried.value = true
+    if (data && experimentId) {
+      // 数据已写入，等 Vue 更新 DOM 和 :style 绑定后再渲染图表
+      // 使用 setTimeout 确保浏览器完成布局
       await nextTick()
-      renderBarChart()
+      setTimeout(() => {
+        renderBarChart()
+        renderStepChart()
+      }, 100)
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载数据分析失败:', e)
+    queryError.value = e?.message || '查询失败，请重试'
+    analysisData.value = null
+    queried.value = true
   } finally {
     loading.value = false
   }
@@ -358,7 +482,15 @@ async function loadData() {
 function handleExperimentChange() {
   filterForm.value.clazzNo = ''
   experimentClasses.value = []
+  // 切换实验时重置数据，让用户点击"查询"再加载，避免显示旧实验的数据
   analysisData.value = null
+  queried.value = false
+  queryError.value = ''
+  // 销毁旧图表，切换实验后图表需要重新初始化
+  barChart?.dispose()
+  barChart = null
+  stepChart?.dispose()
+  stepChart = null
   if (filterForm.value.experimentId) {
     loadExperimentClasses()
   }
@@ -376,11 +508,21 @@ async function loadExperimentClasses() {
 }
 
 function renderBarChart() {
-  if (!barChartRef.value || !analysisData.value?.scoreDistribution) return
+  const el = barChartRef.value
+  const data = analysisData.value?.scoreDistribution
+  if (!el || !data?.length) return
 
-  if (!barChart) {
-    barChart = echarts.init(barChartRef.value)
+  // 容器尚未布局完成时延迟重试
+  if (el.offsetWidth === 0) {
+    requestAnimationFrame(renderBarChart)
+    return
   }
+
+  if (barChart) {
+    barChart.dispose()
+    barChart = null
+  }
+  barChart = echarts.init(el)
 
   const dist = analysisData.value.scoreDistribution
   const labels = dist.map((d: any) => d.label)
@@ -440,28 +582,127 @@ function renderBarChart() {
   barChart.setOption(option)
 }
 
+function getStepScoreClass(rate: number): string {
+  if (rate >= 85) return 'score-excellent'
+  if (rate >= 70) return 'score-good'
+  if (rate >= 55) return 'score-ok'
+  return 'score-bad'
+}
+
+function getStepRateColor(rate: number): string {
+  if (rate >= 85) return '#52c41a'
+  if (rate >= 70) return '#4f6ef7'
+  if (rate >= 55) return '#fa8c16'
+  return '#ff4d4f'
+}
+
+function renderStepChart() {
+  const steps = analysisData.value?.stepScoreAnalysis
+  const el = stepChartRef.value
+  if (!el || !steps || steps.length === 0) return
+
+  // 容器尚未布局完成时延迟重试
+  if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+    requestAnimationFrame(renderStepChart)
+    return
+  }
+
+  if (stepChart) {
+    stepChart.dispose()
+    stepChart = null
+  }
+  stepChart = echarts.init(el)
+
+  const names = steps.map((s: any) => `步骤${s.sortOrder} ${s.itemName?.length > 8 ? s.itemName.slice(0, 8) + '…' : (s.itemName || '')}`)
+  const avgScores = steps.map((s: any) => s.avgScore ?? 0)
+  const maxScores = steps.map((s: any) => s.maxScore ?? 0)
+  const rates = steps.map((s: any) => s.scoreRate ?? 0)
+
+  stepChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const idx = params[0].dataIndex
+        const s = steps[idx]
+        return `<b>步骤${s.sortOrder}：${s.itemName || '未命名'}</b><br/>
+                平均分：${s.avgScore ?? 0} / ${s.maxScore ?? 0}<br/>
+                得分率：${s.scoreRate ?? 0}%<br/>
+                作答人数：${s.answeredCount ?? 0} 人`
+      }
+    },
+    grid: { left: '2%', right: '8%', top: '8%', bottom: '4%', containLabel: true },
+    xAxis: {
+      type: 'value',
+      max: (value: any) => Math.max(value.max, 10),
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+      axisLabel: { formatter: '{value}分' }
+    },
+    yAxis: {
+      type: 'category',
+      data: names,
+      inverse: true,
+      axisLabel: { fontSize: 12, width: 140, overflow: 'truncate' },
+      axisLine: { lineStyle: { color: '#e8eaed' } }
+    },
+    series: [
+      {
+        name: '满分',
+        type: 'bar',
+        data: maxScores,
+        barWidth: 14,
+        barGap: '-100%',
+        itemStyle: { color: '#f0f0f0', borderRadius: [0, 4, 4, 0] },
+        z: 1,
+        label: { show: false }
+      },
+      {
+        name: '平均分',
+        type: 'bar',
+        data: avgScores,
+        barWidth: 14,
+        z: 2,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: (params: any) => {
+            const r = rates[params.dataIndex]
+            return getStepRateColor(r)
+          }
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: any) => {
+            const r = rates[params.dataIndex]
+            return `${params.value}分 (${r}%)`
+          },
+          fontSize: 11,
+          color: '#595959'
+        }
+      }
+    ]
+  })
+}
+
 function handleResize() {
   barChart?.resize()
+  stepChart?.resize()
 }
 
 onMounted(async () => {
-  await adminStore.ensureLoaded()
-  // 自动加载数据分析（默认显示全局统计）
-  await loadData()
+  // 强制刷新实验列表（不走 hydrated 缓存），确保下拉显示真实数据库数据
+  await adminStore.refresh()
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   barChart?.dispose()
+  stepChart?.dispose()
 })
 
-watch(() => filterForm.value.experimentId, async (newVal) => {
-  if (newVal) {
-    await nextTick()
-    renderBarChart()
-  }
-})
+
 </script>
 
 <style scoped>
@@ -524,6 +765,19 @@ watch(() => filterForm.value.experimentId, async (newVal) => {
 .chart-wrapper { width: 100%; }
 .chart-container { width: 100%; height: 360px; }
 .chart-empty { display: flex; justify-content: center; padding: 40px 0; }
+
+/* 步骤得分分析 */
+.step-score-section { padding: var(--space-5); margin-bottom: var(--space-5); }
+.step-score-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+.step-score-subtitle { font-size: 13px; color: var(--color-text-secondary); }
+.step-chart-container { width: 100%; margin-bottom: 20px; }
+.step-table :deep(.ant-table-thead > tr > th) { font-weight: 600; color: var(--color-text-main); background: var(--color-bg-muted); }
+.step-table :deep(.ant-table-tbody > tr > td) { vertical-align: middle; }
+.step-name-cell { display: flex; align-items: center; gap: 8px; }
+.step-index { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--color-primary); color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.step-name { color: var(--color-text-main); font-size: 13px; }
+.rate-cell { display: flex; align-items: center; gap: 8px; }
+.rate-text { font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 42px; text-align: right; }
 
 /* 全局概览 */
 .overview-section { padding: var(--space-5); margin-bottom: var(--space-5); }

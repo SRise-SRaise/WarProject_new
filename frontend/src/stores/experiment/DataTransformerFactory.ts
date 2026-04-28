@@ -110,7 +110,7 @@ export class DataTransformerFactory {
       summary: vo.requirement || vo.contentDesc || '暂无实验描述',
       objective: vo.contentDesc || vo.requirement || '暂无实验目标',
       tags: vo.tags || [vo.categoryName || '实验'],
-      materials: this.parseMaterials(vo.materials),
+      materials: this.parseMaterials(vo.materials, vo.instructionUrl),
       steps: this.parseSteps(vo.steps),
       work: {
         status: status === 'in_progress' ? 'pending' : status,
@@ -230,7 +230,7 @@ export class DataTransformerFactory {
       options = this.parseOptionsText(item.optionsText)
     }
 
-    // 编程题：从 content 末尾识别 [LANG:xxx] 并剥离
+    // 编程题：从 content 末尾识别 [LANG:xxx] 并剥离，或根据题目标题/内容自动推断语言
     const type = item.questionType || item.itemType || 1
     let language: ProgrammingLanguage = 'text'
     if (type === 3) {
@@ -240,6 +240,9 @@ export class DataTransformerFactory {
         content = content.substring(0, langMatch.index!).trimEnd()
       } else if (item.language) {
         language = item.language as ProgrammingLanguage
+      } else {
+        // 智能语言检测：根据题目标题或内容推断编程语言
+        language = this.detectProgrammingLanguage(item.itemName || item.name || '', content)
       }
     }
 
@@ -267,9 +270,102 @@ export class DataTransformerFactory {
 
   // ==================== 内部辅助方法 ====================
 
-  private parseMaterials(materials: any): ExperimentStudentItem['materials'] {
-    if (Array.isArray(materials)) return materials
-    return []
+  /**
+   * 根据题目标题和内容智能检测编程语言
+   */
+  private detectProgrammingLanguage(title: string, content: string): ProgrammingLanguage {
+    const text = (title + ' ' + content).toLowerCase()
+    
+    // 优先匹配明确的语言关键字（标题中）
+    const titleLower = title.toLowerCase()
+    if (/\bjava\b/.test(titleLower) && !/\bjavascript\b/.test(titleLower)) return 'java'
+    if (/\bpython\b/.test(titleLower)) return 'python'
+    if (/\bsql\b/.test(titleLower)) return 'sql'
+    if (/\bjavascript\b|\bjs\b/.test(titleLower)) return 'javascript'
+    if (/\bhtml\b/.test(titleLower)) return 'html'
+    if (/\bcss\b/.test(titleLower)) return 'css'
+    if (/\bjsp\b/.test(titleLower)) return 'jsp'
+    
+    // 根据代码特征检测
+    // Java 特征：public class, public static void main, System.out, import java.
+    if (/public\s+class\s+\w+|public\s+static\s+void\s+main|System\.out\.|import\s+java\./.test(content)) {
+      return 'java'
+    }
+    
+    // Python 特征：def xxx():, import xxx, print(, if __name__
+    if (/def\s+\w+\s*\(|^import\s+\w+|print\s*\(|if\s+__name__\s*==/.test(content)) {
+      return 'python'
+    }
+    
+    // SQL 特征：SELECT, INSERT, UPDATE, DELETE, CREATE TABLE
+    if (/\b(SELECT|INSERT|UPDATE|DELETE|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE)\b/i.test(content)) {
+      return 'sql'
+    }
+    
+    // JavaScript 特征：function, const/let/var, console.log, =>
+    if (/function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|console\.log|=>\s*{/.test(content)) {
+      return 'javascript'
+    }
+    
+    // HTML 特征：<html>, <head>, <body>, <!DOCTYPE
+    if (/<html|<head|<body|<!DOCTYPE/i.test(content)) {
+      return 'html'
+    }
+    
+    // CSS 特征：选择器 { 属性: 值 }
+    if (/\w+\s*{\s*[\w-]+\s*:\s*[^}]+}/.test(content)) {
+      return 'css'
+    }
+    
+    // JSP 特征：<%@, <%=, <jsp:
+    if (/<%[@=]|<jsp:/.test(content)) {
+      return 'jsp'
+    }
+    
+    // 内容关键字匹配（较宽松）
+    if (/\bjava\b/.test(text) && !/\bjavascript\b/.test(text)) return 'java'
+    if (/\bpython\b/.test(text)) return 'python'
+    if (/\bsql\b|\bmysql\b|\boracle\b/.test(text)) return 'sql'
+    
+    return 'text'
+  }
+
+  private parseMaterials(materials: any, instructionUrl?: string): ExperimentStudentItem['materials'] {
+    const result: ExperimentStudentItem['materials'] = []
+    
+    // 如果有 instructionUrl，作为指导书添加到材料列表
+    if (instructionUrl && typeof instructionUrl === 'string' && instructionUrl.trim()) {
+      const url = instructionUrl.trim()
+      // 从 URL 中提取文件名
+      const fileName = url.split('/').pop() || '实验指导书'
+      // 根据扩展名判断类型
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      const kindMap: Record<string, string> = {
+        'pdf': 'PDF文档',
+        'doc': 'Word文档',
+        'docx': 'Word文档',
+        'ppt': 'PPT',
+        'pptx': 'PPT',
+        'xls': 'Excel',
+        'xlsx': 'Excel',
+        'zip': '压缩包',
+        'rar': '压缩包',
+        'txt': '文本文件'
+      }
+      result.push({
+        name: decodeURIComponent(fileName),
+        size: '—',
+        kind: kindMap[ext] || '指导书',
+        url: url
+      })
+    }
+    
+    // 合并已有的 materials 数组
+    if (Array.isArray(materials)) {
+      result.push(...materials)
+    }
+    
+    return result
   }
 
   private parseSteps(steps: any): ExperimentStep[] {

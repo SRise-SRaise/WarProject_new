@@ -20,6 +20,10 @@
         </p>
       </div>
       <div class="header-actions">
+        <a-button @click="router.push(`/experiments/${experimentId}`)">
+          <LeftOutlined />
+          返回详情
+        </a-button>
         <a-button @click="handleSaveDraft" :loading="isSaving">
           <SaveOutlined />
           保存草稿
@@ -68,11 +72,25 @@
             :score="question.score"
             :is-answered="isQuestionAnswered(question.id)"
             :last-saved="getAnswerTime(question.id)"
+            :class="{ 'step-item--summary': question.type === 7 }"
           >
             <template #question>
+              <!-- 实验小结（type=7，综合题，专用大文本框） -->
+              <div v-if="question.type === 7" class="summary-step-body">
+                <p class="summary-step-hint">{{ question.content }}</p>
+                <a-textarea
+                  :value="getSimpleAnswer(question.id)"
+                  placeholder="请填写实验小结，包括：&#10;1. 本次实验的主要收获&#10;2. 遇到的困难及解决方法&#10;3. 对实验内容的理解与思考"
+                  :rows="9"
+                  :maxlength="3000"
+                  show-count
+                  class="summary-textarea"
+                  @change="(e: any) => { handleSimpleAnswerChange(question.id, e.target.value); scheduleAutoSave() }"
+                />
+              </div>
               <!-- 单选题 -->
               <SingleChoiceQuestion
-                v-if="question.type === 1"
+                v-else-if="question.type === 1"
                 :question-content="question.content"
                 :options="question.options ?? []"
                 :model-value="getSimpleAnswer(question.id)"
@@ -96,7 +114,7 @@
               />
               <!-- 简答题 -->
               <ShortAnswerQuestion
-                v-else-if="question.type === 4 || question.type === 7"
+                v-else-if="question.type === 4"
                 :question-content="question.content"
                 :model-value="getSimpleAnswer(question.id)"
                 @update:model-value="(val: any) => handleSimpleAnswerChange(question.id, val)"
@@ -166,6 +184,7 @@
             >
               {{ index + 1 }}
             </button>
+
           </div>
         </div>
 
@@ -187,7 +206,7 @@
     <a-modal
       v-model:open="submitModalVisible"
       title="确认提交报告"
-      :width="460"
+      :width="480"
       @ok="confirmSubmit"
       @cancel="submitModalVisible = false"
     >
@@ -210,13 +229,14 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import {
-  FileTextOutlined,
-  StarOutlined,
-  SyncOutlined,
-  SaveOutlined,
-  CheckOutlined,
-  BookOutlined,
+  import {
+    FileTextOutlined,
+    StarOutlined,
+    SyncOutlined,
+    SaveOutlined,
+    CheckOutlined,
+    BookOutlined,
+    LeftOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import ExperimentStepItem from '@/components/experiment/ExperimentStepItem.vue'
@@ -232,6 +252,19 @@ import type {
   StudentAnswer,
   AnswerSaveRequest
 } from '@/stores/experiment/types'
+import {
+  setUserInfo,
+  logEnterExperiment,
+  logSaveAnswer,
+  logSubmitExperiment,
+  logLeavePage,
+  logReturnPage,
+  logPaste,
+  logFocusLost,
+  flushLogs,
+  flushLogsBeforeUnload,
+  cleanupLogger
+} from '@/utils/experimentLogger'
 
 const route = useRoute()
 const router = useRouter()
@@ -343,11 +376,17 @@ function handleMultipleAnswerChange(questionId: string, values: string[]) {
 
 function updateAnswer(questionId: string, answer: string) {
   const existing = answersMap[questionId] || { questionId }
+  const wasAnswered = existing.answer && existing.answer.trim() !== ''
   answersMap[questionId] = {
     ...existing,
     questionId,
     answer,
     answeredAt: new Date().toLocaleString()
+  }
+  // 如果是首次作答或答案有变化，记录日志
+  if (answer.trim() !== '' && (!wasAnswered || existing.answer !== answer)) {
+    const question = questions.value.find(q => q.id === questionId)
+    logSaveAnswer(experimentId.value, questionId, question?.title)
   }
 }
 
@@ -371,6 +410,7 @@ function scrollToQuestion(index: number) {
   }
 }
 
+
 // 加载实验数据
 async function loadExperiment() {
   isLoading.value = true
@@ -386,6 +426,15 @@ async function loadExperiment() {
 
     experimentTitle.value = experiment.title
     experimentObjective.value = experiment.objective || ''
+
+    // 设置用户信息用于日志记录
+    const userInfo = experimentStore.getCurrentUserInfo()
+    if (userInfo) {
+      setUserInfo(userInfo.account, userInfo.studentName, userInfo.clazzNo)
+    }
+
+    // 记录进入实验日志
+    logEnterExperiment(experimentId.value, experiment.title)
 
     // 从真实 API 获取题目数据
     const fetchedQuestions = await experimentStore.loadExperimentQuestions(experimentId.value)
@@ -453,7 +502,7 @@ async function handleSaveDraft() {
   isSaving.value = true
   try {
     const request = buildSaveRequest()
-    const success = await experimentStore.saveAnswers(request)
+    await experimentStore.saveAnswers(request)
 
     lastSaved.value = new Date().toLocaleTimeString()
     message.success('保存成功')
@@ -526,6 +575,12 @@ async function confirmSubmit() {
   try {
     const request = buildSaveRequest()
     request.isSubmit = true
+    
+    // 记录提交实验日志
+    logSubmitExperiment(experimentId.value)
+    // 立即上传日志
+    await flushLogs()
+    
     await experimentStore.submitAnswers(request)
 
     // 清除本地草稿
@@ -561,6 +616,15 @@ onMounted(() => {
 
   // 绑定键盘事件（防止粘贴快捷键）
   document.addEventListener('keydown', handleGlobalKeyDown)
+  
+  // 监听页面可见性变化（切换标签页）
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  
+  // 监听页面卸载，确保日志上传
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  
+  // 监听粘贴事件
+  document.addEventListener('paste', handlePasteEvent)
 })
 
 onUnmounted(() => {
@@ -568,7 +632,33 @@ onUnmounted(() => {
     clearTimeout(autoSaveTimer)
   }
   document.removeEventListener('keydown', handleGlobalKeyDown)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('paste', handlePasteEvent)
+  
+  // 清理日志记录器
+  cleanupLogger()
 })
+
+// 页面可见性变化处理
+function handleVisibilityChange() {
+  if (document.hidden) {
+    logLeavePage(experimentId.value)
+  } else {
+    logReturnPage(experimentId.value)
+  }
+}
+
+// 页面卸载前处理
+function handleBeforeUnload() {
+  flushLogsBeforeUnload()
+}
+
+// 粘贴事件处理
+function handlePasteEvent() {
+  const question = questions.value[currentQuestionIndex.value]
+  logPaste(experimentId.value, question?.id, question?.title)
+}
 
 // 全局键盘事件处理（防作弊）
 function handleGlobalKeyDown(e: KeyboardEvent) {
@@ -834,6 +924,36 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
   margin-top: 16px;
   font-size: 14px;
   color: #595959;
+}
+
+/* 实验小结步骤（type=7）特殊边框样式 */
+.step-item--summary :deep(.experiment-step-item) {
+  border-color: #d3adf7;
+}
+
+/* 实验小结步骤内容区 */
+.summary-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-step-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #595959;
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: #f9f0ff;
+  border-radius: 6px;
+  border-left: 3px solid #722ed1;
+}
+
+.summary-textarea :deep(textarea) {
+  font-size: 14px;
+  line-height: 1.8;
+  resize: vertical;
+  border-radius: 8px;
 }
 
 /* 响应式 */

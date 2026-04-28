@@ -9,14 +9,17 @@ import com.springboot.mapper.experiment.EduExperimentQuestionMapper;
 import com.springboot.model.dto.experiment.DocxImportRequest;
 import com.springboot.model.dto.experiment.EduExperimentQuestionQueryRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
+import com.springboot.model.entity.experiment.EduExperimentItem;
 import com.springboot.model.entity.experiment.EduExperimentQuestion;
 import com.springboot.model.vo.experiment.DocxImportResult;
 import com.springboot.utils.DocxParserUtil;
 import com.springboot.model.enums.experiment.ExperimentDifficultyEnum;
 import com.springboot.model.enums.experiment.ExperimentQuestionTypeEnum;
 import com.springboot.model.vo.experiment.EduExperimentQuestionVO;
+import com.springboot.service.experiment.EduExperimentItemService;
 import com.springboot.service.experiment.EduExperimentQuestionService;
 import com.springboot.service.support.ServiceMethodSupport;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -32,6 +35,9 @@ import java.util.stream.Collectors;
 @Service
 public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQuestionMapper, EduExperimentQuestion>
         implements EduExperimentQuestionService {
+
+    @Resource
+    private EduExperimentItemService eduExperimentItemService;
 
     @Override
     public void validEduExperimentQuestion(EduExperimentQuestion eduExperimentQuestion, boolean add) {
@@ -202,17 +208,26 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
 
     @Override
     public DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment) {
+        return importExperimentFromDocx(importRequest, experiment, null);
+    }
+
+    @Override
+    public DocxImportResult importExperimentFromDocx(DocxImportRequest importRequest, EduExperiment experiment, org.springframework.web.multipart.MultipartFile file) {
         log.info("[EduExperimentQuestion] 开始从DOCX导入实验");
         if (importRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "导入请求不能为空");
         }
 
-        // 解析docx文档
+        // 解析docx文档：优先使用上传的文件，其次使用fileUrl
         DocxParserUtil.ParseResult parseResult;
-        if (importRequest.getFileUrl() != null && !importRequest.getFileUrl().trim().isEmpty()) {
+        if (file != null && !file.isEmpty()) {
+            log.info("[EduExperimentQuestion] 从上传的MultipartFile解析");
+            parseResult = DocxParserUtil.parseFromMultipartFile(file);
+        } else if (importRequest.getFileUrl() != null && !importRequest.getFileUrl().trim().isEmpty()) {
+            log.info("[EduExperimentQuestion] 从fileUrl解析: {}", importRequest.getFileUrl());
             parseResult = DocxParserUtil.parseFromUrl(importRequest.getFileUrl());
         } else {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件地址不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请上传docx文件或提供文件URL");
         }
 
         // 使用文档中的实验名称（如果请求中指定了实验名称，则使用请求中的）
@@ -243,32 +258,52 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "文档中未找到有效题目");
         }
 
-        // 转换题目信息为实体
-        List<EduExperimentQuestion> questions = questionInfoList.stream().map(info -> {
-            EduExperimentQuestion question = new EduExperimentQuestion();
-            question.setQuestionName(info.getQuestionName());
-            question.setQuestionContent(info.getQuestionContent());
-            question.setQuestionType(info.getQuestionType());
-            question.setOptions(info.getOptions());
-            question.setStandardAnswer(info.getStandardAnswer());
-            question.setAnswerAnalysis(info.getAnswerAnalysis());
-            question.setReferenceCode(info.getReferenceCode());
-            question.setDifficulty(info.getDifficulty() != null ? info.getDifficulty() : importRequest.getDefaultDifficulty() != null ? importRequest.getDefaultDifficulty() : 2);
-            question.setScore(info.getScore() != null ? info.getScore() : importRequest.getDefaultScore() != null ? importRequest.getDefaultScore() : 10);
-            question.setStatus(1);
-            return question;
-        }).collect(Collectors.toList());
+        // 转换题目信息为 EduExperimentItem 实体（使用现有的 t_experiment_item 表）
+        Long experimentId = experiment.getId();
+        List<EduExperimentItem> items = new java.util.ArrayList<>();
+        int sortOrder = 1;
+        for (DocxParserUtil.QuestionInfo info : questionInfoList) {
+            EduExperimentItem item = new EduExperimentItem();
+            item.setExperimentId(experimentId);
+            item.setSortOrder(sortOrder++);
+            item.setItemName(info.getQuestionName() != null ? info.getQuestionName() : "题目" + (sortOrder - 1));
+            item.setQuestionContent(info.getQuestionContent());
+            item.setQuestionType(info.getQuestionType() != null ? info.getQuestionType() : 1);
+            item.setStandardAnswer(info.getStandardAnswer());
+            item.setMaxScore(info.getScore() != null ? info.getScore() : importRequest.getDefaultScore() != null ? importRequest.getDefaultScore() : 10);
+            item.setItemStatus(1);
+            items.add(item);
+        }
 
-        // 批量保存题目
+        // 检查是否已有 type=7（实验小结）的步骤，没有则自动追加
+        boolean hasSummaryItem = items.stream()
+                .anyMatch(it -> Integer.valueOf(7).equals(it.getQuestionType()));
+        if (!hasSummaryItem) {
+            EduExperimentItem summaryItem = new EduExperimentItem();
+            summaryItem.setExperimentId(experimentId);
+            summaryItem.setSortOrder(sortOrder);
+            summaryItem.setItemName("实验小结");
+            summaryItem.setQuestionType(7); // 综合/实验小结
+            summaryItem.setQuestionContent("请根据本次实验的完成情况，总结实验收获、遇到的问题及解决思路。");
+            summaryItem.setMaxScore(10);
+            summaryItem.setItemStatus(1);
+            items.add(summaryItem);
+            log.info("[EduExperimentQuestion] 自动追加实验小结步骤");
+        }
+
+        // 批量保存题目到 t_experiment_item 表
         int successCount = 0;
         int failCount = 0;
         Map<Integer, String> failDetails = new HashMap<>();
 
-        for (int i = 0; i < questions.size(); i++) {
-            EduExperimentQuestion question = questions.get(i);
+        for (int i = 0; i < items.size(); i++) {
+            EduExperimentItem item = items.get(i);
             try {
-                validEduExperimentQuestion(question, true);
-                this.save(question);
+                // 实验小结(type=7)不需要强制校验内容
+                if (item.getQuestionType() != 7 && StringUtils.isBlank(item.getQuestionContent())) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目内容不能为空");
+                }
+                eduExperimentItemService.save(item);
                 successCount++;
             } catch (Exception e) {
                 failCount++;
@@ -277,14 +312,14 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
         }
 
         // 构建返回结果
-        List<DocxImportResult.QuestionPreview> previews = questions.stream().limit(20).map(q -> {
-            String typeName = DocxParserUtil.getQuestionTypeName(q.getQuestionType());
-            String summary = q.getQuestionContent();
+        List<DocxImportResult.QuestionPreview> previews = items.stream().limit(20).map(item -> {
+            String typeName = DocxParserUtil.getQuestionTypeName(item.getQuestionType());
+            String summary = item.getQuestionContent();
             if (summary != null && summary.length() > 50) {
                 summary = summary.substring(0, 50) + "...";
             }
             return DocxImportResult.QuestionPreview.builder()
-                    .questionName(q.getQuestionName())
+                    .questionName(item.getItemName())
                     .questionTypeName(typeName)
                     .contentSummary(summary)
                     .build();

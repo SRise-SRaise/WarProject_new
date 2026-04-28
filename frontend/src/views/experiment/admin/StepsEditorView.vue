@@ -300,6 +300,21 @@
             <PlusOutlined />
             添加步骤 {{ steps.length + 1 }}
           </a-button>
+          <a-button
+            v-if="!hasSummaryStep"
+            type="dashed"
+            size="large"
+            block
+            class="add-summary-btn"
+            @click="addSummaryStep"
+          >
+            <FileTextOutlined />
+            在最后添加实验小结
+          </a-button>
+          <div v-else class="summary-exists-tip">
+            <CheckCircleOutlined />
+            已包含实验小结步骤
+          </div>
         </div>
       </div>
 
@@ -394,7 +409,8 @@ import {
   LockOutlined,
   UnlockOutlined,
   UnorderedListOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons-vue'
 import { CommonUtil } from '@/utils'
 import type {
@@ -494,6 +510,9 @@ function getContentPlaceholder(type: QuestionType): string {
   if (type === 4) {
     return '请输入判断题内容（正确/错误）'
   }
+  if (type === 7) {
+    return '实验小结提示语（学生作答时将看到此内容）。例如：请根据本次实验的完成情况，总结实验收获、遇到的问题及解决思路。'
+  }
   return '请输入题目内容'
 }
 
@@ -521,6 +540,27 @@ function removeOption(step: ExperimentStepEditItem, index: number) {
   step.options!.forEach((opt, i) => {
     opt.key = String.fromCharCode(65 + i)
   })
+}
+
+// 是否已有实验小结步骤（type=7）
+const hasSummaryStep = computed(() => steps.value.some(s => s.type === 7))
+
+function addSummaryStep() {
+  if (hasSummaryStep.value) {
+    message.warning('已存在实验小结步骤，无需重复添加')
+    return
+  }
+  const sortOrder = steps.value.length + 1
+  const newStep = createEmptyStep(sortOrder)
+  newStep.title = '实验小结'
+  newStep.type = 7
+  newStep.content = '请根据本次实验的完成情况，总结实验收获、遇到的问题及解决思路。'
+  newStep.score = 10
+  steps.value.push(newStep)
+  multiAnswersMap[newStep.id] = []
+  fillBlankAnswerMap[newStep.id] = []
+  activeStepIndex.value = steps.value.length - 1
+  scrollToBottom()
 }
 
 function addStep() {
@@ -1274,6 +1314,28 @@ onMounted(() => {
 /* 底部添加按钮 */
 .add-step-footer {
   padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-summary-btn {
+  border-color: #d3adf7 !important;
+  color: #722ed1 !important;
+}
+
+.add-summary-btn:hover {
+  background: #f9f0ff !important;
+}
+
+.summary-exists-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #52c41a;
 }
 
 /* 侧边栏 */

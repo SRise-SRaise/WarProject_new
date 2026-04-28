@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.io.IOException;
+
 /**
  * 全局异常处理器
 *
@@ -19,6 +21,12 @@ public class GlobalExceptionHandler {
     public BaseResponse<?> businessExceptionHandler(BusinessException e) {
         log.error("BusinessException", e);
         return ResultUtils.error(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(IOException.class)
+    public BaseResponse<?> ioExceptionHandler(IOException e) {
+        log.error("IOException type={} message={}", e.getClass().getName(), e.getMessage(), e);
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "文件操作失败: " + e.getMessage());
     }
 
     @ExceptionHandler(RuntimeException.class)

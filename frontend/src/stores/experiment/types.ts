@@ -2,6 +2,7 @@ export interface ExperimentAsset {
   name: string
   size: string
   kind: string
+  url?: string
 }
 
 export interface ExperimentStep {
@@ -104,7 +105,7 @@ export const QUESTION_TYPE_NAMES: Record<QuestionType, string> = {
   4: '简答题',
   5: '多选题',
   6: '判断题',
-  7: '设计题'
+  7: '实验小结'
 }
 
 /** 编程语言类型 */

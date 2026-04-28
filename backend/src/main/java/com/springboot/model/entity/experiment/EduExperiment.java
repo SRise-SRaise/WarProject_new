@@ -64,9 +64,8 @@ public class EduExperiment implements Serializable {
     private Integer publishStatus;
 
     /**
-     * 指导书文件访问路径。
-     * 注意：此字段需要数据库表中存在 instruction_url 列才能正常使用。
-     * 若表中暂无此列，标记 exist=false 以避免查询报错；待执行迁移后改回 @TableField(value="instruction_url")
+     * 指导书/附件文件访问路径
+     * 注意：此字段不映射数据库，通过文件约定路径动态生成
      */
     @TableField(exist = false)
     private String instructionUrl;

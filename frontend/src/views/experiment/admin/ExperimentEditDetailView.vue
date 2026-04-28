@@ -160,7 +160,7 @@
           </p>
         </div>
         <!-- 下载模板按钮 -->
-        <button type="button" class="template-download-btn" @click="downloadExperimentTemplate()">
+        <button type="button" class="template-download-btn" @click="handleTemplateDownload()">
           <DownloadOutlined />
           下载参考模板
         </button>
@@ -242,7 +242,34 @@
             第 {{ idx }} 题：{{ reason }}
           </p>
         </div>
-        <a-button type="link" class="import-result__clear" @click="importResult = null">清除结果</a-button>
+        <a-button type="link" class="import-result__clear" @click="importResult = null; loadExperimentItems(formState.id)">清除结果</a-button>
+      </div>
+
+      <!-- 已有题目列表 -->
+      <div v-if="!importResult && existingItems.length > 0" class="existing-items">
+        <h4 class="existing-items__title">已导入的实验步骤（{{ existingItems.length }} 题）</h4>
+        <a-spin :spinning="loadingItems">
+          <div class="existing-items__list">
+            <div
+              v-for="(item, idx) in existingItems"
+              :key="item.id"
+              class="existing-item"
+            >
+              <span class="item-index">{{ idx + 1 }}</span>
+              <span class="item-type" :class="`type-${item.questionType}`">
+                {{ getQuestionTypeName(item.questionType) }}
+              </span>
+              <span class="item-name">{{ item.itemName || '未命名题目' }}</span>
+              <span class="item-content">{{ truncateContent(item.questionContent) }}</span>
+              <span class="item-score">{{ item.maxScore || 10 }} 分</span>
+            </div>
+          </div>
+        </a-spin>
+      </div>
+
+      <!-- 无题目提示 -->
+      <div v-if="!importResult && !loadingItems && isEdit && existingItems.length === 0" class="no-items-tip">
+        <p>该实验暂无题目，请通过上方的导入功能添加实验步骤</p>
       </div>
     </section>
   </div>
@@ -269,6 +296,7 @@ import {
   importExperimentFromDocx,
   downloadExperimentTemplate
 } from '@/api/eduExperimentController'
+import { listEduExperimentItemVoByPage } from '@/api/eduExperimentItemController'
 
 interface ExperimentFormState {
   id?: string
@@ -299,6 +327,8 @@ const loadingClasses = ref(false)
 const uploadingInstruction = ref(false)
 const importing = ref(false)
 const importResult = ref<any>(null)
+const existingItems = ref<any[]>([])
+const loadingItems = ref(false)
 
 // 实验类型列表
 const experimentTypes = [
@@ -427,7 +457,7 @@ async function onFinish(): Promise<void> {
       const res: any = await updateEduExperiment(requestData)
       if (res.data !== false) {
         savedId = formState.id
-        message.success(`实验"${formState.name}"已更新`)
+        message.success(`实验"${formState.name}"已更��`)
       }
     } else {
       const res: any = await addEduExperiment(requestData)
@@ -492,6 +522,32 @@ async function uploadInstructionIfNeeded(experimentId: string | undefined): Prom
   }
 }
 
+// 下载模板
+async function handleTemplateDownload(): Promise<void> {
+  try {
+    await downloadExperimentTemplate()
+  } catch (err: any) {
+    message.error('模板下载失败，请稍后重试')
+  }
+}
+
+// 获取题目类型名称
+function getQuestionTypeName(type: number): string {
+  const types: Record<number, string> = {
+    1: '选择题',
+    2: '填空题',
+    3: '编程题',
+    4: '简答题'
+  }
+  return types[type] || '未知类型'
+}
+
+// 截断内容显示
+function truncateContent(content: string | null): string {
+  if (!content) return '无内容'
+  return content.length > 40 ? content.substring(0, 40) + '...' : content
+}
+
 // 加载实验数据（编辑模式）
 async function loadExperimentData(id: string): Promise<void> {
   try {
@@ -509,11 +565,33 @@ async function loadExperimentData(id: string): Promise<void> {
       formState.instructionFile = null
       formState.instructionUrl = detail.instructionUrl || ''
       formState.classCodes = detail.classCodes || []
+      // 加载关联的题目列表
+      await loadExperimentItems(id)
     } else {
       message.error('未找到实验数据，请确认实验是否存在')
     }
   } catch (error) {
     message.error('加载实验数据失败')
+  }
+}
+
+// 加载实验关联的题目列表
+async function loadExperimentItems(experimentId: string): Promise<void> {
+  loadingItems.value = true
+  try {
+    const res: any = await listEduExperimentItemVoByPage({
+      experimentId: Number(experimentId),
+      current: 1,
+      pageSize: 100,
+      sortField: 'sortOrder',
+      sortOrder: 'ascend'
+    })
+    const data = res?.data?.data ?? res?.data
+    existingItems.value = data?.records || []
+  } catch (error) {
+    console.error('加载题目列表失败:', error)
+  } finally {
+    loadingItems.value = false
   }
 }
 
@@ -827,6 +905,66 @@ onMounted(() => {
 .import-fail-detail { padding: 12px 16px; background: #fff2f0; border-radius: 6px; }
 .import-fail-detail__title { margin: 0 0 8px; color: var(--color-danger, #ff4d4f); font-weight: 600; font-size: 13px; }
 .import-fail-detail__item { margin: 0 0 4px; font-size: 13px; color: var(--color-text-secondary); }
+
+/* 已有题目列表 */
+.existing-items { margin-top: var(--space-5); }
+.existing-items__title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.existing-items__list { display: flex; flex-direction: column; gap: 8px; }
+.existing-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-bg-muted);
+  transition: background 0.2s;
+}
+.existing-item:hover { background: var(--color-bg-hover, #f0f0f0); }
+.item-index {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.item-type {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.item-type.type-1 { background: #e6f7ff; color: #1890ff; }
+.item-type.type-2 { background: #fff7e6; color: #fa8c16; }
+.item-type.type-3 { background: #f6ffed; color: #52c41a; }
+.item-type.type-4 { background: #f9f0ff; color: #722ed1; }
+.item-name { font-weight: 600; color: var(--color-text-main); min-width: 80px; }
+.item-content { flex: 1; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.item-score { flex-shrink: 0; padding: 2px 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px; color: var(--color-text-tertiary); }
+
+/* 无题目提示 */
+.no-items-tip {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-muted);
+  border-radius: 8px;
+  margin-top: var(--space-4);
+}
+.no-items-tip p { margin: 0; font-size: 14px; }
 
 /* 响应式 */
 @media (max-width: 768px) {

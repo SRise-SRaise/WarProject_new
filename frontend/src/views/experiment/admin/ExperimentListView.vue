@@ -22,7 +22,7 @@
           <a-space :size="12">
             <a-button @click="router.push('/admin/experiments/reports')">
               <template #icon><FileTextOutlined /></template>
-              实验报告
+              批改实验报告
             </a-button>
             <a-button type="primary" size="large" @click="router.push('/admin/experiments/edit')">
               <template #icon><PlusOutlined /></template>

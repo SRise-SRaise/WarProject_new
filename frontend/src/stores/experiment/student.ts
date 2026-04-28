@@ -90,6 +90,19 @@ export const useExperimentStudentStore = defineStore('experiment-student', () =>
     }
   }
 
+  /**
+   * 获取当前用户信息（用于日志记录）
+   */
+  function getCurrentUserInfo(): { account: string; studentName: string; clazzNo: string } | null {
+    const user = userContextFactory.getCurrent()
+    if (!user) return null
+    return {
+      account: user.account || String(user.id || ''),
+      studentName: user.name || user.account || '',
+      clazzNo: user.classNo || ''
+    }
+  }
+
   return {
     experiments,
     currentExperiment,
@@ -106,6 +119,7 @@ export const useExperimentStudentStore = defineStore('experiment-student', () =>
     submitAnswers,
     getSavedAnswers,
     saveWork,
-    loadStudentReport
+    loadStudentReport,
+    getCurrentUserInfo
   }
 })

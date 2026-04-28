@@ -1,11 +1,14 @@
 package com.springboot.service.experiment.adapter;
 
+import com.springboot.mapper.experiment.EduExperimentAnalysisMapper;
 import com.springboot.mapper.experiment.EduExperimentMapper;
+import com.springboot.model.dto.experiment.StepScoreAnalysisDTO;
 import com.springboot.model.entity.experiment.EduExperiment;
 import com.springboot.model.enums.experiment.ExperimentTypeEnum;
 import com.springboot.model.vo.experiment.EduExperimentAnalysisVO;
 import com.springboot.model.vo.experiment.EduExperimentAnalysisVO.ExperimentTypeAnalysisItem;
 import com.springboot.model.vo.experiment.EduExperimentAnalysisVO.ScoreDistributionItem;
+import com.springboot.model.vo.experiment.EduExperimentAnalysisVO.StepScoreAnalysisItem;
 import com.springboot.model.vo.experiment.StudentExperimentAnalysisVO;
 import com.springboot.model.vo.experiment.StudentExperimentAnalysisVO.ExperimentTypeScoreVO;
 import com.springboot.service.experiment.adapter.ScoreDataProvider.HasExperimentScore;
@@ -45,6 +48,9 @@ public class ExperimentAnalysisStrategy {
     @Resource
     private EduExperimentMapper eduExperimentMapper;
 
+    @Resource
+    private EduExperimentAnalysisMapper eduExperimentAnalysisMapper;
+
     // ==================== 教师端分析 ====================
 
     /**
@@ -76,8 +82,33 @@ public class ExperimentAnalysisStrategy {
         List<ScoreDistributionItem> scoreDistribution =
                 buildScoreDistribution(scoreList, submittedStudents);
 
-        log.info("[Strategy] 单实验分析: experimentId={}, 应交={}, 已交={}, 已批改={}, 平均分={}",
-                experimentId, totalStudents, submittedStudents, gradedStudents, avgScore);
+        // 各步骤得分分析：Mapper 返回 DTO，计算得分率后转为 VO 内部类
+        List<StepScoreAnalysisDTO> stepDTOs =
+                eduExperimentAnalysisMapper.selectStepScoreAnalysis(experimentId, clazzNo);
+        List<StepScoreAnalysisItem> stepScoreAnalysis = new ArrayList<>();
+        if (stepDTOs != null) {
+            for (StepScoreAnalysisDTO dto : stepDTOs) {
+                double avg = dto.getAvgScore() != null ? round2(dto.getAvgScore()) : 0.0;
+                double rate = (dto.getMaxScore() != null && dto.getMaxScore() > 0)
+                        ? round2(avg / dto.getMaxScore() * 100)
+                        : 0.0;
+                stepScoreAnalysis.add(StepScoreAnalysisItem.builder()
+                        .sortOrder(dto.getSortOrder())
+                        .itemName(dto.getItemName())
+                        .questionType(dto.getQuestionType())
+                        .maxScore(dto.getMaxScore())
+                        .avgScore(avg)
+                        .highScore(dto.getHighScore())
+                        .lowScore(dto.getLowScore())
+                        .scoreRate(rate)
+                        .answeredCount(dto.getAnsweredCount())
+                        .build());
+            }
+        }
+
+        log.info("[Strategy] 单实验分析: experimentId={}, 应交={}, 已交={}, 已批改={}, 平均分={}, 步骤数={}",
+                experimentId, totalStudents, submittedStudents, gradedStudents, avgScore,
+                stepScoreAnalysis != null ? stepScoreAnalysis.size() : 0);
 
         return EduExperimentAnalysisVO.builder()
                 .experimentId(experimentId)
@@ -92,6 +123,7 @@ public class ExperimentAnalysisStrategy {
                 .classMaxScore(maxScore)
                 .classMinScore(minScore)
                 .scoreDistribution(scoreDistribution)
+                .stepScoreAnalysis(stepScoreAnalysis)
                 .build();
     }
 

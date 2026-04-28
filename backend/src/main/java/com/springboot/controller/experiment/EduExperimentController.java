@@ -159,7 +159,12 @@ public class EduExperimentController {
         resultQuery.select("student_id");
         List<ResExperimentResult> results = resExperimentResultMapper.selectList(resultQuery);
 
+        if (results == null || results.isEmpty()) {
+            return ResultUtils.success(Collections.emptyList());
+        }
+
         Set<Long> studentIds = results.stream()
+                .filter(Objects::nonNull)
                 .map(ResExperimentResult::getStudentId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -248,8 +253,11 @@ public class EduExperimentController {
      * 支持两种方式：
      * 1. 直接上传docx文件（file参数）
      * 2. 提供已上传的docx文件URL（fileUrl参数）
+     * <p>
+     * 如果提供了experimentId，则将题目导入到已有实验；否则创建新实验。
      *
      * @param file 上传的docx文件（可选，与fileUrl二选一）
+     * @param experimentId 已有实验ID（可选，若提供则导入到该实验）
      * @param experimentName 实验名称（可选）
      * @param categoryId 分类ID（可选）
      * @param requirement 实验要求（可选）
@@ -262,6 +270,7 @@ public class EduExperimentController {
     @PostMapping("/import/docx")
     public BaseResponse<DocxImportResult> importFromDocx(
             @RequestParam(required = false) MultipartFile file,
+            @RequestParam(required = false) Long experimentId,
             @RequestParam(required = false) String experimentName,
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) String requirement,
@@ -285,13 +294,22 @@ public class EduExperimentController {
         importRequest.setDefaultDifficulty(defaultDifficulty);
         importRequest.setDefaultScore(defaultScore);
 
-        // 创建实验记录
-        EduExperiment experiment = new EduExperiment();
-        experiment.setName(experimentName != null ? experimentName : "待定");
-        experiment.setPublishStatus(autoPublish != null && autoPublish ? 1 : 0);
+        // 如果提供了 experimentId，则使用已有实验；否则创建新实验
+        EduExperiment experiment;
+        if (experimentId != null) {
+            experiment = eduExperimentService.getById(experimentId);
+            if (experiment == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "实验不存在: " + experimentId);
+            }
+            log.info("[EduExperiment] 导入到已有实验: experimentId={}, name={}", experimentId, experiment.getName());
+        } else {
+            experiment = new EduExperiment();
+            experiment.setName(experimentName != null ? experimentName : "待定");
+            experiment.setPublishStatus(autoPublish != null && autoPublish ? 1 : 0);
+        }
 
-        // 调用导入服务
-        DocxImportResult result = eduExperimentQuestionService.importExperimentFromDocx(importRequest, experiment);
+        // 调用导入服务（传入 file 以支持直接上传的 docx 文件）
+        DocxImportResult result = eduExperimentQuestionService.importExperimentFromDocx(importRequest, experiment, file);
         log.info("[EduExperiment] DOCX导入完成: experimentName={}, success={}", result.getExperimentName(), result.getSuccess());
         return ResultUtils.success(result);
     }
@@ -330,17 +348,25 @@ public class EduExperimentController {
      */
     @GetMapping("/template/download")
     public ResponseEntity<byte[]> downloadTemplate() {
-        log.debug("[EduExperiment] 下载实验导入模板");
+        log.info("[EduExperiment] 下载实验导入模���");
         try {
             byte[] templateBytes = DocxTemplateGenerator.generateTemplate();
 
+            // 中文文件名需要 RFC 5987 编码，避免部分容器抛 IllegalArgumentException
+            String encodedFilename = java.net.URLEncoder
+                    .encode("实验文档导入模板.docx", java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("+", "%20");
+
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-            headers.setContentDispositionFormData("attachment", "实验文档导入模板.docx");
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"template.docx\"; filename*=UTF-8''" + encodedFilename);
             headers.setContentLength(templateBytes.length);
 
             return new ResponseEntity<>(templateBytes, headers, HttpStatus.OK);
         } catch (Exception e) {
+            log.error("[EduExperiment] 生成模板失败", e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成模板文件失败: " + e.getMessage());
         }
     }

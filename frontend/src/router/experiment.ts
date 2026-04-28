@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
-import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons-vue'
+import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined, BarChartOutlined, AuditOutlined } from '@ant-design/icons-vue'
 import type { MenuGroup } from './meta'
 
 const ExperimentListView = () => import('@/views/experiment/student/ListView.vue')
@@ -52,7 +52,7 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     path: '/admin/experiments/reports',
     name: 'AdminReportList',
     component: () => import('@/views/experiment/admin/AdminReportListView.vue'),
-    meta: { title: '实验报告', icon: FileTextOutlined, group: experimentGroup, order: 46, requiresAuth: true, audience: 'admin', summary: '选择实验和班级，查看学生实验报告并批改。' }
+    meta: { title: '批改实验报告', icon: FileTextOutlined, group: experimentGroup, order: 46, requiresAuth: true, audience: 'admin', summary: '选择实验和班级，查看学生实验报告并批改。' }
   },
   {
     path: '/admin/experiments/analysis',
@@ -61,10 +61,22 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     meta: { title: '数据分析', icon: BarChartOutlined, group: experimentGroup, order: 48, requiresAuth: true, audience: 'admin', summary: '查看单个实验的完成情况、得分分布，或统计所有实验的总体情况。' }
   },
   {
+    path: '/admin/experiments/logs',
+    name: 'AdminExperimentLogs',
+    component: () => import('@/views/experiment/admin/ExperimentLogView.vue'),
+    meta: { title: '日志监控', icon: AuditOutlined, group: experimentGroup, order: 49, requiresAuth: true, audience: 'admin', summary: '查看学生实验操作日志，检测异常答题行为。' }
+  },
+  {
     path: '/admin/experiments/reports/:id/:studentId',
     name: 'AdminReportView',
     component: () => import('@/views/experiment/admin/TeacherReportView.vue'),
     meta: { title: '查看报告', icon: FileTextOutlined, group: experimentGroup, order: 47, requiresAuth: true, audience: 'admin', summary: '查看学生实验报告。', hideInMenu: true }
+  },
+  {
+    path: '/admin/experiments/:id/reports/print',
+    name: 'AdminBatchPrintReport',
+    component: () => import('@/views/experiment/admin/BatchPrintReportView.vue'),
+    meta: { title: '按班打印报告', icon: FileTextOutlined, group: experimentGroup, order: 48, requiresAuth: true, audience: 'admin', summary: '批量打印班级学生实验报告。', hideInMenu: true }
   },
   {
     path: '/admin/experiments/results/:id/:studentId',
