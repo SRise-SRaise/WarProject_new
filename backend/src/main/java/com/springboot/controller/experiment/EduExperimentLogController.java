@@ -125,9 +125,15 @@ public class EduExperimentLogController {
             @RequestParam(defaultValue = "20") Integer pageSize) {
         try {
             // 查询该实验的所有日志（actionType 100-108）
+            // 注意：前端 experimentId 可能是字符串或数字，需要兼容两种格式
             QueryWrapper<SysStudentLog> qw = new QueryWrapper<>();
             qw.between("action_type", 100, 108)
-              .like("action_detail", "\"experimentId\":" + experimentId)
+              .and(wrapper -> wrapper
+                  .like("action_detail", "\"experimentId\":\"" + experimentId + "\"")
+                  .or()
+                  .like("action_detail", "\"experimentId\":" + experimentId + ",")
+                  .or()
+                  .like("action_detail", "\"experimentId\":" + experimentId + "}"))
               .orderByAsc("op_time");
             
             List<SysStudentLog> allLogs = sysStudentLogService.list(qw);
@@ -193,7 +199,12 @@ public class EduExperimentLogController {
             QueryWrapper<SysStudentLog> qw = new QueryWrapper<>();
             qw.eq("account", account)
               .between("action_type", 100, 108)
-              .like("action_detail", "\"experimentId\":" + experimentId)
+              .and(wrapper -> wrapper
+                  .like("action_detail", "\"experimentId\":\"" + experimentId + "\"")
+                  .or()
+                  .like("action_detail", "\"experimentId\":" + experimentId + ",")
+                  .or()
+                  .like("action_detail", "\"experimentId\":" + experimentId + "}"))
               .orderByAsc("op_time");
             
             List<SysStudentLog> logs = sysStudentLogService.list(qw);
@@ -211,7 +222,17 @@ public class EduExperimentLogController {
                     item.setActionName(getActionName(log.getActionType()));
                     item.setOpTime(log.getOpTime());
                     item.setClientIp(log.getClientIp());
-                    item.setQuestionId(detail.get("questionId") != null ? ((Number) detail.get("questionId")).longValue() : null);
+                    // questionId 可能是字符串或数字
+                    Object qidObj = detail.get("questionId");
+                    if (qidObj != null) {
+                        if (qidObj instanceof Number) {
+                            item.setQuestionId(((Number) qidObj).longValue());
+                        } else if (qidObj instanceof String && !((String) qidObj).isEmpty()) {
+                            try {
+                                item.setQuestionId(Long.parseLong((String) qidObj));
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
                     item.setQuestionName((String) detail.get("questionName"));
                     item.setExtra(detail);
                     logItems.add(item);
