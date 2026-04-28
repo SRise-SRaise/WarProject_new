@@ -402,16 +402,9 @@ onMounted(async () => {
 .hero-background {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--color-primary, #1890ff) 0%, #096dd9 100%);
+  background: #f8f9fb;
+  border-bottom: 1px solid #e8e8e8;
   z-index: 0;
-}
-
-.hero-background::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.6;
 }
 
 .hero-content {
@@ -426,19 +419,19 @@ onMounted(async () => {
 }
 
 .hero-breadcrumb :deep(.ant-breadcrumb) {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text-secondary, #8c8c8c);
 }
 
 .hero-breadcrumb :deep(.ant-breadcrumb a) {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text-secondary, #8c8c8c);
 }
 
 .hero-breadcrumb :deep(.ant-breadcrumb a:hover) {
-  color: #fff;
+  color: var(--color-primary, #1890ff);
 }
 
 .hero-breadcrumb :deep(.ant-breadcrumb-separator) {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-text-tertiary, #bfbfbf);
 }
 
 .hero-main {
@@ -461,16 +454,16 @@ onMounted(async () => {
 
 .hero-title {
   margin: 0 0 12px;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text-main, #262626);
   line-height: 1.3;
 }
 
 .hero-description {
   margin: 0;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  color: var(--color-text-secondary, #595959);
   line-height: 1.6;
   max-width: 600px;
 }
@@ -482,28 +475,29 @@ onMounted(async () => {
 }
 
 .hero-actions .ant-btn {
-  height: 44px;
-  padding: 0 24px;
-  font-size: 15px;
+  height: 42px;
+  padding: 0 20px;
+  font-size: 14px;
   border-radius: 8px;
 }
 
 .hero-actions .ant-btn-default {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
+  background: #fff;
+  border-color: #d9d9d9;
+  color: var(--color-text-main, #262626);
 }
 
 .hero-actions .ant-btn-default:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: #fff;
+  border-color: var(--color-primary, #1890ff);
+  color: var(--color-primary, #1890ff);
 }
 
 /* 主内容区 */
 .detail-content {
   max-width: 1200px;
-  margin: -24px auto 0;
-  padding: 0 40px 60px;
+  margin: 0 auto;
+  padding: 24px 40px 60px;
   position: relative;
   z-index: 2;
 }
@@ -533,15 +527,15 @@ onMounted(async () => {
 }
 
 .meta-card__icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-primary-bg, #e6f7ff);
-  border-radius: 12px;
-  color: var(--color-primary, #1890ff);
-  font-size: 22px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  color: #595959;
+  font-size: 20px;
 }
 
 .meta-card__content {
@@ -593,8 +587,8 @@ onMounted(async () => {
 }
 
 .section-icon {
-  font-size: 20px;
-  color: var(--color-primary, #1890ff);
+  font-size: 18px;
+  color: #595959;
 }
 
 .section-title {
@@ -607,11 +601,11 @@ onMounted(async () => {
 .section-badge {
   margin-left: auto;
   padding: 4px 12px;
-  background: var(--color-primary-bg, #e6f7ff);
+  background: #f0f0f0;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-primary, #1890ff);
+  color: #595959;
 }
 
 /* 实验目标 */
@@ -638,21 +632,21 @@ onMounted(async () => {
 }
 
 .step-item:hover {
-  background: var(--color-primary-bg, #e6f7ff);
+  background: #f0f0f0;
 }
 
 .step-number {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-primary, #1890ff);
+  background: #262626;
   color: #fff;
   border-radius: 50%;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .step-content {
