@@ -20,6 +20,10 @@
         </p>
       </div>
       <div class="header-actions">
+        <a-button @click="router.push(`/experiments/${experimentId}`)">
+          <LeftOutlined />
+          返回详情
+        </a-button>
         <a-button @click="handleSaveDraft" :loading="isSaving">
           <SaveOutlined />
           保存草稿
@@ -210,13 +214,14 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import {
-  FileTextOutlined,
-  StarOutlined,
-  SyncOutlined,
-  SaveOutlined,
-  CheckOutlined,
-  BookOutlined,
+  import {
+    FileTextOutlined,
+    StarOutlined,
+    SyncOutlined,
+    SaveOutlined,
+    CheckOutlined,
+    BookOutlined,
+    LeftOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import ExperimentStepItem from '@/components/experiment/ExperimentStepItem.vue'

@@ -69,8 +69,7 @@
         </div>
         <p class="experiment-card__summary">{{ item.summary || '暂无实验描述' }}</p>
         <a-space :size="10" wrap>
-          <a-button @click="router.push(`/experiments/${item.id}`)">查看详情</a-button>
-          <a-button v-if="item.status === 'pending' || item.status === 'in_progress'" type="primary" @click="router.push(`/experiments/${item.id}/answer`)">进行实验</a-button>
+          <a-button v-if="item.status === 'pending' || item.status === 'in_progress'" type="primary" @click="router.push(`/experiments/${item.id}`)">进行实验</a-button>
           <a-button v-else type="primary" @click="router.push(`/experiments/${item.id}/result`)">查看结果</a-button>
         </a-space>
       </article>
