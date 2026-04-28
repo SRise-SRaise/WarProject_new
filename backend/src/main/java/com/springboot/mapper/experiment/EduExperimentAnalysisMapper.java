@@ -2,6 +2,7 @@ package com.springboot.mapper.experiment;
 
 import com.springboot.model.dto.experiment.ExperimentScoreDistributionDTO;
 import com.springboot.model.dto.experiment.ExperimentTypeCountDTO;
+import com.springboot.model.vo.experiment.EduExperimentAnalysisVO.StepScoreAnalysisItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -102,6 +103,39 @@ public interface EduExperimentAnalysisMapper {
             "GROUP BY r.student_id" +
             "</script>")
     List<ExperimentScoreDistributionDTO> selectStudentScores(
+            @Param("experimentId") Long experimentId,
+            @Param("clazzNo") String clazzNo);
+
+    // ==================== 步骤得分分析 ====================
+
+    /**
+     * 查询某个实验每个步骤（题目）的得分统计
+     * 返回：步骤序号、题目名称、题型、满分、平均分、最高分、最低分、作答人数
+     */
+    @Select("<script>" +
+            "SELECT " +
+            "  i.sort_order       AS sortOrder, " +
+            "  i.item_name        AS itemName, " +
+            "  i.question_type    AS questionType, " +
+            "  i.max_score        AS maxScore, " +
+            "  IFNULL(AVG(r.score), 0)  AS avgScore, " +
+            "  IFNULL(MAX(r.score), 0)  AS highScore, " +
+            "  IFNULL(MIN(r.score), 0)  AS lowScore, " +
+            "  COUNT(r.student_item_id) AS answeredCount " +
+            "FROM t_experiment_item i " +
+            "LEFT JOIN t_student_item r " +
+            "  ON r.item_id = i.experiment_item_id " +
+            "  AND r.score IS NOT NULL " +
+            "  AND r.score_flag = 2 " +
+            "  <if test='clazzNo != null and clazzNo.length() > 0'>" +
+            "  AND r.student_id IN (SELECT student_id FROM t_student WHERE class_no = #{clazzNo}) " +
+            "  </if>" +
+            "WHERE i.experiment_id = #{experimentId} " +
+            "  AND i.item_status = 1 " +
+            "GROUP BY i.experiment_item_id, i.sort_order, i.item_name, i.question_type, i.max_score " +
+            "ORDER BY i.sort_order ASC" +
+            "</script>")
+    List<StepScoreAnalysisItem> selectStepScoreAnalysis(
             @Param("experimentId") Long experimentId,
             @Param("clazzNo") String clazzNo);
 

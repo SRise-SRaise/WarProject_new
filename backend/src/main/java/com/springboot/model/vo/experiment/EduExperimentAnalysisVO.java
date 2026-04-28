@@ -81,6 +81,11 @@ public class EduExperimentAnalysisVO implements Serializable {
      */
     private List<ScoreDistributionItem> scoreDistribution;
 
+    /**
+     * 各步骤得分分析（每道题目的平均分、满分、得分率等）
+     */
+    private List<StepScoreAnalysisItem> stepScoreAnalysis;
+
     // ========== 2. 全局统计（experimentId 为空时返回） ==========
 
     /**
@@ -137,6 +142,44 @@ public class EduExperimentAnalysisVO implements Serializable {
          * 占总人数百分比
          */
         private Double percentage;
+    }
+
+    /**
+     * 步骤（题目）得分分析项
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class StepScoreAnalysisItem implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        /** 步骤序号 */
+        private Integer sortOrder;
+
+        /** 步骤/题目名称 */
+        private String itemName;
+
+        /** 题目类型（1选择 2填空 3编程 4简答 7实验小结） */
+        private Integer questionType;
+
+        /** 满分 */
+        private Integer maxScore;
+
+        /** 平均得分 */
+        private Double avgScore;
+
+        /** 最高得分 */
+        private Integer highScore;
+
+        /** 最低得分 */
+        private Integer lowScore;
+
+        /** 得分率（平均分/满分，百分比） */
+        private Double scoreRate;
+
+        /** 作答人数 */
+        private Integer answeredCount;
     }
 
     /**

@@ -179,6 +179,66 @@
           <a-empty description="暂无批改数据" />
         </div>
       </section>
+
+      <!-- 步骤得分分析 -->
+      <section class="app-surface-card step-score-section">
+        <div class="step-score-header">
+          <h3 class="section-title" style="margin-bottom:0">各步骤得分分析</h3>
+          <span class="step-score-subtitle">按题目统计平均分、得分率及作答情况</span>
+        </div>
+
+        <div v-if="!analysisData.stepScoreAnalysis || analysisData.stepScoreAnalysis.length === 0" class="chart-empty">
+          <a-empty description="暂无步骤批改数据" />
+        </div>
+
+        <template v-else>
+          <!-- 水平条形图 -->
+          <div
+            ref="stepChartRef"
+            class="step-chart-container"
+            :style="{ height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 42 + 60) + 'px' }"
+          ></div>
+
+          <!-- 明细表格 -->
+          <a-table
+            :columns="stepColumns"
+            :data-source="analysisData.stepScoreAnalysis"
+            :pagination="false"
+            row-key="sortOrder"
+            class="step-table"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'itemName'">
+                <div class="step-name-cell">
+                  <span class="step-index">{{ record.sortOrder }}</span>
+                  <span class="step-name">{{ record.itemName || '未命名步骤' }}</span>
+                  <a-tag v-if="record.questionType === 7" color="purple" style="margin-left:4px;font-size:11px">小结</a-tag>
+                </div>
+              </template>
+              <template v-else-if="column.key === 'avgScore'">
+                <span :class="getStepScoreClass(record.scoreRate)">
+                  {{ record.avgScore ?? 0 }} / {{ record.maxScore ?? 0 }}
+                </span>
+              </template>
+              <template v-else-if="column.key === 'scoreRate'">
+                <div class="rate-cell">
+                  <a-progress
+                    :percent="record.scoreRate ?? 0"
+                    :stroke-color="getStepRateColor(record.scoreRate)"
+                    size="small"
+                    :show-info="false"
+                    style="flex:1;min-width:80px"
+                  />
+                  <span class="rate-text" :class="getStepScoreClass(record.scoreRate)">
+                    {{ record.scoreRate ?? 0 }}%
+                  </span>
+                </div>
+              </template>
+            </template>
+          </a-table>
+        </template>
+      </section>
     </template>
 
     <!-- 全局统计 -->
@@ -289,6 +349,18 @@ const experimentClasses = ref<string[]>([])
 const barChartRef = ref<HTMLElement>()
 let barChart: ECharts | null = null
 
+const stepChartRef = ref<HTMLElement>()
+let stepChart: ECharts | null = null
+
+const stepColumns = [
+  { title: '步骤', key: 'itemName', ellipsis: true },
+  { title: '平均分 / 满分', key: 'avgScore', width: 130, align: 'center' as const },
+  { title: '最高分', dataIndex: 'highScore', key: 'highScore', width: 90, align: 'center' as const },
+  { title: '最低分', dataIndex: 'lowScore', key: 'lowScore', width: 90, align: 'center' as const },
+  { title: '作答人数', dataIndex: 'answeredCount', key: 'answeredCount', width: 100, align: 'center' as const },
+  { title: '得分率', key: 'scoreRate', width: 180 }
+]
+
 const classes = computed(() => experimentClasses.value)
 
 const hasData = computed(() => {
@@ -347,6 +419,7 @@ async function loadData() {
     if (experimentId) {
       await nextTick()
       renderBarChart()
+      renderStepChart()
     }
   } catch (e) {
     console.error('加载数据分析失败:', e)
@@ -440,8 +513,103 @@ function renderBarChart() {
   barChart.setOption(option)
 }
 
+function getStepScoreClass(rate: number): string {
+  if (rate >= 85) return 'score-excellent'
+  if (rate >= 70) return 'score-good'
+  if (rate >= 55) return 'score-ok'
+  return 'score-bad'
+}
+
+function getStepRateColor(rate: number): string {
+  if (rate >= 85) return '#52c41a'
+  if (rate >= 70) return '#4f6ef7'
+  if (rate >= 55) return '#fa8c16'
+  return '#ff4d4f'
+}
+
+function renderStepChart() {
+  const steps = analysisData.value?.stepScoreAnalysis
+  if (!stepChartRef.value || !steps || steps.length === 0) return
+
+  if (!stepChart) {
+    stepChart = echarts.init(stepChartRef.value)
+  }
+
+  const names = steps.map((s: any) => `步骤${s.sortOrder} ${s.itemName?.length > 8 ? s.itemName.slice(0, 8) + '…' : (s.itemName || '')}`)
+  const avgScores = steps.map((s: any) => s.avgScore ?? 0)
+  const maxScores = steps.map((s: any) => s.maxScore ?? 0)
+  const rates = steps.map((s: any) => s.scoreRate ?? 0)
+
+  stepChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const idx = params[0].dataIndex
+        const s = steps[idx]
+        return `<b>步骤${s.sortOrder}：${s.itemName || '未命名'}</b><br/>
+                平均分：${s.avgScore ?? 0} / ${s.maxScore ?? 0}<br/>
+                得分率：${s.scoreRate ?? 0}%<br/>
+                作答人数：${s.answeredCount ?? 0} 人`
+      }
+    },
+    grid: { left: '2%', right: '8%', top: '8%', bottom: '4%', containLabel: true },
+    xAxis: {
+      type: 'value',
+      max: (value: any) => Math.max(value.max, 10),
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+      axisLabel: { formatter: '{value}分' }
+    },
+    yAxis: {
+      type: 'category',
+      data: names,
+      inverse: true,
+      axisLabel: { fontSize: 12, width: 140, overflow: 'truncate' },
+      axisLine: { lineStyle: { color: '#e8eaed' } }
+    },
+    series: [
+      {
+        name: '满分',
+        type: 'bar',
+        data: maxScores,
+        barWidth: 14,
+        barGap: '-100%',
+        itemStyle: { color: '#f0f0f0', borderRadius: [0, 4, 4, 0] },
+        z: 1,
+        label: { show: false }
+      },
+      {
+        name: '平均分',
+        type: 'bar',
+        data: avgScores,
+        barWidth: 14,
+        z: 2,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: (params: any) => {
+            const r = rates[params.dataIndex]
+            return getStepRateColor(r)
+          }
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: any) => {
+            const r = rates[params.dataIndex]
+            return `${params.value}分 (${r}%)`
+          },
+          fontSize: 11,
+          color: '#595959'
+        }
+      }
+    ]
+  })
+}
+
 function handleResize() {
   barChart?.resize()
+  stepChart?.resize()
 }
 
 onMounted(async () => {
@@ -454,6 +622,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   barChart?.dispose()
+  stepChart?.dispose()
 })
 
 watch(() => filterForm.value.experimentId, async (newVal) => {
@@ -524,6 +693,19 @@ watch(() => filterForm.value.experimentId, async (newVal) => {
 .chart-wrapper { width: 100%; }
 .chart-container { width: 100%; height: 360px; }
 .chart-empty { display: flex; justify-content: center; padding: 40px 0; }
+
+/* 步骤得分分析 */
+.step-score-section { padding: var(--space-5); margin-bottom: var(--space-5); }
+.step-score-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+.step-score-subtitle { font-size: 13px; color: var(--color-text-secondary); }
+.step-chart-container { width: 100%; margin-bottom: 20px; }
+.step-table :deep(.ant-table-thead > tr > th) { font-weight: 600; color: var(--color-text-main); background: var(--color-bg-muted); }
+.step-table :deep(.ant-table-tbody > tr > td) { vertical-align: middle; }
+.step-name-cell { display: flex; align-items: center; gap: 8px; }
+.step-index { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--color-primary); color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.step-name { color: var(--color-text-main); font-size: 13px; }
+.rate-cell { display: flex; align-items: center; gap: 8px; }
+.rate-text { font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 42px; text-align: right; }
 
 /* 全局概览 */
 .overview-section { padding: var(--space-5); margin-bottom: var(--space-5); }
