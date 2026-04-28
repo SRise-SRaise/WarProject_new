@@ -198,10 +198,12 @@
       <!-- 得分分布图 -->
       <section class="app-surface-card chart-section">
         <h3 class="section-title">得分分布</h3>
-        <div class="chart-wrapper">
-          <div ref="barChartRef" class="chart-container"></div>
-        </div>
-        <div v-if="!analysisData.scoreDistribution || analysisData.scoreDistribution.length === 0" class="chart-empty">
+        <template v-if="analysisData.scoreDistribution && analysisData.scoreDistribution.length > 0">
+          <div class="chart-wrapper">
+            <div ref="barChartRef" class="chart-container"></div>
+          </div>
+        </template>
+        <div v-else class="chart-empty">
           <a-empty description="暂无批改数据" />
         </div>
       </section>
@@ -218,11 +220,11 @@
         </div>
 
         <template v-else>
-          <!-- 水平条形图 -->
+          <!-- 水平条形图：使用 v-show 保证 DOM 始终存在，ECharts 才能获取真实尺寸 -->
           <div
             ref="stepChartRef"
             class="step-chart-container"
-            :style="{ height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 42 + 60) + 'px' }"
+            :style="{ height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 46 + 60) + 'px' }"
           ></div>
 
           <!-- 明细表格 -->
@@ -383,7 +385,7 @@ let stepChart: ECharts | null = null
 
 const stepColumns = [
   { title: '步骤', key: 'itemName', ellipsis: true },
-  { title: '平均分 / 满分', key: 'avgScore', width: 130, align: 'center' as const },
+  { title: '平均��� / 满分', key: 'avgScore', width: 130, align: 'center' as const },
   { title: '最高分', dataIndex: 'highScore', key: 'highScore', width: 90, align: 'center' as const },
   { title: '最低分', dataIndex: 'lowScore', key: 'lowScore', width: 90, align: 'center' as const },
   { title: '作答人数', dataIndex: 'answeredCount', key: 'answeredCount', width: 100, align: 'center' as const },
@@ -449,6 +451,8 @@ async function loadData() {
     analysisData.value = data
     queried.value = true
     if (data && experimentId) {
+      // 双 nextTick 确保 v-if/v-else 切换完成、容器 DOM 尺寸稳定后再初始化图表
+      await nextTick()
       await nextTick()
       renderBarChart()
       renderStepChart()
