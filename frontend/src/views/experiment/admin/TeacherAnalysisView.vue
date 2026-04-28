@@ -395,7 +395,7 @@ let stepChart: ECharts | null = null
 
 const stepColumns = [
   { title: '步骤', key: 'itemName', ellipsis: true },
-  { title: '平均��� / 满分', key: 'avgScore', width: 130, align: 'center' as const },
+  { title: '平均分 / 满分', key: 'avgScore', width: 130, align: 'center' as const },
   { title: '最高分', dataIndex: 'highScore', key: 'highScore', width: 90, align: 'center' as const },
   { title: '最低分', dataIndex: 'lowScore', key: 'lowScore', width: 90, align: 'center' as const },
   { title: '作答人数', dataIndex: 'answeredCount', key: 'answeredCount', width: 100, align: 'center' as const },
@@ -461,10 +461,15 @@ async function loadData() {
     analysisData.value = data
     queried.value = true
     if (data && experimentId) {
-      // 数据已写入，等下一帧让 Vue 更新 :style 绑定后再渲染图表
+      console.log('[v0] loadData: data loaded, experimentId:', experimentId, 'scoreDistribution:', data.scoreDistribution?.length, 'stepScoreAnalysis:', data.stepScoreAnalysis?.length)
+      // 数据已写入，等 Vue 更新 DOM 和 :style 绑定后再渲染图表
+      // 使用 setTimeout 确保浏览器完成布局
       await nextTick()
-      renderBarChart()
-      renderStepChart()
+      setTimeout(() => {
+        console.log('[v0] loadData: after setTimeout, calling renderBarChart and renderStepChart')
+        renderBarChart()
+        renderStepChart()
+      }, 100)
     }
   } catch (e: any) {
     console.error('加载数据分析失败:', e)
@@ -506,14 +511,18 @@ async function loadExperimentClasses() {
 
 function renderBarChart() {
   const el = barChartRef.value
-  if (!el || !analysisData.value?.scoreDistribution?.length) return
+  const data = analysisData.value?.scoreDistribution
+  console.log('[v0] renderBarChart called, el:', !!el, 'data:', data?.length, 'offsetWidth:', el?.offsetWidth)
+  if (!el || !data?.length) return
 
   // 容器尚未布局完成时延迟重试
   if (el.offsetWidth === 0) {
+    console.log('[v0] renderBarChart: container width is 0, retrying...')
     requestAnimationFrame(renderBarChart)
     return
   }
 
+  console.log('[v0] renderBarChart: initializing ECharts, el size:', el.offsetWidth, 'x', el.offsetHeight)
   if (barChart) {
     barChart.dispose()
     barChart = null
@@ -595,14 +604,17 @@ function getStepRateColor(rate: number): string {
 function renderStepChart() {
   const steps = analysisData.value?.stepScoreAnalysis
   const el = stepChartRef.value
+  console.log('[v0] renderStepChart called, el:', !!el, 'steps:', steps?.length, 'offsetWidth:', el?.offsetWidth, 'offsetHeight:', el?.offsetHeight)
   if (!el || !steps || steps.length === 0) return
 
   // 容器尚未布局完成时延迟重试
   if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+    console.log('[v0] renderStepChart: container size is 0, retrying...')
     requestAnimationFrame(renderStepChart)
     return
   }
 
+  console.log('[v0] renderStepChart: initializing ECharts, el size:', el.offsetWidth, 'x', el.offsetHeight)
   if (stepChart) {
     stepChart.dispose()
     stepChart = null
