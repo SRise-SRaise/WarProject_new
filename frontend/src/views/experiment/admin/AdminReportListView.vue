@@ -196,7 +196,10 @@ function handleTableChange(pag: { current?: number; pageSize?: number }) {
 
 function handlePrintByClass() {
   if (!filterForm.experimentId) return
-  window.open(`/admin/experiments/${filterForm.experimentId}/reports/print?clazz=${filterForm.clazzNo}`, '_blank')
+  const url = filterForm.clazzNo
+    ? `/admin/experiments/${filterForm.experimentId}/reports/print?clazz=${encodeURIComponent(filterForm.clazzNo)}`
+    : `/admin/experiments/${filterForm.experimentId}/reports/print`
+  window.open(url, '_blank')
 }
 
 async function loadExperiments() {

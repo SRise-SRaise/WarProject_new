@@ -67,6 +67,12 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     meta: { title: '查看报告', icon: FileTextOutlined, group: experimentGroup, order: 47, requiresAuth: true, audience: 'admin', summary: '查看学生实验报告。', hideInMenu: true }
   },
   {
+    path: '/admin/experiments/:id/reports/print',
+    name: 'AdminBatchPrintReport',
+    component: () => import('@/views/experiment/admin/BatchPrintReportView.vue'),
+    meta: { title: '按班打印报告', icon: FileTextOutlined, group: experimentGroup, order: 48, requiresAuth: true, audience: 'admin', summary: '批量打印班级学生实验报告。', hideInMenu: true }
+  },
+  {
     path: '/admin/experiments/results/:id/:studentId',
     name: 'AdminExperimentReportGrade',
     component: () => import('@/views/experiment/admin/TeacherReportView.vue'),
