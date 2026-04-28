@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * 用于记录学生实验操作日志和查询风险分析
  */
 @RestController
-@RequestMapping("/api/experiment/log")
+@RequestMapping("/experiment/log")
 @Slf4j
 public class EduExperimentLogController {
 
