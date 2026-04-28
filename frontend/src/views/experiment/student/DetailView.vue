@@ -177,9 +177,18 @@
                     <span class="material-name">{{ item.name }}</span>
                     <span class="material-meta">{{ item.kind }} · {{ item.size }}</span>
                   </div>
-                  <a-button type="link" size="small">
+                  <a
+                    v-if="item.url"
+                    :href="item.url"
+                    target="_blank"
+                    class="download-link"
+                    title="下载附件"
+                  >
                     <DownloadOutlined />
-                  </a-button>
+                  </a>
+                  <span v-else class="no-download" title="暂无下载链接">
+                    <DownloadOutlined style="color: #bfbfbf" />
+                  </span>
                 </div>
               </div>
               <a-empty v-else description="暂无实验材料" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
@@ -737,6 +746,31 @@ onMounted(async () => {
 .material-meta {
   font-size: 12px;
   color: var(--color-text-tertiary, #8c8c8c);
+}
+
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-primary, #4f6ef7);
+  background: var(--color-bg-muted, #fafafa);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.download-link:hover {
+  background: var(--color-primary, #4f6ef7);
+  color: #fff;
+}
+
+.no-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
 }
 
 /* 当前进度 */

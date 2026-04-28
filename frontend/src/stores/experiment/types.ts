@@ -2,6 +2,7 @@ export interface ExperimentAsset {
   name: string
   size: string
   kind: string
+  url?: string
 }
 
 export interface ExperimentStep {

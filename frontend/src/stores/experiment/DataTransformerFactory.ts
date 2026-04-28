@@ -110,7 +110,7 @@ export class DataTransformerFactory {
       summary: vo.requirement || vo.contentDesc || '暂无实验描述',
       objective: vo.contentDesc || vo.requirement || '暂无实验目标',
       tags: vo.tags || [vo.categoryName || '实验'],
-      materials: this.parseMaterials(vo.materials),
+      materials: this.parseMaterials(vo.materials, vo.instructionUrl),
       steps: this.parseSteps(vo.steps),
       work: {
         status: status === 'in_progress' ? 'pending' : status,
@@ -267,9 +267,42 @@ export class DataTransformerFactory {
 
   // ==================== 内部辅助方法 ====================
 
-  private parseMaterials(materials: any): ExperimentStudentItem['materials'] {
-    if (Array.isArray(materials)) return materials
-    return []
+  private parseMaterials(materials: any, instructionUrl?: string): ExperimentStudentItem['materials'] {
+    const result: ExperimentStudentItem['materials'] = []
+    
+    // 如果有 instructionUrl，作为指导书添加到材料列表
+    if (instructionUrl && typeof instructionUrl === 'string' && instructionUrl.trim()) {
+      const url = instructionUrl.trim()
+      // 从 URL 中提取文件名
+      const fileName = url.split('/').pop() || '实验指导书'
+      // 根据扩展名判断类型
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      const kindMap: Record<string, string> = {
+        'pdf': 'PDF文档',
+        'doc': 'Word文档',
+        'docx': 'Word文档',
+        'ppt': 'PPT',
+        'pptx': 'PPT',
+        'xls': 'Excel',
+        'xlsx': 'Excel',
+        'zip': '压缩包',
+        'rar': '压缩包',
+        'txt': '文本文件'
+      }
+      result.push({
+        name: decodeURIComponent(fileName),
+        size: '—',
+        kind: kindMap[ext] || '指导书',
+        url: url
+      })
+    }
+    
+    // 合并已有的 materials 数组
+    if (Array.isArray(materials)) {
+      result.push(...materials)
+    }
+    
+    return result
   }
 
   private parseSteps(steps: any): ExperimentStep[] {
