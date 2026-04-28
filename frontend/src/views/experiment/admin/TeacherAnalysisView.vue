@@ -66,11 +66,29 @@
       </a-spin>
     </section>
 
-    <!-- 无数据提示 -->
-    <section v-else-if="!hasData" class="empty-section">
-      <a-result status="info" title="暂无数据" sub-title="请选择实验后点击「查询」，或暂无学生提交记录。">
+    <!-- 查询出错 -->
+    <section v-else-if="queryError" class="empty-section">
+      <a-result status="error" title="查询失败" :sub-title="queryError">
         <template #extra>
-          <a-button type="primary" @click="loadData">刷新</a-button>
+          <a-button type="primary" @click="loadData">重试</a-button>
+        </template>
+      </a-result>
+    </section>
+
+    <!-- 未查询过（初始状态） -->
+    <section v-else-if="!queried" class="empty-section">
+      <a-result status="info" title="请选择筛选条件并查询" sub-title="选择具体实验可查看该实验的完成情况和步骤得分分析；不选择实验则显示全局统计。">
+        <template #extra>
+          <a-button type="primary" @click="loadData" :loading="loading">立即查询</a-button>
+        </template>
+      </a-result>
+    </section>
+
+    <!-- 查询无数据 -->
+    <section v-else-if="queryEmpty" class="empty-section">
+      <a-result status="info" title="暂无数据" sub-title="该实验暂无学生提交记录，或实验尚未开始。">
+        <template #extra>
+          <a-button @click="loadData">刷新</a-button>
         </template>
       </a-result>
     </section>
@@ -339,11 +357,14 @@ const adminStore = useExperimentAdminStore()
 const { experiments } = storeToRefs(adminStore)
 
 const loading = ref(false)
+const queryError = ref('')
 const filterForm = ref({
   experimentId: '' as string,
   clazzNo: '' as string
 })
 const analysisData = ref<any>(null)
+// 是否已进行过至少一次查询
+const queried = ref(false)
 const experimentClasses = ref<string[]>([])
 
 const barChartRef = ref<HTMLElement>()
@@ -363,9 +384,10 @@ const stepColumns = [
 
 const classes = computed(() => experimentClasses.value)
 
-const hasData = computed(() => {
-  return analysisData.value !== null
-})
+// 已查询过且有数据
+const hasData = computed(() => queried.value && analysisData.value !== null)
+// 已查询过但无数据
+const queryEmpty = computed(() => queried.value && analysisData.value === null)
 
 const typeColumns = [
   { title: '实验类型', key: 'typeCode', width: 140 },
@@ -410,19 +432,24 @@ function getProgressColor(record: any): string {
 
 async function loadData() {
   loading.value = true
-  analysisData.value = null
+  queryError.value = ''
   try {
     await adminStore.ensureLoaded()
     const experimentId = filterForm.value.experimentId || undefined
-    const data = await experimentRepository.getExperimentAnalysis(experimentId, filterForm.value.clazzNo || undefined)
+    const clazzNo = filterForm.value.clazzNo || undefined
+    const data = await experimentRepository.getExperimentAnalysis(experimentId, clazzNo)
     analysisData.value = data
-    if (experimentId) {
+    queried.value = true
+    if (data && experimentId) {
       await nextTick()
       renderBarChart()
       renderStepChart()
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载数据分析失败:', e)
+    queryError.value = e?.message || '查询失败，请重试'
+    analysisData.value = null
+    queried.value = true
   } finally {
     loading.value = false
   }
@@ -431,7 +458,15 @@ async function loadData() {
 function handleExperimentChange() {
   filterForm.value.clazzNo = ''
   experimentClasses.value = []
+  // 切换实验时重置数据，让用户点击"查询"再加载，避免显示旧实验的数据
   analysisData.value = null
+  queried.value = false
+  queryError.value = ''
+  // 销毁旧图表，切换实验后图表需要重新初始化
+  barChart?.dispose()
+  barChart = null
+  stepChart?.dispose()
+  stepChart = null
   if (filterForm.value.experimentId) {
     loadExperimentClasses()
   }
@@ -451,9 +486,11 @@ async function loadExperimentClasses() {
 function renderBarChart() {
   if (!barChartRef.value || !analysisData.value?.scoreDistribution) return
 
-  if (!barChart) {
-    barChart = echarts.init(barChartRef.value)
+  if (barChart) {
+    barChart.dispose()
+    barChart = null
   }
+  barChart = echarts.init(barChartRef.value)
 
   const dist = analysisData.value.scoreDistribution
   const labels = dist.map((d: any) => d.label)
@@ -531,9 +568,12 @@ function renderStepChart() {
   const steps = analysisData.value?.stepScoreAnalysis
   if (!stepChartRef.value || !steps || steps.length === 0) return
 
-  if (!stepChart) {
-    stepChart = echarts.init(stepChartRef.value)
+  // 若已有实例先销毁，确保容器尺寸改变后重新初始化
+  if (stepChart) {
+    stepChart.dispose()
+    stepChart = null
   }
+  stepChart = echarts.init(stepChartRef.value)
 
   const names = steps.map((s: any) => `步骤${s.sortOrder} ${s.itemName?.length > 8 ? s.itemName.slice(0, 8) + '…' : (s.itemName || '')}`)
   const avgScores = steps.map((s: any) => s.avgScore ?? 0)
@@ -613,9 +653,8 @@ function handleResize() {
 }
 
 onMounted(async () => {
+  // 只加载实验列表供选择器使用，不自动触发查询，避免初始状态混乱
   await adminStore.ensureLoaded()
-  // 自动加载数据分析（默认显示全局统计）
-  await loadData()
   window.addEventListener('resize', handleResize)
 })
 
@@ -625,12 +664,7 @@ onUnmounted(() => {
   stepChart?.dispose()
 })
 
-watch(() => filterForm.value.experimentId, async (newVal) => {
-  if (newVal) {
-    await nextTick()
-    renderBarChart()
-  }
-})
+
 </script>
 
 <style scoped>
