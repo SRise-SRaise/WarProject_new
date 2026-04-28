@@ -79,16 +79,6 @@ export const useExperimentStudentStore = defineStore('experiment-student', () =>
     return updated
   }
 
-  async function saveExperimentSummary(experimentId: string, summaryContent: string): Promise<boolean> {
-    const studentId = userContextFactory.getUserIdStr()
-    return await experimentRepository.saveExperimentSummary(experimentId, studentId, summaryContent)
-  }
-
-  async function getExperimentSummary(experimentId: string): Promise<string> {
-    const studentId = userContextFactory.getUserIdStr()
-    return await experimentRepository.getExperimentSummary(experimentId, studentId)
-  }
-
   async function loadStudentReport(experimentId: string): Promise<ExperimentReport | null> {
     loading.value = true
     try {
@@ -116,8 +106,6 @@ export const useExperimentStudentStore = defineStore('experiment-student', () =>
     submitAnswers,
     getSavedAnswers,
     saveWork,
-    saveExperimentSummary,
-    getExperimentSummary,
     loadStudentReport
   }
 })

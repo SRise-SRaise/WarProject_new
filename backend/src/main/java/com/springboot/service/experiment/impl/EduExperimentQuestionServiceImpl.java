@@ -275,6 +275,22 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
             items.add(item);
         }
 
+        // 检查是否已有 type=7（实验小结）的步骤，没有则自动追加
+        boolean hasSummaryItem = items.stream()
+                .anyMatch(it -> Integer.valueOf(7).equals(it.getQuestionType()));
+        if (!hasSummaryItem) {
+            EduExperimentItem summaryItem = new EduExperimentItem();
+            summaryItem.setExperimentId(experimentId);
+            summaryItem.setSortOrder(sortOrder);
+            summaryItem.setItemName("实验小结");
+            summaryItem.setQuestionType(7); // 综合/实验小结
+            summaryItem.setQuestionContent("请根据本次实验的完成情况，总结实验收获、遇到的问题及解决思路。");
+            summaryItem.setMaxScore(10);
+            summaryItem.setItemStatus(1);
+            items.add(summaryItem);
+            log.info("[EduExperimentQuestion] 自动追加实验小结步骤");
+        }
+
         // 批量保存题目到 t_experiment_item 表
         int successCount = 0;
         int failCount = 0;
@@ -283,8 +299,8 @@ public class EduExperimentQuestionServiceImpl extends ServiceImpl<EduExperimentQ
         for (int i = 0; i < items.size(); i++) {
             EduExperimentItem item = items.get(i);
             try {
-                // 校验必填项
-                if (StringUtils.isBlank(item.getQuestionContent())) {
+                // 实验小结(type=7)不需要强制校验内容
+                if (item.getQuestionType() != 7 && StringUtils.isBlank(item.getQuestionContent())) {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "题目内容不能为空");
                 }
                 eduExperimentItemService.save(item);

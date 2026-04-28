@@ -729,60 +729,6 @@ class ExperimentRepository {
     }
   }
 
-  // ==================== 实验总结 ====================
-
-  /**
-   * 保存实验总结（itemId = -experimentId 约定）
-   */
-  async saveExperimentSummary(experimentId: string, studentId: string, summaryContent: string): Promise<boolean> {
-    try {
-      const params = new URLSearchParams({
-        experimentId,
-        studentId,
-        summaryContent
-      })
-      const response = await fetch(`/api/experiment/resExperimentResult/summary/save?${params.toString()}`, {
-        method: 'POST',
-        credentials: 'include'
-      })
-      const responseText = await response.text()
-      let backendData
-      try {
-        backendData = JSON.parse(responseText)
-      } catch (e) {
-        console.error('[Repository] JSON 解析失败:', e)
-        return false
-      }
-      return backendData?.code === 0
-    } catch (error) {
-      console.error('保存实验总结失败:', error)
-      return false
-    }
-  }
-
-  /**
-   * 获取实验总结
-   */
-  async getExperimentSummary(experimentId: string, studentId: string): Promise<string> {
-    try {
-      const response = await fetch(
-        `/api/experiment/resExperimentResult/summary/get?experimentId=${encodeURIComponent(experimentId)}&studentId=${encodeURIComponent(studentId)}`,
-        { method: 'GET', credentials: 'include' }
-      )
-      const responseText = await response.text()
-      let backendData
-      try {
-        backendData = JSON.parse(responseText)
-      } catch (e) {
-        return ''
-      }
-      return backendData?.code === 0 ? (backendData.data || '') : ''
-    } catch (error) {
-      console.error('获取实验总结失败:', error)
-      return ''
-    }
-  }
-
   // ==================== 学生实验数据分析 ====================
 
   /**
