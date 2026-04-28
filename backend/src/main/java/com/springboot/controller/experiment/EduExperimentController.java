@@ -159,7 +159,12 @@ public class EduExperimentController {
         resultQuery.select("student_id");
         List<ResExperimentResult> results = resExperimentResultMapper.selectList(resultQuery);
 
+        if (results == null || results.isEmpty()) {
+            return ResultUtils.success(Collections.emptyList());
+        }
+
         Set<Long> studentIds = results.stream()
+                .filter(Objects::nonNull)
                 .map(ResExperimentResult::getStudentId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -343,7 +348,7 @@ public class EduExperimentController {
      */
     @GetMapping("/template/download")
     public ResponseEntity<byte[]> downloadTemplate() {
-        log.info("[EduExperiment] 下载实验导入模板");
+        log.info("[EduExperiment] 下载实验导入模���");
         try {
             byte[] templateBytes = DocxTemplateGenerator.generateTemplate();
 
