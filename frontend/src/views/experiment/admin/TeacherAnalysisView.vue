@@ -31,10 +31,18 @@
     <section class="app-surface-card filter-card">
       <a-form layout="inline" :model="filterForm">
         <a-form-item label="选择实验">
-          <a-select v-model:value="filterForm.experimentId" placeholder="全部实验（全局统计）" style="width: 260px" allow-clear @change="handleExperimentChange">
+          <a-select
+            v-model:value="filterForm.experimentId"
+            placeholder="全部实验（全局统计）"
+            style="width: 280px"
+            allow-clear
+            :loading="adminStore.loading"
+            :not-found-content="adminStore.loading ? '加载中...' : '暂无实验数据'"
+            @change="handleExperimentChange"
+          >
             <a-select-option value="">全部实验（全局统计）</a-select-option>
             <a-select-option v-for="exp in experiments" :key="exp.id" :value="exp.id">
-              实验{{ exp.sortOrder ?? exp.id }} - {{ exp.title }}
+              {{ exp.sortOrder ? `步骤${exp.sortOrder} - ` : '' }}{{ exp.title }}
             </a-select-option>
           </a-select>
         </a-form-item>
@@ -653,8 +661,8 @@ function handleResize() {
 }
 
 onMounted(async () => {
-  // 只加载实验列表供选择器使用，不自动触发查询，避免初始状态混乱
-  await adminStore.ensureLoaded()
+  // 强制刷新实验列表（不走 hydrated 缓存），确保下拉显示真实数据库数据
+  await adminStore.refresh()
   window.addEventListener('resize', handleResize)
 })
 
