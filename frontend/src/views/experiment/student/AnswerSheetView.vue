@@ -252,6 +252,19 @@ import type {
   StudentAnswer,
   AnswerSaveRequest
 } from '@/stores/experiment/types'
+import {
+  setUserInfo,
+  logEnterExperiment,
+  logSaveAnswer,
+  logSubmitExperiment,
+  logLeavePage,
+  logReturnPage,
+  logPaste,
+  logFocusLost,
+  flushLogs,
+  flushLogsBeforeUnload,
+  cleanupLogger
+} from '@/utils/experimentLogger'
 
 const route = useRoute()
 const router = useRouter()
@@ -363,11 +376,17 @@ function handleMultipleAnswerChange(questionId: string, values: string[]) {
 
 function updateAnswer(questionId: string, answer: string) {
   const existing = answersMap[questionId] || { questionId }
+  const wasAnswered = existing.answer && existing.answer.trim() !== ''
   answersMap[questionId] = {
     ...existing,
     questionId,
     answer,
     answeredAt: new Date().toLocaleString()
+  }
+  // 如果是首次作答或答案有变化，记录日志
+  if (answer.trim() !== '' && (!wasAnswered || existing.answer !== answer)) {
+    const question = questions.value.find(q => q.id === questionId)
+    logSaveAnswer(experimentId.value, questionId, question?.title)
   }
 }
 
@@ -407,6 +426,15 @@ async function loadExperiment() {
 
     experimentTitle.value = experiment.title
     experimentObjective.value = experiment.objective || ''
+
+    // 设置用户信息用于日志记录
+    const userInfo = experimentStore.getCurrentUserInfo()
+    if (userInfo) {
+      setUserInfo(userInfo.account, userInfo.studentName, userInfo.clazzNo)
+    }
+
+    // 记录进入实验日志
+    logEnterExperiment(experimentId.value, experiment.title)
 
     // 从真实 API 获取题目数据
     const fetchedQuestions = await experimentStore.loadExperimentQuestions(experimentId.value)
@@ -547,6 +575,12 @@ async function confirmSubmit() {
   try {
     const request = buildSaveRequest()
     request.isSubmit = true
+    
+    // 记录提交实验日志
+    logSubmitExperiment(experimentId.value)
+    // 立即上传日志
+    await flushLogs()
+    
     await experimentStore.submitAnswers(request)
 
     // 清除本地草稿
@@ -582,6 +616,15 @@ onMounted(() => {
 
   // 绑定键盘事件（防止粘贴快捷键）
   document.addEventListener('keydown', handleGlobalKeyDown)
+  
+  // 监听页面可见性变化（切换标签页）
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  
+  // 监听页面卸载，确保日志上传
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  
+  // 监听粘贴事件
+  document.addEventListener('paste', handlePasteEvent)
 })
 
 onUnmounted(() => {
@@ -589,7 +632,33 @@ onUnmounted(() => {
     clearTimeout(autoSaveTimer)
   }
   document.removeEventListener('keydown', handleGlobalKeyDown)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('paste', handlePasteEvent)
+  
+  // 清理日志记录器
+  cleanupLogger()
 })
+
+// 页面可见性变化处理
+function handleVisibilityChange() {
+  if (document.hidden) {
+    logLeavePage(experimentId.value)
+  } else {
+    logReturnPage(experimentId.value)
+  }
+}
+
+// 页面卸载前处理
+function handleBeforeUnload() {
+  flushLogsBeforeUnload()
+}
+
+// 粘贴事件处理
+function handlePasteEvent() {
+  const question = questions.value[currentQuestionIndex.value]
+  logPaste(experimentId.value, question?.id, question?.title)
+}
 
 // 全局键盘事件处理（防作弊）
 function handleGlobalKeyDown(e: KeyboardEvent) {

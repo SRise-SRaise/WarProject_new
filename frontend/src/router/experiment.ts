@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
-import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons-vue'
+import { ExperimentOutlined, ToolOutlined, UnorderedListOutlined, FileTextOutlined, BarChartOutlined, AuditOutlined } from '@ant-design/icons-vue'
 import type { MenuGroup } from './meta'
 
 const ExperimentListView = () => import('@/views/experiment/student/ListView.vue')
@@ -59,6 +59,12 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     name: 'AdminExperimentAnalysis',
     component: TeacherAnalysisView,
     meta: { title: '数据分析', icon: BarChartOutlined, group: experimentGroup, order: 48, requiresAuth: true, audience: 'admin', summary: '查看单个实验的完成情况、得分分布，或统计所有实验的总体情况。' }
+  },
+  {
+    path: '/admin/experiments/logs',
+    name: 'AdminExperimentLogs',
+    component: () => import('@/views/experiment/admin/ExperimentLogView.vue'),
+    meta: { title: '日志监控', icon: AuditOutlined, group: experimentGroup, order: 49, requiresAuth: true, audience: 'admin', summary: '查看学生实验操作日志，检测异常答题行为。' }
   },
   {
     path: '/admin/experiments/reports/:id/:studentId',
