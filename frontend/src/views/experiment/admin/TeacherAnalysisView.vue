@@ -198,12 +198,16 @@
       <!-- 得分分布图 -->
       <section class="app-surface-card chart-section">
         <h3 class="section-title">得分分布</h3>
-        <template v-if="analysisData.scoreDistribution && analysisData.scoreDistribution.length > 0">
-          <div class="chart-wrapper">
-            <div ref="barChartRef" class="chart-container"></div>
-          </div>
-        </template>
-        <div v-else class="chart-empty">
+        <!-- 容器始终渲染，v-show 控制显隐，确保 ECharts ref 始终可获取真实尺寸 -->
+        <div
+          ref="barChartRef"
+          class="chart-container"
+          :style="{ display: analysisData.scoreDistribution && analysisData.scoreDistribution.length > 0 ? 'block' : 'none' }"
+        ></div>
+        <div
+          v-if="!analysisData.scoreDistribution || analysisData.scoreDistribution.length === 0"
+          class="chart-empty"
+        >
           <a-empty description="暂无批改数据" />
         </div>
       </section>
@@ -215,18 +219,24 @@
           <span class="step-score-subtitle">按题目统计平均分、得分率及作答情况</span>
         </div>
 
-        <div v-if="!analysisData.stepScoreAnalysis || analysisData.stepScoreAnalysis.length === 0" class="chart-empty">
+        <!-- 步骤图表容器始终渲染 -->
+        <div
+          ref="stepChartRef"
+          class="step-chart-container"
+          :style="{
+            display: analysisData.stepScoreAnalysis && analysisData.stepScoreAnalysis.length > 0 ? 'block' : 'none',
+            height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 46 + 60) + 'px'
+          }"
+        ></div>
+
+        <div
+          v-if="!analysisData.stepScoreAnalysis || analysisData.stepScoreAnalysis.length === 0"
+          class="chart-empty"
+        >
           <a-empty description="暂无步骤批改数据" />
         </div>
 
-        <template v-else>
-          <!-- 水平条形图：使用 v-show 保证 DOM 始终存在，ECharts 才能获取真实尺寸 -->
-          <div
-            ref="stepChartRef"
-            class="step-chart-container"
-            :style="{ height: Math.max(260, (analysisData.stepScoreAnalysis?.length ?? 0) * 46 + 60) + 'px' }"
-          ></div>
-
+        <template v-if="analysisData.stepScoreAnalysis && analysisData.stepScoreAnalysis.length > 0">
           <!-- 明细表格 -->
           <a-table
             :columns="stepColumns"
@@ -451,8 +461,7 @@ async function loadData() {
     analysisData.value = data
     queried.value = true
     if (data && experimentId) {
-      // 双 nextTick 确保 v-if/v-else 切换完成、容器 DOM 尺寸稳定后再初始化图表
-      await nextTick()
+      // 数据已写入，等下一帧让 Vue 更新 :style 绑定后再渲染图表
       await nextTick()
       renderBarChart()
       renderStepChart()
@@ -496,13 +505,20 @@ async function loadExperimentClasses() {
 }
 
 function renderBarChart() {
-  if (!barChartRef.value || !analysisData.value?.scoreDistribution) return
+  const el = barChartRef.value
+  if (!el || !analysisData.value?.scoreDistribution?.length) return
+
+  // 容器尚未布局完成时延迟重试
+  if (el.offsetWidth === 0) {
+    requestAnimationFrame(renderBarChart)
+    return
+  }
 
   if (barChart) {
     barChart.dispose()
     barChart = null
   }
-  barChart = echarts.init(barChartRef.value)
+  barChart = echarts.init(el)
 
   const dist = analysisData.value.scoreDistribution
   const labels = dist.map((d: any) => d.label)
@@ -578,14 +594,20 @@ function getStepRateColor(rate: number): string {
 
 function renderStepChart() {
   const steps = analysisData.value?.stepScoreAnalysis
-  if (!stepChartRef.value || !steps || steps.length === 0) return
+  const el = stepChartRef.value
+  if (!el || !steps || steps.length === 0) return
 
-  // 若已有实例先销毁，确保容器尺寸改变后重新初始化
+  // 容器尚未布局完成时延迟重试
+  if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+    requestAnimationFrame(renderStepChart)
+    return
+  }
+
   if (stepChart) {
     stepChart.dispose()
     stepChart = null
   }
-  stepChart = echarts.init(stepChartRef.value)
+  stepChart = echarts.init(el)
 
   const names = steps.map((s: any) => `步骤${s.sortOrder} ${s.itemName?.length > 8 ? s.itemName.slice(0, 8) + '…' : (s.itemName || '')}`)
   const avgScores = steps.map((s: any) => s.avgScore ?? 0)
