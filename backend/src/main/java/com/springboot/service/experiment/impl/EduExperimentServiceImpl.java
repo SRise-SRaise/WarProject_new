@@ -3,9 +3,11 @@ package com.springboot.service.experiment.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.springboot.mapper.experiment.EduExperimentAttachmentMapper;
 import com.springboot.mapper.experiment.EduExperimentMapper;
 import com.springboot.model.dto.experiment.EduExperimentQueryRequest;
 import com.springboot.model.entity.experiment.EduExperiment;
+import com.springboot.model.entity.experiment.EduExperimentAttachment;
 import com.springboot.model.vo.experiment.EduExperimentVO;
 import com.springboot.service.experiment.EduExperimentService;
 import com.springboot.service.experiment.ExperimentClassService;
@@ -24,6 +26,9 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
 
     @Resource
     private ExperimentClassService experimentClassService;
+
+    @Resource
+    private EduExperimentAttachmentMapper attachmentMapper;
 
     @Override
     public void validEduExperiment(EduExperiment eduExperiment, boolean add) {
@@ -70,6 +75,8 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
         log.debug("[EduExperiment] 转换为VO: id={}", eduExperiment.getId());
         EduExperimentVO vo = EduExperimentVO.objToVo(eduExperiment);
         enrichClassInfo(vo, eduExperiment.getId());
+        // 补充指导书URL：查询教师上传的附件（studentId=0）
+        enrichInstructionUrl(vo, eduExperiment.getId());
         return vo;
     }
 
@@ -80,6 +87,7 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
             try {
                 EduExperimentVO vo = EduExperimentVO.objToVo(entity);
                 enrichClassInfo(vo, entity.getId());
+                enrichInstructionUrl(vo, entity.getId());
                 return vo;
             } catch (Exception e) {
                 log.error("[EduExperiment] VO转换失败: id={}, error={}", entity.getId(), e.getMessage(), e);
@@ -109,6 +117,33 @@ public class EduExperimentServiceImpl extends ServiceImpl<EduExperimentMapper, E
             vo.setClassCodes(Collections.emptyList());
             vo.setClassNames(Collections.emptyList());
             vo.setClassCount(0);
+        }
+    }
+
+    /**
+     * 补充指导书URL
+     * 指导书存储在 edu_experiment_attachment 表，通过 resultId=实验ID 和 studentId=0 标识
+     */
+    private void enrichInstructionUrl(EduExperimentVO vo, Long experimentId) {
+        if (vo == null || experimentId == null) {
+            return;
+        }
+        try {
+            // 查询教师上传的指导书附件：resultId=实验ID, studentId=0, 未删除
+            QueryWrapper<EduExperimentAttachment> qw = new QueryWrapper<>();
+            qw.eq("result_id", experimentId)
+              .eq("student_id", 0L)
+              .eq("is_deleted", 0)
+              .eq("upload_status", 1)
+              .orderByDesc("created_at")
+              .last("LIMIT 1");
+            EduExperimentAttachment attachment = attachmentMapper.selectOne(qw);
+            if (attachment != null && attachment.getObsUrl() != null) {
+                vo.setInstructionUrl(attachment.getObsUrl());
+                log.debug("[EduExperiment] 补全指导书URL: experimentId={}, url={}", experimentId, attachment.getObsUrl());
+            }
+        } catch (Exception e) {
+            log.warn("[EduExperiment] 补全指导书URL失败: experimentId={}, error={}", experimentId, e.getMessage(), e);
         }
     }
 

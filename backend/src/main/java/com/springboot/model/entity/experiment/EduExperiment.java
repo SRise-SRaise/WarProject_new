@@ -65,9 +65,9 @@ public class EduExperiment implements Serializable {
 
     /**
      * 指导书/附件文件访问路径
-     * 注意：需要先执行 V003__add_instruction_url_column.sql 迁移脚本
+     * 注意：此字段不映射数据库，通过文件约定路径动态生成
      */
-    @TableField(value = "instruction_url")
+    @TableField(exist = false)
     private String instructionUrl;
 
     /**
