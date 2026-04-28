@@ -128,10 +128,10 @@ public interface EduExperimentAnalysisMapper {
     })
     @Select("<script>" +
             "SELECT " +
-            "  i.sort_order                    AS sort_order, " +
-            "  i.item_name                     AS item_name, " +
-            "  i.question_type                 AS question_type, " +
-            "  i.max_score                     AS max_score, " +
+            "  i.experiment_item_no            AS sort_order, " +
+            "  i.experiment_item_name          AS item_name, " +
+            "  i.experiment_item_type          AS question_type, " +
+            "  i.experiment_item_score         AS max_score, " +
             "  IFNULL(AVG(r.score), 0)         AS avg_score, " +
             "  IFNULL(MAX(r.score), 0)         AS high_score, " +
             "  IFNULL(MIN(r.score), 0)         AS low_score, " +
@@ -145,9 +145,9 @@ public interface EduExperimentAnalysisMapper {
             "  AND r.student_id IN (SELECT student_id FROM t_student WHERE class_no = #{clazzNo}) " +
             "  </if>" +
             "WHERE i.experiment_id = #{experimentId} " +
-            "  AND i.item_status = 1 " +
-            "GROUP BY i.experiment_item_id, i.sort_order, i.item_name, i.question_type, i.max_score " +
-            "ORDER BY i.sort_order ASC" +
+            "  AND i.state = 1 " +
+            "GROUP BY i.experiment_item_id, i.experiment_item_no, i.experiment_item_name, i.experiment_item_type, i.experiment_item_score " +
+            "ORDER BY i.experiment_item_no ASC" +
             "</script>")
     List<StepScoreAnalysisDTO> selectStepScoreAnalysis(
             @Param("experimentId") Long experimentId,
