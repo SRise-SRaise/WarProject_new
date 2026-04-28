@@ -489,8 +489,18 @@ onMounted(async () => {
 
 .hero-actions .ant-btn-default:hover {
   background: #fff;
-  border-color: var(--color-primary, #1890ff);
-  color: var(--color-primary, #1890ff);
+  border-color: #4f6ef7;
+  color: #4f6ef7;
+}
+
+.hero-actions .ant-btn-primary {
+  background: #4f6ef7;
+  border-color: #4f6ef7;
+}
+
+.hero-actions .ant-btn-primary:hover {
+  background: #3d5bd9;
+  border-color: #3d5bd9;
 }
 
 /* 主内容区 */
@@ -527,15 +537,15 @@ onMounted(async () => {
 }
 
 .meta-card__icon {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #f0f5ff;
   border-radius: 10px;
-  color: #595959;
-  font-size: 20px;
+  color: #4f6ef7;
+  font-size: 18px;
 }
 
 .meta-card__content {
@@ -587,8 +597,8 @@ onMounted(async () => {
 }
 
 .section-icon {
-  font-size: 18px;
-  color: #595959;
+  font-size: 17px;
+  color: #4f6ef7;
 }
 
 .section-title {
@@ -601,11 +611,11 @@ onMounted(async () => {
 .section-badge {
   margin-left: auto;
   padding: 4px 12px;
-  background: #f0f0f0;
+  background: #f0f5ff;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #595959;
+  color: #4f6ef7;
 }
 
 /* 实验目标 */
@@ -632,17 +642,17 @@ onMounted(async () => {
 }
 
 .step-item:hover {
-  background: #f0f0f0;
+  background: #f0f5ff;
 }
 
 .step-number {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #262626;
+  background: #4f6ef7;
   color: #fff;
   border-radius: 50%;
   font-size: 13px;
@@ -696,7 +706,7 @@ onMounted(async () => {
 }
 
 .material-item:hover {
-  background: var(--color-primary-bg, #e6f7ff);
+  background: #f0f5ff;
 }
 
 .material-icon {
@@ -707,7 +717,7 @@ onMounted(async () => {
   justify-content: center;
   background: #fff;
   border-radius: 8px;
-  color: var(--color-primary, #1890ff);
+  color: #4f6ef7;
   font-size: 16px;
 }
 
@@ -731,21 +741,26 @@ onMounted(async () => {
 
 /* 当前进度 */
 .progress-section {
-  background: linear-gradient(135deg, #f6ffed 0%, #e6fffb 100%);
+  background: #fff;
+  border: 1px solid #e8e8e8;
 }
 
 .progress-content {
   text-align: center;
+  padding: 8px 0;
 }
 
 .progress-status {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
 }
 
 .progress-note {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-size: 14px;
   color: var(--color-text-secondary, #595959);
+  line-height: 1.5;
 }
 
 .progress-time {
@@ -754,6 +769,9 @@ onMounted(async () => {
   gap: 6px;
   font-size: 12px;
   color: var(--color-text-tertiary, #8c8c8c);
+  padding: 4px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
 }
 
 .score-display {
@@ -779,8 +797,9 @@ onMounted(async () => {
 
 .feedback-display {
   padding: 16px;
-  background: rgba(24, 144, 255, 0.06);
+  background: #f9f9f9;
   border-radius: 8px;
+  border-left: 3px solid #4f6ef7;
 }
 
 .feedback-label {
@@ -800,12 +819,23 @@ onMounted(async () => {
 /* 快速操作 */
 .action-section {
   padding: 20px 24px;
+  background: #fff;
 }
 
 .action-section .ant-btn {
-  height: 48px;
-  font-size: 16px;
-  border-radius: 10px;
+  height: 46px;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+.action-section .ant-btn-primary {
+  background: #4f6ef7;
+  border-color: #4f6ef7;
+}
+
+.action-section .ant-btn-primary:hover {
+  background: #3d5bd9;
+  border-color: #3d5bd9;
 }
 
 /* 响应式 */
