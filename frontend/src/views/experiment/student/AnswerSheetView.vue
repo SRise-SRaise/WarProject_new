@@ -129,6 +129,29 @@
               />
             </template>
           </ExperimentStepItem>
+
+          <!-- 实验总结（最后一步，固定追加） -->
+          <section class="summary-section">
+            <div class="summary-header">
+              <div class="summary-step-badge">{{ questions.length + 1 }}</div>
+              <div class="summary-header-info">
+                <h3 class="summary-title">实验总结</h3>
+                <p class="summary-desc">请根据本次实验的完成情况，总结实验收获、遇到的问题及解决思路</p>
+              </div>
+              <span v-if="summaryContent.trim()" class="summary-filled-badge">已填写</span>
+            </div>
+            <div class="summary-body">
+              <a-textarea
+                v-model:value="summaryContent"
+                placeholder="请填写实验总结，包括：&#10;1. 本次实验的主要收获&#10;2. 遇到的困难及解决方法&#10;3. 对实验内容的理解与思考"
+                :rows="8"
+                :maxlength="2000"
+                show-count
+                class="summary-textarea"
+                @change="scheduleAutoSave"
+              />
+            </div>
+          </section>
         </template>
       </div>
 
@@ -170,6 +193,15 @@
             >
               {{ index + 1 }}
             </button>
+            <!-- 总结导航按钮 -->
+            <button
+              class="nav-item nav-item--summary"
+              :class="{ 'nav-item--answered': summaryContent.trim().length > 0 }"
+              @click="scrollToSummary"
+              title="实验总结"
+            >
+              总
+            </button>
           </div>
         </div>
 
@@ -191,7 +223,7 @@
     <a-modal
       v-model:open="submitModalVisible"
       title="确认提交报告"
-      :width="460"
+      :width="480"
       @ok="confirmSubmit"
       @cancel="submitModalVisible = false"
     >
@@ -200,10 +232,17 @@
           <WarningOutlined />
           您还有 <strong>{{ unansweredCount }}</strong> 道题未作答
         </p>
+        <p v-if="!summaryContent.trim()" class="warning-text">
+          <WarningOutlined />
+          您尚未填写<strong>实验总结</strong>，建议填写后再提交
+        </p>
         <p>确认提交后将无法再次修改报告。</p>
         <div class="confirm-summary">
           <span>已答：{{ answeredCount }} 题</span>
           <span>未答：{{ unansweredCount }} 题</span>
+          <span :class="summaryContent.trim() ? 'summary-ok' : 'summary-empty'">
+            实验总结：{{ summaryContent.trim() ? '已填写' : '未填写' }}
+          </span>
         </div>
       </div>
     </a-modal>
@@ -250,6 +289,9 @@ const isAutoSaving = ref(false)
 const lastSaved = ref<string | null>(null)
 const submitModalVisible = ref(false)
 const currentQuestionIndex = ref(0)
+
+// 实验总结
+const summaryContent = ref('')
 
 // 实验数据
 const experimentId = computed(() => String(route.params.id))
@@ -376,6 +418,13 @@ function scrollToQuestion(index: number) {
   }
 }
 
+function scrollToSummary() {
+  const summaryEl = document.querySelector('.summary-section')
+  if (summaryEl) {
+    summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
 // 加载实验数据
 async function loadExperiment() {
   isLoading.value = true
@@ -397,8 +446,9 @@ async function loadExperiment() {
     console.log('[AnswerSheet] 获取到的题目:', fetchedQuestions)
     questions.value = fetchedQuestions
 
-    // 加载已保存的答题记录
+    // 加载已保存的答题记录和实验总结
     await loadSavedAnswers()
+    await loadSavedSummary()
 
   } catch (error) {
     message.error('加载实验失败')
@@ -441,6 +491,10 @@ async function loadSavedAnswers(): Promise<void> {
             }
           }
         })
+        // 恢复本地暂存的总结内容（若后端未返回则用本地的）
+        if (draft.summary && !summaryContent.value) {
+          summaryContent.value = draft.summary
+        }
         if (!lastSaved.value) {
           lastSaved.value = '本地草稿'
         }
@@ -453,12 +507,29 @@ async function loadSavedAnswers(): Promise<void> {
   }
 }
 
+// 加载已保存的实验总结
+async function loadSavedSummary(): Promise<void> {
+  try {
+    const saved = await experimentStore.getExperimentSummary(experimentId.value)
+    if (saved) {
+      summaryContent.value = saved
+    }
+  } catch (error) {
+    console.error('加载实验总结失败:', error)
+  }
+}
+
 // 保存草稿
 async function handleSaveDraft() {
   isSaving.value = true
   try {
     const request = buildSaveRequest()
-    const success = await experimentStore.saveAnswers(request)
+    await experimentStore.saveAnswers(request)
+
+    // 同步保存实验总结
+    if (summaryContent.value.trim()) {
+      await experimentStore.saveExperimentSummary(experimentId.value, summaryContent.value)
+    }
 
     lastSaved.value = new Date().toLocaleTimeString()
     message.success('保存成功')
@@ -467,6 +538,7 @@ async function handleSaveDraft() {
     localStorage.setItem(`experiment-draft-${experimentId.value}`, JSON.stringify({
       experimentId: experimentId.value,
       answers: Object.values(answersMap),
+      summary: summaryContent.value,
       savedAt: new Date().toISOString()
     }))
 
@@ -532,6 +604,11 @@ async function confirmSubmit() {
     const request = buildSaveRequest()
     request.isSubmit = true
     await experimentStore.submitAnswers(request)
+
+    // 同步提交实验总结
+    if (summaryContent.value.trim()) {
+      await experimentStore.saveExperimentSummary(experimentId.value, summaryContent.value)
+    }
 
     // 清除本地草稿
     localStorage.removeItem(`experiment-draft-${experimentId.value}`)
@@ -839,6 +916,102 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
   margin-top: 16px;
   font-size: 14px;
   color: #595959;
+}
+
+.summary-ok {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.summary-empty {
+  color: #fa8c16;
+  font-weight: 500;
+}
+
+/* 总结导航按钮 */
+.nav-item--summary {
+  background: #f9f0ff;
+  border-color: #d3adf7;
+  color: #722ed1;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.nav-item--summary.nav-item--answered {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+/* 实验总结区域 */
+.summary-section {
+  background: #fff;
+  border-radius: 12px;
+  border: 2px solid #d3adf7;
+  overflow: hidden;
+}
+
+.summary-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px;
+  background: #f9f0ff;
+  border-bottom: 1px solid #e8d5f5;
+}
+
+.summary-step-badge {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #722ed1;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summary-header-info {
+  flex: 1;
+}
+
+.summary-title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.summary-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #8c8c8c;
+  line-height: 1.5;
+}
+
+.summary-filled-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #52c41a;
+}
+
+.summary-body {
+  padding: 20px 24px;
+}
+
+.summary-textarea :deep(textarea) {
+  font-size: 14px;
+  line-height: 1.8;
+  resize: vertical;
+  border-radius: 8px;
 }
 
 /* 响应式 */
