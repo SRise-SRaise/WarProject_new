@@ -52,7 +52,7 @@ export const adminExperimentRoutes: RouteRecordRaw[] = [
     path: '/admin/experiments/reports',
     name: 'AdminReportList',
     component: () => import('@/views/experiment/admin/AdminReportListView.vue'),
-    meta: { title: '实验报告', icon: FileTextOutlined, group: experimentGroup, order: 46, requiresAuth: true, audience: 'admin', summary: '选择实验和班级，查看学生实验报告并批改。' }
+    meta: { title: '批改实验报告', icon: FileTextOutlined, group: experimentGroup, order: 46, requiresAuth: true, audience: 'admin', summary: '选择实验和班级，查看学生实验报告并批改。' }
   },
   {
     path: '/admin/experiments/analysis',
