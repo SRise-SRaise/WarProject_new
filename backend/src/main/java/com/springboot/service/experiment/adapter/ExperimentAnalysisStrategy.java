@@ -2,6 +2,7 @@ package com.springboot.service.experiment.adapter;
 
 import com.springboot.mapper.experiment.EduExperimentAnalysisMapper;
 import com.springboot.mapper.experiment.EduExperimentMapper;
+import com.springboot.model.dto.experiment.StepScoreAnalysisDTO;
 import com.springboot.model.entity.experiment.EduExperiment;
 import com.springboot.model.enums.experiment.ExperimentTypeEnum;
 import com.springboot.model.vo.experiment.EduExperimentAnalysisVO;
@@ -81,21 +82,27 @@ public class ExperimentAnalysisStrategy {
         List<ScoreDistributionItem> scoreDistribution =
                 buildScoreDistribution(scoreList, submittedStudents);
 
-        // 各步骤得分分析
-        List<StepScoreAnalysisItem> stepScoreAnalysis =
+        // 各步骤得分分析：Mapper 返回 DTO，计算得分率后转为 VO 内部类
+        List<StepScoreAnalysisDTO> stepDTOs =
                 eduExperimentAnalysisMapper.selectStepScoreAnalysis(experimentId, clazzNo);
-        // 计算得分率
-        if (stepScoreAnalysis != null) {
-            for (StepScoreAnalysisItem item : stepScoreAnalysis) {
-                if (item.getMaxScore() != null && item.getMaxScore() > 0 && item.getAvgScore() != null) {
-                    item.setScoreRate(round2(item.getAvgScore() / item.getMaxScore() * 100));
-                } else {
-                    item.setScoreRate(0.0);
-                }
-                // 四舍五入平均分到两位小数
-                if (item.getAvgScore() != null) {
-                    item.setAvgScore(round2(item.getAvgScore()));
-                }
+        List<StepScoreAnalysisItem> stepScoreAnalysis = new ArrayList<>();
+        if (stepDTOs != null) {
+            for (StepScoreAnalysisDTO dto : stepDTOs) {
+                double avg = dto.getAvgScore() != null ? round2(dto.getAvgScore()) : 0.0;
+                double rate = (dto.getMaxScore() != null && dto.getMaxScore() > 0)
+                        ? round2(avg / dto.getMaxScore() * 100)
+                        : 0.0;
+                stepScoreAnalysis.add(StepScoreAnalysisItem.builder()
+                        .sortOrder(dto.getSortOrder())
+                        .itemName(dto.getItemName())
+                        .questionType(dto.getQuestionType())
+                        .maxScore(dto.getMaxScore())
+                        .avgScore(avg)
+                        .highScore(dto.getHighScore())
+                        .lowScore(dto.getLowScore())
+                        .scoreRate(rate)
+                        .answeredCount(dto.getAnsweredCount())
+                        .build());
             }
         }
 

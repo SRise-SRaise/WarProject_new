@@ -2,9 +2,11 @@ package com.springboot.mapper.experiment;
 
 import com.springboot.model.dto.experiment.ExperimentScoreDistributionDTO;
 import com.springboot.model.dto.experiment.ExperimentTypeCountDTO;
-import com.springboot.model.vo.experiment.EduExperimentAnalysisVO.StepScoreAnalysisItem;
+import com.springboot.model.dto.experiment.StepScoreAnalysisDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -111,17 +113,29 @@ public interface EduExperimentAnalysisMapper {
     /**
      * 查询某个实验每个步骤（题目）的得分统计
      * 返回：步骤序号、题目名称、题型、满分、平均分、最高分、最低分、作答人数
+     *
+     * 注意：使用独立顶层 DTO 类 + @Results 显式映射，避免 MyBatis 对静态内部类映射失败的问题
      */
+    @Results(id = "stepScoreResultMap", value = {
+            @Result(property = "sortOrder",    column = "sort_order"),
+            @Result(property = "itemName",     column = "item_name"),
+            @Result(property = "questionType", column = "question_type"),
+            @Result(property = "maxScore",     column = "max_score"),
+            @Result(property = "avgScore",     column = "avg_score"),
+            @Result(property = "highScore",    column = "high_score"),
+            @Result(property = "lowScore",     column = "low_score"),
+            @Result(property = "answeredCount",column = "answered_count")
+    })
     @Select("<script>" +
             "SELECT " +
-            "  i.sort_order       AS sortOrder, " +
-            "  i.item_name        AS itemName, " +
-            "  i.question_type    AS questionType, " +
-            "  i.max_score        AS maxScore, " +
-            "  IFNULL(AVG(r.score), 0)  AS avgScore, " +
-            "  IFNULL(MAX(r.score), 0)  AS highScore, " +
-            "  IFNULL(MIN(r.score), 0)  AS lowScore, " +
-            "  COUNT(r.student_item_id) AS answeredCount " +
+            "  i.sort_order                    AS sort_order, " +
+            "  i.item_name                     AS item_name, " +
+            "  i.question_type                 AS question_type, " +
+            "  i.max_score                     AS max_score, " +
+            "  IFNULL(AVG(r.score), 0)         AS avg_score, " +
+            "  IFNULL(MAX(r.score), 0)         AS high_score, " +
+            "  IFNULL(MIN(r.score), 0)         AS low_score, " +
+            "  COUNT(r.student_item_id)        AS answered_count " +
             "FROM t_experiment_item i " +
             "LEFT JOIN t_student_item r " +
             "  ON r.item_id = i.experiment_item_id " +
@@ -135,7 +149,7 @@ public interface EduExperimentAnalysisMapper {
             "GROUP BY i.experiment_item_id, i.sort_order, i.item_name, i.question_type, i.max_score " +
             "ORDER BY i.sort_order ASC" +
             "</script>")
-    List<StepScoreAnalysisItem> selectStepScoreAnalysis(
+    List<StepScoreAnalysisDTO> selectStepScoreAnalysis(
             @Param("experimentId") Long experimentId,
             @Param("clazzNo") String clazzNo);
 
